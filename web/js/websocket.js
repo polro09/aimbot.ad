@@ -1,6 +1,6 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 개선된 웹소켓 통신 관리
+ * 웹소켓 통신 관리
  */
 
 const WebSocketManager = {
@@ -306,8 +306,11 @@ const WebSocketManager = {
         // 인증 설정 확인
         this.sendMessage({ command: 'getAuthConfig' });
         
-        // 서버 상태 요청 (getBotInfo 대체)
+        // 서버 상태 요청
         this.sendMessage({ command: 'start' });
+        
+        // 온라인 관리자 요청
+        this.sendMessage({ command: 'getOnlineAdmins' });
     },
     
     // 대시보드 데이터 요청
@@ -320,8 +323,11 @@ const WebSocketManager = {
         // 사용자 설정 요청
         this.sendMessage({ command: 'getUserSettings' });
         
-        // 서버 상태 요청 (getBotInfo 대체)
+        // 서버 상태 요청
         this.sendMessage({ command: 'start' });
+        
+        // 온라인 관리자 요청
+        this.sendMessage({ command: 'getOnlineAdmins' });
     },
     
     // 범용 상태 업데이트 처리
@@ -346,7 +352,6 @@ const WebSocketManager = {
 
 // 페이지 로드 시 웹소켓 관리자 초기화
 document.addEventListener('DOMContentLoaded', function() {
-    // 로딩 완료 후 초기화 (기존 코드 유지)
     setTimeout(() => {
         WebSocketManager.init();
     }, 6000); // 로딩 애니메이션이 끝난 후
