@@ -1,6 +1,6 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 웹소켓 통신 관리
+ * 웹소켓 통신 관리 (개선 버전)
  */
 
 const WebSocketManager = {
@@ -18,6 +18,9 @@ const WebSocketManager = {
         document.addEventListener('auth:login', () => {
             // 로그인 후 필요한 정보 요청
             this.requestDashboardData();
+            
+            // 온라인 관리자 목록 요청
+            this.sendMessage({ command: 'getOnlineAdmins' });
         });
         
         document.addEventListener('auth:logout', () => {
@@ -27,6 +30,10 @@ const WebSocketManager = {
         
         // 기본 메시지 핸들러 등록
         this.registerMessageHandlers();
+        
+        // WebSocketManager 준비 완료 이벤트 발행
+        const event = new CustomEvent('websocket_ready');
+        document.dispatchEvent(event);
     },
     
     connect: function() {
@@ -95,6 +102,12 @@ const WebSocketManager = {
                 this.messageHandlers[message.type](message);
             }
             
+            // 요청 ID가 있으면 콜백 실행
+            if (message.requestId && this.requestCallbacks[message.requestId]) {
+                this.requestCallbacks[message.requestId](message);
+                delete this.requestCallbacks[message.requestId]; // 콜백 제거
+            }
+            
             // 범용 상태 업데이트 처리
             this.updateDashboardIfNeeded(message);
         } catch (error) {
@@ -151,6 +164,14 @@ const WebSocketManager = {
             if (typeof updateDashboardStatus === 'function') {
                 updateDashboardStatus(message);
             }
+            
+            // 관리자 페이지에서도 봇 정보 업데이트를 위해 사용
+            if (typeof updateBotInfo === 'function') {
+                updateBotInfo(message);
+            }
+            
+            // 상태 정보를 로컬 스토리지에 저장 (다른 곳에서 사용할 수 있도록)
+            localStorage.setItem('botStatus', JSON.stringify(message));
         };
         
         // 에러 메시지
@@ -165,6 +186,13 @@ const WebSocketManager = {
             // 모듈 관리 페이지 업데이트
             if (typeof updateModulesList === 'function') {
                 updateModulesList(message.moduleStatus);
+            }
+        };
+        
+        // 온라인 관리자 목록
+        this.messageHandlers['onlineAdmins'] = (message) => {
+            if (message.admins && typeof updateOnlineAdmins === 'function') {
+                updateOnlineAdmins(message.admins);
             }
         };
         
@@ -187,12 +215,22 @@ const WebSocketManager = {
         this.messageHandlers['restart-failed'] = (message) => {
             Utilities.showNotification(message.message, 'error');
         };
+        
+        // 회원가입 결과
+        this.messageHandlers['registerResult'] = (message) => {
+            if (AuthManager.handleRegisterResponse) {
+                AuthManager.handleRegisterResponse(message);
+            }
+        };
     },
     
     // 초기 상태 요청
     requestInitialStatus: function() {
         // 인증 설정 확인
         this.sendMessage({ command: 'getAuthConfig' });
+        
+        // 서버 상태 요청 (getBotInfo 대체)
+        this.sendMessage({ command: 'start' });
     },
     
     // 대시보드 데이터 요청
@@ -204,6 +242,12 @@ const WebSocketManager = {
         
         // 사용자 설정 요청
         this.sendMessage({ command: 'getUserSettings' });
+        
+        // 서버 상태 요청 (getBotInfo 대체)
+        this.sendMessage({ command: 'start' });
+        
+        // 온라인 관리자 목록 요청
+        this.sendMessage({ command: 'getOnlineAdmins' });
     },
     
     // 범용 상태 업데이트 처리

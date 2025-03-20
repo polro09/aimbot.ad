@@ -21,8 +21,8 @@
     <div id="loading-container">
         <div class="loading-content">
             <div class="loading-logo">
-                <!-- GIF 로고로 변경 -->
-                <img src="https://imgur.com/Sd8qK9c.gif" alt="aimbot.ad">
+                <!-- 로컬 GIF 파일로 변경 -->
+                <img src="Animation1.gif" alt="aimbot.ad">
             </div>
             <div class="loading-text">
                 <span id="loading-message">안녕하세요</span>
@@ -35,6 +35,37 @@
 
     <!-- 메인 컨테이너 -->
     <div id="main-container" style="display: none;">
+        <!-- 상단 사용자 정보 바 -->
+        <div id="user-info-area" class="user-info-area" style="display: none;">
+            <div class="user-info-content">
+                <div class="user-info-details">
+                    <span class="user-info-label">사용자:</span>
+                    <span id="user-info-name" class="user-info-value"></span>
+                </div>
+                <div class="user-info-details">
+                    <span class="user-info-label">권한:</span>
+                    <span id="user-info-role" class="user-info-value"></span>
+                </div>
+                <div class="user-info-details">
+                    <span class="user-info-label">담당 서버:</span>
+                    <span id="user-info-server" class="user-info-value"></span>
+                </div>
+                <div class="user-info-actions">
+                    <button id="logout-btn" class="btn-logout">로그아웃</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 온라인 관리자 현황 -->
+        <div id="online-admins-area" class="online-admins-area">
+            <div class="online-admins-content">
+                <div class="online-admins-title">온라인 관리자</div>
+                <div id="online-admins-list" class="online-admins-list">
+                    <!-- 여기에 온라인 관리자 목록이 동적으로 표시됨 -->
+                </div>
+            </div>
+        </div>
+
         <!-- 사이드바 메뉴 -->
         <div class="side-bar">
             <div class="side-bar__icon-box">
@@ -60,6 +91,9 @@
                 <li>
                     <a href="#admin"><i class="fas fa-lock"></i> 관리자</a>
                 </li>
+                <li class="login-menu-item">
+                    <a href="#" id="login-btn"><i class="fas fa-sign-in-alt"></i> 로그인</a>
+                </li>
             </ul>
         </div>
 
@@ -68,8 +102,8 @@
             <!-- 메인 페이지 (처음 표시) -->
             <div id="main-page" class="content-page active-page">
                 <div class="main-header animate-item">
-                    <!-- GIF 로고로 변경 -->
-                    <img src="https://imgur.com/Sd8qK9c.gif" alt="aimbot.ad" class="main-logo">
+                    <!-- 로컬 GIF 파일로 변경 -->
+                    <img src="Animation1.gif" alt="aimbot.ad" class="main-logo">
                 </div>
                 <div class="main-body animate-item">
                     <h1>Aimbot 대시보드</h1>
@@ -111,8 +145,39 @@
                     <input type="password" id="password" name="password" required>
                 </div>
                 <button type="submit" class="btn-primary">로그인</button>
+                <p class="register-link">
+                    <a href="#" id="register-btn">회원가입</a>
+                </p>
             </form>
             <p class="login-message"></p>
+        </div>
+    </div>
+    
+    <!-- 회원가입 모달 -->
+    <div id="register-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>회원가입</h2>
+            <form id="register-form">
+                <div class="form-group">
+                    <label for="register-username">아이디</label>
+                    <input type="text" id="register-username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">비밀번호</label>
+                    <input type="password" id="register-password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password-confirm">비밀번호 확인</label>
+                    <input type="password" id="register-password-confirm" name="password-confirm" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-invite-code">초대 코드</label>
+                    <input type="text" id="register-invite-code" name="invite-code" required>
+                </div>
+                <button type="submit" class="btn-primary">회원가입</button>
+            </form>
+            <p class="register-message"></p>
         </div>
     </div>
 
@@ -124,5 +189,52 @@
     
     <!-- 수정 사항용 스크립트: 문제 해결을 위한 JS 추가 -->
     <script src="js/fixes.js"></script>
+    
+    <!-- 온라인 관리자 관리 스크립트 -->
+    <script>
+        // 온라인 관리자 목록 업데이트 함수
+        function updateOnlineAdmins(admins) {
+            const onlineAdminsList = document.getElementById('online-admins-list');
+            if (!onlineAdminsList) return;
+            
+            // 목록 초기화
+            onlineAdminsList.innerHTML = '';
+            
+            if (!admins || admins.length === 0) {
+                onlineAdminsList.innerHTML = '<div class="no-admins">온라인 관리자가 없습니다.</div>';
+                return;
+            }
+            
+            // 관리자 목록 생성
+            admins.forEach(admin => {
+                const adminItem = document.createElement('div');
+                adminItem.className = 'admin-item';
+                
+                let roleIcon = 'fa-user';
+                let roleClass = 'role-user';
+                
+                if (admin.role === 'admin' || admin.role === 'level1') {
+                    roleIcon = 'fa-crown';
+                    roleClass = 'role-admin';
+                } else if (admin.role === 'level2') {
+                    roleIcon = 'fa-shield-alt';
+                    roleClass = 'role-mod';
+                } else if (admin.role === 'level3') {
+                    roleIcon = 'fa-user-shield';
+                    roleClass = 'role-helper';
+                }
+                
+                adminItem.innerHTML = `
+                    <div class="admin-name">
+                        <i class="fas ${roleIcon} ${roleClass}"></i>
+                        ${admin.username}
+                    </div>
+                    <div class="admin-status">온라인</div>
+                `;
+                
+                onlineAdminsList.appendChild(adminItem);
+            });
+        }
+    </script>
 </body>
 </html>

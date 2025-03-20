@@ -1,160 +1,494 @@
-<div class="admin-container">
-    <div class="admin-header">
-        <h1>관리자 대시보드</h1>
-        <p class="admin-description">봇 관리자 기능 및 사용자 관리</p>
+<!-- 사용자 권한 관리 및 채널 할당 패널 -->
+<div class="dashboard-card">
+    <div class="card-header">
+        <h2><i class="fas fa-user-shield"></i> 사용자 권한 및 채널 관리</h2>
     </div>
-    
-    <div class="admin-content">
-        <!-- 사용자 관리 섹션 -->
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h2><i class="fas fa-users"></i> 사용자 관리</h2>
-                <div class="card-actions">
-                    <button id="add-user-btn" class="btn-icon" title="사용자 추가">
-                        <i class="fas fa-user-plus"></i>
-                    </button>
-                    <button id="refresh-users-btn" class="btn-icon" title="사용자 목록 새로고침">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="card-content">
-                <div id="users-container">
-                    <div class="empty-state">
-                        <i class="fas fa-users"></i>
-                        <p>사용자 정보를 불러오는 중입니다...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 초대 코드 관리 섹션 -->
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h2><i class="fas fa-ticket-alt"></i> 초대 코드 관리</h2>
-                <div class="card-actions">
-                    <button id="add-invite-btn" class="btn-icon" title="초대 코드 생성">
-                        <i class="fas fa-plus"></i>
-                    </button>
-                    <button id="refresh-invites-btn" class="btn-icon" title="초대 코드 목록 새로고침">
-                        <i class="fas fa-sync-alt"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="card-content">
-                <div class="invite-code-generator">
-                    <div class="form-group">
-                        <input type="text" id="new-invite-code" placeholder="초대 코드 (비워두면 자동 생성)">
-                        <button id="generate-invite-btn" class="btn-primary">
-                            <i class="fas fa-plus"></i> 코드 생성하기
-                        </button>
-                    </div>
-                </div>
-                <div id="invite-codes-container">
-                    <div class="empty-state">
-                        <i class="fas fa-ticket-alt"></i>
-                        <p>초대 코드를 불러오는 중입니다...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 시스템 정보 섹션 -->
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h2><i class="fas fa-info-circle"></i> 시스템 정보</h2>
-            </div>
-            <div class="card-content">
+    <div class="card-content">
+        <div id="user-management-container">
+            <!-- 사용자 정보 표시 -->
+            <div id="selected-user-info" class="selected-user-info" style="display: none;">
+                <h3>선택된 사용자 정보</h3>
                 <div class="info-section">
                     <div class="info-item">
-                        <span class="info-label">노드 버전:</span>
-                        <span id="node-version" class="info-value">-</span>
+                        <span class="info-label">사용자:</span>
+                        <span id="selected-username" class="info-value">-</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">Discord.js 버전:</span>
-                        <span id="discord-version" class="info-value">-</span>
+                        <span class="info-label">가입일:</span>
+                        <span id="selected-created" class="info-value">-</span>
                     </div>
                     <div class="info-item">
-                        <span class="info-label">웹서버 가동시간:</span>
-                        <span id="web-uptime" class="info-value">-</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">봇 가동시간:</span>
-                        <span id="bot-uptime" class="info-value">-</span>
+                        <span class="info-label">최근 로그인:</span>
+                        <span id="selected-last-login" class="info-value">-</span>
                     </div>
                 </div>
                 
-                <div class="admin-actions">
-                    <button id="restart-web-btn" class="btn-action restart">
-                        <i class="fas fa-sync-alt"></i> 웹서버 재시작
+                <!-- 권한 설정 -->
+                <div class="form-section">
+                    <h4>권한 설정</h4>
+                    <div class="form-group">
+                        <label for="user-role">권한 레벨</label>
+                        <select id="user-role" class="styled-select">
+                            <option value="level1">1등급 관리자 (전체 기능)</option>
+                            <option value="level2">2등급 관리자 (대시보드, 임베드, 모듈)</option>
+                            <option value="level3">3등급 관리자 (대시보드, 임베드)</option>
+                            <option value="user">일반 사용자</option>
+                        </select>
+                    </div>
+                    <button id="update-role-btn" class="btn-primary">
+                        <i class="fas fa-save"></i> 권한 저장
                     </button>
-                    <button id="restart-both-btn" class="btn-action restart">
-                        <i class="fas fa-power-off"></i> 전체 시스템 재시작
+                </div>
+                
+                <!-- 채널 할당 -->
+                <div class="form-section">
+                    <h4>채널 할당</h4>
+                    <div class="form-group">
+                        <label for="server-select-assign">서버 선택</label>
+                        <select id="server-select-assign" class="styled-select">
+                            <option value="">-- 서버 선택 --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="channel-select-assign">채널 선택</label>
+                        <select id="channel-select-assign" class="styled-select">
+                            <option value="">-- 채널 선택 --</option>
+                        </select>
+                    </div>
+                    <button id="assign-channel-btn" class="btn-primary">
+                        <i class="fas fa-plus"></i> 채널 할당
                     </button>
+                </div>
+                
+                <!-- 할당된 채널 목록 -->
+                <div class="assigned-channels-section">
+                    <h4>할당된 채널</h4>
+                    <div id="assigned-channels-list" class="assigned-channels-list">
+                        <!-- 여기에 할당된 채널 목록이 동적으로 표시됨 -->
+                        <div class="empty-state">
+                            <p>할당된 채널이 없습니다.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <!-- 사용자 추가 모달 -->
-    <div id="add-user-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2><i class="fas fa-user-plus"></i> 사용자 추가</h2>
             
-            <form id="add-user-form">
-                <div class="form-group">
-                    <label for="new-username">아이디</label>
-                    <input type="text" id="new-username" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="new-password">비밀번호</label>
-                    <input type="password" id="new-password" required>
-                </div>
-                
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="new-user-admin">
-                    <label for="new-user-admin">관리자 권한 부여</label>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-save"></i> 사용자 추가
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-    
-    <!-- 사용자 수정 모달 -->
-    <div id="edit-user-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2><i class="fas fa-user-edit"></i> <span id="edit-username-title">사용자 수정</span></h2>
-            
-            <form id="edit-user-form">
-                <input type="hidden" id="edit-username-hidden">
-                
-                <div class="form-group">
-                    <label for="reset-password">새 비밀번호 (비워두면 변경 안함)</label>
-                    <input type="password" id="reset-password">
-                </div>
-                
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="edit-user-admin">
-                    <label for="edit-user-admin">관리자 권한</label>
-                </div>
-                
-                <div class="form-actions">
-                    <button type="button" id="delete-user-btn" class="btn-danger">
-                        <i class="fas fa-trash"></i> 사용자 삭제
-                    </button>
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-save"></i> 변경사항 저장
-                    </button>
-                </div>
-            </form>
+            <!-- 사용자 선택 안내 메시지 -->
+            <div id="no-user-selected" class="empty-state">
+                <i class="fas fa-user"></i>
+                <p>사용자 목록에서 사용자를 선택해주세요.</p>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- 관리자 페이지 스크립트 확장 -->
+<script>
+// 사용자 목록 클릭 이벤트 처리
+function handleUserItemClick(user) {
+    // 선택된 사용자 정보 표시
+    showSelectedUserInfo(user);
+    
+    // 선택된 사용자의 권한 설정
+    const userRoleSelect = document.getElementById('user-role');
+    if (userRoleSelect) {
+        userRoleSelect.value = user.role || 'user';
+    }
+    
+    // 선택된 사용자의 할당된 채널 목록 로드
+    loadAssignedChannels(user.username);
+    
+    // 서버 목록 로드
+    loadServersList();
+}
+
+// 선택된 사용자 정보 표시
+function showSelectedUserInfo(user) {
+    const selectedUserInfo = document.getElementById('selected-user-info');
+    const noUserSelected = document.getElementById('no-user-selected');
+    
+    if (selectedUserInfo && noUserSelected) {
+        // 선택된 사용자 정보 표시
+        selectedUserInfo.style.display = 'block';
+        noUserSelected.style.display = 'none';
+        
+        // 사용자 정보 업데이트
+        document.getElementById('selected-username').textContent = user.username || '-';
+        document.getElementById('selected-created').textContent = user.created ? new Date(user.created).toLocaleString() : '-';
+        document.getElementById('selected-last-login').textContent = user.lastLogin ? new Date(user.lastLogin).toLocaleString() : '로그인 기록 없음';
+    }
+}
+
+// 할당된 채널 목록 로드
+function loadAssignedChannels(username) {
+    const assignedChannelsList = document.getElementById('assigned-channels-list');
+    if (!assignedChannelsList) return;
+    
+    // 로딩 상태 표시
+    assignedChannelsList.innerHTML = `
+        <div class="empty-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>채널 정보를 불러오는 중입니다...</p>
+        </div>
+    `;
+    
+    // 할당된 채널 요청
+    WebSocketManager.sendMessage({
+        command: 'getUserChannels',
+        username: username
+    }, (response) => {
+        const channels = response.channels || [];
+        
+        if (channels.length === 0) {
+            assignedChannelsList.innerHTML = `
+                <div class="empty-state">
+                    <p>할당된 채널이 없습니다.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // 채널 목록 생성
+        assignedChannelsList.innerHTML = '';
+        channels.forEach(channel => {
+            const channelItem = document.createElement('div');
+            channelItem.className = 'channel-item';
+            
+            channelItem.innerHTML = `
+                <div class="channel-info">
+                    <span class="channel-name">
+                        <i class="fas fa-hashtag"></i> ${channel.name}
+                    </span>
+                    <span class="channel-id">${channel.id}</span>
+                </div>
+                <div class="channel-actions">
+                    <button class="btn-remove" onclick="unassignChannel('${username}', '${channel.id}')">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            assignedChannelsList.appendChild(channelItem);
+        });
+    });
+}
+
+// 서버 목록 로드
+function loadServersList() {
+    const serverSelect = document.getElementById('server-select-assign');
+    if (!serverSelect) return;
+    
+    // 기존 옵션 초기화 (첫 번째 옵션 제외)
+    while (serverSelect.options.length > 1) {
+        serverSelect.remove(1);
+    }
+    
+    // 서버 목록 가져오기
+    const botStatus = localStorage.getItem('botStatus');
+    if (botStatus) {
+        try {
+            const status = JSON.parse(botStatus);
+            if (status.servers && status.servers.length > 0) {
+                // 서버 목록 옵션 추가
+                status.servers.forEach(server => {
+                    const option = document.createElement('option');
+                    option.value = server.id;
+                    option.textContent = server.name;
+                    serverSelect.appendChild(option);
+                });
+                
+                // 서버 선택 이벤트 리스너
+                serverSelect.onchange = function() {
+                    if (this.value) {
+                        loadChannelsList(this.value);
+                    }
+                };
+            } else {
+                // 서버가 없을 경우
+                const option = document.createElement('option');
+                option.disabled = true;
+                option.textContent = '등록된 서버가 없습니다';
+                serverSelect.appendChild(option);
+            }
+        } catch (e) {
+            console.error('서버 목록 파싱 오류:', e);
+        }
+    }
+}
+
+// 채널 목록 로드
+function loadChannelsList(serverId) {
+    const channelSelect = document.getElementById('channel-select-assign');
+    if (!channelSelect) return;
+    
+    // 기존 옵션 초기화
+    while (channelSelect.options.length > 1) {
+        channelSelect.remove(1);
+    }
+    
+    // 로딩 옵션 추가
+    const loadingOption = document.createElement('option');
+    loadingOption.disabled = true;
+    loadingOption.textContent = '채널 목록 로딩 중...';
+    channelSelect.appendChild(loadingOption);
+    
+    // 채널 목록 요청
+    WebSocketManager.sendMessage({
+        command: 'getChannels',
+        serverId: serverId
+    }, (response) => {
+        // 기존 옵션 초기화 (첫 번째 옵션 제외)
+        while (channelSelect.options.length > 1) {
+            channelSelect.remove(1);
+        }
+        
+        const channels = response.channels || [];
+        
+        if (channels.length === 0) {
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.textContent = '등록된 채널이 없습니다';
+            channelSelect.appendChild(option);
+            return;
+        }
+        
+        // 텍스트 채널만 필터링
+        const textChannels = channels.filter(channel => channel.type === 0);
+        
+        if (textChannels.length === 0) {
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.textContent = '텍스트 채널이 없습니다';
+            channelSelect.appendChild(option);
+            return;
+        }
+        
+        // 채널 목록 옵션 추가
+        textChannels.forEach(channel => {
+            const option = document.createElement('option');
+            option.value = channel.id;
+            option.textContent = '#' + channel.name;
+            channelSelect.appendChild(option);
+        });
+    });
+}
+
+// 채널 할당
+function assignChannel() {
+    const username = document.getElementById('selected-username').textContent;
+    const serverId = document.getElementById('server-select-assign').value;
+    const channelId = document.getElementById('channel-select-assign').value;
+    const serverName = document.getElementById('server-select-assign').options[document.getElementById('server-select-assign').selectedIndex].text;
+    
+    if (!username || username === '-') {
+        Utilities.showNotification('사용자를 선택해주세요.', 'error');
+        return;
+    }
+    
+    if (!serverId || !channelId) {
+        Utilities.showNotification('서버와 채널을 선택해주세요.', 'error');
+        return;
+    }
+    
+    // 채널 할당 요청
+    WebSocketManager.sendMessage({
+        command: 'assignChannel',
+        username: username,
+        serverId: serverId,
+        channelId: channelId,
+        serverName: serverName
+    }, (response) => {
+        if (response.success) {
+            Utilities.showNotification('채널이 할당되었습니다.', 'success');
+            loadAssignedChannels(username);
+        } else {
+            Utilities.showNotification(response.message || '채널 할당에 실패했습니다.', 'error');
+        }
+    });
+}
+
+// 채널 할당 해제
+function unassignChannel(username, channelId) {
+    if (!confirm('이 채널 할당을 해제하시겠습니까?')) return;
+    
+    // 채널 할당 해제 요청
+    WebSocketManager.sendMessage({
+        command: 'unassignChannel',
+        username: username,
+        channelId: channelId
+    }, (response) => {
+        if (response.success) {
+            Utilities.showNotification('채널 할당이 해제되었습니다.', 'success');
+            loadAssignedChannels(username);
+        } else {
+            Utilities.showNotification(response.message || '채널 할당 해제에 실패했습니다.', 'error');
+        }
+    });
+}
+
+// 사용자 권한 업데이트
+function updateUserRole() {
+    const username = document.getElementById('selected-username').textContent;
+    const role = document.getElementById('user-role').value;
+    
+    if (!username || username === '-') {
+        Utilities.showNotification('사용자를 선택해주세요.', 'error');
+        return;
+    }
+    
+    // 사용자 권한 업데이트 요청
+    WebSocketManager.sendMessage({
+        command: 'updateUserRole',
+        username: username,
+        role: role
+    }, (response) => {
+        if (response.success) {
+            Utilities.showNotification('사용자 권한이 업데이트되었습니다.', 'success');
+            loadUsersList(); // 사용자 목록 새로고침
+        } else {
+            Utilities.showNotification(response.message || '권한 업데이트에 실패했습니다.', 'error');
+        }
+    });
+}
+
+// 이벤트 리스너 등록 (페이지 로드 후)
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        // 사용자 권한 업데이트 버튼
+        const updateRoleBtn = document.getElementById('update-role-btn');
+        if (updateRoleBtn) {
+            updateRoleBtn.addEventListener('click', updateUserRole);
+        }
+        
+        // 채널 할당 버튼
+        const assignChannelBtn = document.getElementById('assign-channel-btn');
+        if (assignChannelBtn) {
+            assignChannelBtn.addEventListener('click', assignChannel);
+        }
+        
+        // 사용자 목록의 사용자 항목 클릭 이벤트
+        const userItemsObserver = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.addedNodes.length) {
+                    const userItems = document.querySelectorAll('.user-item');
+                    userItems.forEach(item => {
+                        item.addEventListener('click', function() {
+                            const username = this.querySelector('.user-name').textContent.trim();
+                            
+                            // 사용자 정보 요청
+                            WebSocketManager.sendMessage({
+                                command: 'getUserInfo',
+                                username: username
+                            }, (response) => {
+                                if (response.user) {
+                                    handleUserItemClick(response.user);
+                                }
+                            });
+                        });
+                    });
+                }
+            });
+        });
+        
+        const usersContainer = document.getElementById('users-container');
+        if (usersContainer) {
+            userItemsObserver.observe(usersContainer, { childList: true });
+        }
+    }, 6500); // 로딩 애니메이션 완료 시간 기준
+});
+</script>
+
+<!-- 사용자 권한 및 채널 관리 스타일 -->
+<style>
+.selected-user-info {
+    padding: 15px;
+    background-color: #1a1a1a;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.selected-user-info h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #f5f5f5;
+    font-size: 1.2rem;
+}
+
+.selected-user-info h4 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    color: #bbb;
+    font-size: 1.1rem;
+}
+
+.info-section {
+    margin-bottom: 20px;
+}
+
+.form-section {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #333;
+}
+
+.styled-select {
+    width: 100%;
+    padding: 10px;
+    background-color: #2a2a2a;
+    color: #f5f5f5;
+    border: 1px solid #444;
+    border-radius: 4px;
+}
+
+.assigned-channels-section {
+    margin-top: 20px;
+}
+
+.assigned-channels-list {
+    margin-top: 10px;
+}
+
+.channel-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #2a2a2a;
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.channel-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.channel-name {
+    font-weight: 500;
+    color: #f5f5f5;
+}
+
+.channel-id {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.channel-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.btn-remove {
+    background-color: transparent;
+    border: none;
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 5px;
+    opacity: 0.7;
+    transition: opacity 0.3s;
+}
+
+.btn-remove:hover {
+    opacity: 1;
+}
+</style>
