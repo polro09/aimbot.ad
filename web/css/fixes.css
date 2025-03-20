@@ -1,0 +1,110 @@
+/* Fix for the module info visibility issue */
+.module-info-details .info-item {
+    color: #333; /* Darker color for text */
+    background-color: #f9f9f9; /* Lighter background */
+}
+
+.module-info-details .info-label {
+    color: #444;
+    font-weight: 600;
+}
+
+.module-info-details .info-value {
+    color: #333;
+    background-color: #f0f0f0;
+    padding: 5px 8px;
+    border-radius: 4px;
+}
+
+.command-tag {
+    color: #333 !important;
+    background-color: #e0e0e0 !important;
+    padding: 3px 8px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+/* Fix for inconsistent text box styling */
+input[type="text"],
+input[type="password"],
+input[type="url"],
+textarea,
+select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #444;
+    background-color: #333 !important;
+    color: #f5f5f5 !important;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+/* Additional fix for module modal specific styling */
+#module-info-modal .modal-content {
+    background-color: #222;
+    color: #f5f5f5;
+}
+
+#module-info-modal h2 {
+    color: #f5f5f5;
+}
+
+/* Fix for embed form elements */
+.embed-editor .form-group input,
+.embed-editor .form-group textarea,
+.embed-editor .form-group select {
+    background-color: #333 !important;
+    color: #f5f5f5 !important;
+}
+
+/* Fix for admin panel form elements */
+.admin-container .form-group input,
+.admin-container .form-group textarea,
+.admin-container .form-group select {
+    background-color: #333 !important;
+    color: #f5f5f5 !important;
+}
+
+/* Fix for dashboard form elements */
+.dashboard-container .form-group input,
+.dashboard-container .form-group textarea,
+.dashboard-container .form-group select {
+    background-color: #333 !important;
+    color: #f5f5f5 !important;
+}
+
+/* Fix for module management form elements */
+.module-mgmt-container .form-group input,
+.module-mgmt-container .form-group textarea,
+.module-mgmt-container .form-group select {
+    background-color: #333 !important;
+    color: #f5f5f5 !important;
+}
+
+/* Fix for checkbox styling consistency */
+input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+}
+
+/* Ensure GIF animation works */
+.main-logo, 
+.loading-logo img {
+    pointer-events: none; /* Prevents interaction that might pause GIF */
+}
