@@ -3,10 +3,10 @@
     --primary-color: #3498db;
     --secondary-color: #2c3e50;
     --accent-color: #e74c3c;
-    --text-color: #333;
+    --text-color: #f5f5f5; /* 텍스트 색상을 밝게 변경 */
     --light-text: #ecf0f1;
     --dark-bg: #34495e;
-    --light-bg: #f5f5f5;
+    --light-bg: #151515; /* 기본 배경색상을 #151515로 변경 */
     --sidebar-width: 270px;
     --sidebar-collapsed-width: 70px;
     --transition-speed: 0.5s;
@@ -97,7 +97,7 @@ a:hover {
 
 .main-body h1 {
     font-size: 2.5rem;
-    color: var(--secondary-color);
+    color: var(--light-text);
     margin-bottom: 20px;
 }
 
@@ -127,6 +127,13 @@ a:hover {
     padding: 5px 10px;
     border-radius: 20px;
     font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.tag i {
+    font-size: 0.9rem;
 }
 
 /* 모달 스타일 */
@@ -142,7 +149,7 @@ a:hover {
 }
 
 .modal-content {
-    background-color: white;
+    background-color: #222;
     margin: 10% auto;
     padding: 30px;
     width: 400px;
@@ -150,6 +157,7 @@ a:hover {
     border-radius: 8px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     position: relative;
+    color: var(--light-text);
 }
 
 .close {
@@ -162,7 +170,7 @@ a:hover {
 }
 
 .close:hover {
-    color: #333;
+    color: #eee;
 }
 
 /* 폼 스타일 */
@@ -179,7 +187,9 @@ a:hover {
 .form-group input {
     width: 100%;
     padding: 10px;
-    border: 1px solid #ddd;
+    border: 1px solid #444;
+    background-color: #333;
+    color: var(--light-text);
     border-radius: 4px;
     font-family: inherit;
     font-size: 1rem;
