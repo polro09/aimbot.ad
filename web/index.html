@@ -11,6 +11,8 @@
     <!-- 모듈별 스타일시트는 동적으로 로드됨 -->
     <!-- 수정 사항용 스타일시트: 문제 해결을 위한 CSS 추가 -->
     <link rel="stylesheet" href="css/fixes.css">
+    <!-- 개선된 UI 스타일시트 추가 -->
+    <link rel="stylesheet" href="css/improved.css">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- 구글 폰트 -->
@@ -35,38 +37,7 @@
 
     <!-- 메인 컨테이너 -->
     <div id="main-container" style="display: none;">
-        <!-- 상단 사용자 정보 바 -->
-        <div id="user-info-area" class="user-info-area" style="display: none;">
-            <div class="user-info-content">
-                <div class="user-info-details">
-                    <span class="user-info-label">사용자:</span>
-                    <span id="user-info-name" class="user-info-value"></span>
-                </div>
-                <div class="user-info-details">
-                    <span class="user-info-label">권한:</span>
-                    <span id="user-info-role" class="user-info-value"></span>
-                </div>
-                <div class="user-info-details">
-                    <span class="user-info-label">담당 서버:</span>
-                    <span id="user-info-server" class="user-info-value"></span>
-                </div>
-                <div class="user-info-actions">
-                    <button id="logout-btn" class="btn-logout">로그아웃</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 온라인 관리자 현황 -->
-        <div id="online-admins-area" class="online-admins-area">
-            <div class="online-admins-content">
-                <div class="online-admins-title">온라인 관리자</div>
-                <div id="online-admins-list" class="online-admins-list">
-                    <!-- 여기에 온라인 관리자 목록이 동적으로 표시됨 -->
-                </div>
-            </div>
-        </div>
-
-        <!-- 사이드바 메뉴 -->
+        <!-- 사이드바 메뉴 (개선된 구조) -->
         <div class="side-bar">
             <div class="side-bar__icon-box">
                 <div class="side-bar__icon-1">
@@ -75,6 +46,38 @@
                     <div></div>
                 </div>
             </div>
+            
+            <!-- 사용자 정보 섹션 추가 -->
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-header">
+                    <div class="sidebar-user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="sidebar-user-name" id="sidebar-username">사용자</div>
+                </div>
+                <div class="sidebar-user-details">
+                    <div class="sidebar-user-detail-item">
+                        <span class="sidebar-user-detail-label">권한:</span>
+                        <span class="sidebar-user-detail-value" id="sidebar-role">-</span>
+                    </div>
+                    <div class="sidebar-user-detail-item">
+                        <span class="sidebar-user-detail-label">담당:</span>
+                        <span class="sidebar-user-detail-value" id="sidebar-server">-</span>
+                    </div>
+                </div>
+                <div class="sidebar-user-actions">
+                    <button id="sidebar-logout-btn" class="btn-logout">로그아웃</button>
+                </div>
+            </div>
+            
+            <!-- 온라인 관리자 섹션 추가 -->
+            <div class="sidebar-online-admins">
+                <h3>온라인 관리자</h3>
+                <div id="sidebar-admins-list">
+                    <!-- 여기에 온라인 관리자 목록이 동적으로 표시됨 -->
+                </div>
+            </div>
+            
             <ul>
                 <li>
                     <a href="#main"><i class="fas fa-home"></i> 메인</a>
@@ -183,58 +186,79 @@
 
     <!-- 기본 스크립트 -->
     <script src="js/main.js"></script>
+    <!-- 개선된 웹소켓 & 인증 스크립트 -->
     <script src="js/websocket.js"></script>
     <script src="js/auth.js"></script>
+    <!-- 대시보드 개선 스크립트 -->
+    <script src="js/dashboard.js"></script>
     <!-- 모듈별 스크립트는 동적으로 로드됨 -->
     
-    <!-- 수정 사항용 스크립트: 문제 해결을 위한 JS 추가 -->
-    <script src="js/fixes.js"></script>
-    
-    <!-- 온라인 관리자 관리 스크립트 -->
+    <!-- 사이드바 온라인 관리자 관리 스크립트 -->
     <script>
-        // 온라인 관리자 목록 업데이트 함수
-        function updateOnlineAdmins(admins) {
-            const onlineAdminsList = document.getElementById('online-admins-list');
-            if (!onlineAdminsList) return;
+        // 사이드바 온라인 관리자 목록 업데이트 함수
+        function updateSidebarOnlineAdmins(admins) {
+            const adminsContainer = document.getElementById('sidebar-admins-list');
+            if (!adminsContainer) return;
             
-            // 목록 초기화
-            onlineAdminsList.innerHTML = '';
+            // 컨테이너 비우기
+            adminsContainer.innerHTML = '';
             
+            // 관리자가 없을 경우
             if (!admins || admins.length === 0) {
-                onlineAdminsList.innerHTML = '<div class="no-admins">온라인 관리자가 없습니다.</div>';
+                adminsContainer.innerHTML = '<div class="no-admins">온라인 관리자가 없습니다.</div>';
                 return;
             }
             
             // 관리자 목록 생성
             admins.forEach(admin => {
                 const adminItem = document.createElement('div');
-                adminItem.className = 'admin-item';
+                adminItem.className = 'sidebar-admin-item';
                 
-                let roleIcon = 'fa-user';
-                let roleClass = 'role-user';
-                
+                let roleClass = 'user';
                 if (admin.role === 'admin' || admin.role === 'level1') {
-                    roleIcon = 'fa-crown';
-                    roleClass = 'role-admin';
+                    roleClass = 'admin';
                 } else if (admin.role === 'level2') {
-                    roleIcon = 'fa-shield-alt';
-                    roleClass = 'role-mod';
+                    roleClass = 'mod';
                 } else if (admin.role === 'level3') {
-                    roleIcon = 'fa-user-shield';
-                    roleClass = 'role-helper';
+                    roleClass = 'helper';
                 }
                 
                 adminItem.innerHTML = `
-                    <div class="admin-name">
-                        <i class="fas ${roleIcon} ${roleClass}"></i>
-                        ${admin.username}
-                    </div>
-                    <div class="admin-status">온라인</div>
+                    <div class="sidebar-admin-role ${roleClass}"></div>
+                    <div class="sidebar-admin-name">${admin.username}</div>
                 `;
                 
-                onlineAdminsList.appendChild(adminItem);
+                adminsContainer.appendChild(adminItem);
             });
         }
+        
+        // 웹소켓 메시지 핸들러 추가
+        document.addEventListener('websocket_ready', function() {
+            // 온라인 관리자 목록
+            WebSocketManager.messageHandlers['onlineAdmins'] = (message) => {
+                if (message.admins) {
+                    updateSidebarOnlineAdmins(message.admins);
+                    // 기존 함수도 호출
+                    if (typeof updateOnlineAdmins === 'function') {
+                        updateOnlineAdmins(message.admins);
+                    }
+                }
+            };
+        });
+        
+        // 사이드바 로그아웃 버튼 리스너
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
+                if (sidebarLogoutBtn) {
+                    sidebarLogoutBtn.addEventListener('click', function() {
+                        if (typeof AuthManager !== 'undefined' && AuthManager.logout) {
+                            AuthManager.logout();
+                        }
+                    });
+                }
+            }, 6500);
+        });
     </script>
 </body>
 </html>

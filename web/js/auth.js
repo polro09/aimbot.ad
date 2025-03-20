@@ -1,6 +1,6 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 향상된 인증 관리 시스템
+ * 개선된 인증 관리 시스템
  */
 
 const AuthManager = {
@@ -162,8 +162,6 @@ const AuthManager = {
             username: username,
             password: password
         });
-        
-        // 로그인 응답 처리는 websocket.js에서 구현
     },
     
     // 회원가입 처리
@@ -197,13 +195,12 @@ const AuthManager = {
             password: password,
             inviteCode: inviteCode
         });
-        
-        // 회원가입 응답 처리는 websocket.js에서 구현
     },
     
     // 로그인 응답 처리
     handleLoginResponse: function(response) {
         const messageElement = document.querySelector('.login-message');
+        if (!messageElement) return;
         
         if (response.success) {
             // 로그인 성공
@@ -218,7 +215,7 @@ const AuthManager = {
             this.hideLoginModal();
             
             // 알림 표시
-            Utilities.showNotification(`${response.message}`, 'success');
+            Utilities.showNotification(`${response.message || '로그인 성공'}`, 'success');
             
             // 콜백 실행
             if (typeof this.loginCallback === 'function') {
@@ -234,6 +231,7 @@ const AuthManager = {
     // 회원가입 응답 처리
     handleRegisterResponse: function(response) {
         const messageElement = document.querySelector('.register-message');
+        if (!messageElement) return;
         
         if (response.success) {
             // 회원가입 성공
@@ -262,10 +260,14 @@ const AuthManager = {
         const modal = document.getElementById('login-modal');
         if (modal) {
             // 이전 메시지 초기화
-            document.querySelector('.login-message').textContent = '';
+            const msgEl = document.querySelector('.login-message');
+            if (msgEl) msgEl.textContent = '';
+            
             // 이전 입력값 초기화
-            document.getElementById('username').value = '';
-            document.getElementById('password').value = '';
+            const usernameEl = document.getElementById('username');
+            const passwordEl = document.getElementById('password');
+            if (usernameEl) usernameEl.value = '';
+            if (passwordEl) passwordEl.value = '';
             
             // 콜백 저장
             this.loginCallback = callback;
@@ -288,12 +290,19 @@ const AuthManager = {
         const modal = document.getElementById('register-modal');
         if (modal) {
             // 이전 메시지 초기화
-            document.querySelector('.register-message').textContent = '';
+            const msgEl = document.querySelector('.register-message');
+            if (msgEl) msgEl.textContent = '';
+            
             // 이전 입력값 초기화
-            document.getElementById('register-username').value = '';
-            document.getElementById('register-password').value = '';
-            document.getElementById('register-password-confirm').value = '';
-            document.getElementById('register-invite-code').value = '';
+            const usernameEl = document.getElementById('register-username');
+            const passwordEl = document.getElementById('register-password');
+            const passwordConfirmEl = document.getElementById('register-password-confirm');
+            const inviteCodeEl = document.getElementById('register-invite-code');
+            
+            if (usernameEl) usernameEl.value = '';
+            if (passwordEl) passwordEl.value = '';
+            if (passwordConfirmEl) passwordConfirmEl.value = '';
+            if (inviteCodeEl) inviteCodeEl.value = '';
             
             // 모달 표시
             modal.style.display = 'block';
@@ -313,16 +322,18 @@ const AuthManager = {
     
     // 인증 UI 업데이트
     updateAuthUI: function() {
-        const loginBtn = document.getElementById('login-btn');
+        const loginMenuItem = document.querySelector('.login-menu-item');
         const userInfoArea = document.getElementById('user-info-area');
+        const onlineAdminsArea = document.getElementById('online-admins-area');
         const adminMenuItem = document.querySelector('.side-bar a[href="#admin"]');
         const moduleMenuItem = document.querySelector('.side-bar a[href="#module-mgmt"]');
         const embedMenuItem = document.querySelector('.side-bar a[href="#embed"]');
         
         if (this.isLoggedIn()) {
             // 로그인 상태
-            if (loginBtn) loginBtn.style.display = 'none';
+            if (loginMenuItem) loginMenuItem.style.display = 'none';
             if (userInfoArea) userInfoArea.style.display = 'flex';
+            if (onlineAdminsArea) onlineAdminsArea.style.display = 'flex';
             
             // 권한에 따른 메뉴 표시/숨김
             if (adminMenuItem) {
@@ -338,8 +349,9 @@ const AuthManager = {
             }
         } else {
             // 로그아웃 상태
-            if (loginBtn) loginBtn.style.display = 'block';
+            if (loginMenuItem) loginMenuItem.style.display = 'block';
             if (userInfoArea) userInfoArea.style.display = 'none';
+            if (onlineAdminsArea) onlineAdminsArea.style.display = 'none';
             
             // 메뉴 접근 제한
             if (adminMenuItem) adminMenuItem.parentElement.style.display = 'none';
@@ -399,17 +411,4 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         AuthManager.init();
     }, 6000); // 로딩 애니메이션이 끝난 후
-});
-
-// WebSocketManager 메시지 핸들러 추가
-document.addEventListener('websocket_ready', function() {
-    // 로그인 응답
-    WebSocketManager.messageHandlers['loginResult'] = (message) => {
-        AuthManager.handleLoginResponse(message);
-    };
-    
-    // 회원가입 응답
-    WebSocketManager.messageHandlers['registerResult'] = (message) => {
-        AuthManager.handleRegisterResponse(message);
-    };
 });
