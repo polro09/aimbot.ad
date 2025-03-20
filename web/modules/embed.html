@@ -1,0 +1,118 @@
+<div class="embed-container">
+    <div class="embed-header">
+        <h1>디스코드 임베드 생성기</h1>
+        <p class="embed-description">채널에 보낼 멋진 임베드 메시지를 쉽게 만들 수 있습니다.</p>
+    </div>
+    
+    <div class="embed-content">
+        <div class="embed-editor">
+            <div class="card-header">
+                <h2><i class="fas fa-edit"></i> 임베드 편집</h2>
+            </div>
+            <div class="card-content">
+                <form id="embed-form">
+                    <!-- 서버 및 채널 선택 -->
+                    <div class="form-section">
+                        <h3>대상 선택</h3>
+                        <div class="form-group">
+                            <label for="server-select">서버 선택</label>
+                            <select id="server-select" required>
+                                <option value="">-- 서버 선택 --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="channel-select">채널 선택</label>
+                            <select id="channel-select" required>
+                                <option value="">-- 채널 선택 --</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- 기본 정보 -->
+                    <div class="form-section">
+                        <h3>기본 정보</h3>
+                        <div class="form-group">
+                            <label for="embed-title">제목</label>
+                            <input type="text" id="embed-title" placeholder="임베드 제목">
+                        </div>
+                        <div class="form-group">
+                            <label for="embed-description">설명</label>
+                            <textarea id="embed-description" placeholder="임베드 본문 내용" rows="4"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="embed-color">색상</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="embed-color" value="#3498db">
+                                <input type="text" id="embed-color-hex" value="#3498db" placeholder="색상 코드 (HEX)">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 작성자 및 푸터 -->
+                    <div class="form-section">
+                        <h3>추가 정보</h3>
+                        <div class="form-group">
+                            <label for="embed-author">작성자 이름</label>
+                            <input type="text" id="embed-author" placeholder="작성자 이름">
+                        </div>
+                        <div class="form-group">
+                            <label for="embed-footer">푸터 텍스트</label>
+                            <input type="text" id="embed-footer" placeholder="푸터 텍스트">
+                        </div>
+                    </div>
+                    
+                    <!-- 썸네일 및 이미지 URL -->
+                    <div class="form-section">
+                        <h3>이미지</h3>
+                        <div class="form-group">
+                            <label for="embed-thumbnail">썸네일 URL</label>
+                            <input type="url" id="embed-thumbnail" placeholder="썸네일 이미지 URL">
+                        </div>
+                        <div class="form-group">
+                            <label for="embed-image">메인 이미지 URL</label>
+                            <input type="url" id="embed-image" placeholder="메인 이미지 URL">
+                        </div>
+                    </div>
+                    
+                    <!-- 필드 -->
+                    <div class="form-section" id="fields-section">
+                        <h3>필드 <button type="button" id="add-field-btn" class="btn-primary"><i class="fas fa-plus"></i> 필드 추가</button></h3>
+                        <div id="fields-container">
+                            <!-- 필드는 자바스크립트로 동적 추가됨 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 제출 버튼 -->
+                    <div class="form-actions">
+                        <button type="button" id="preview-btn" class="btn-secondary"><i class="fas fa-eye"></i> 미리보기</button>
+                        <button type="submit" id="send-embed-btn" class="btn-primary"><i class="fas fa-paper-plane"></i> 전송</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="embed-preview">
+            <div class="card-header">
+                <h2><i class="fas fa-eye"></i> 미리보기</h2>
+            </div>
+            <div class="card-content">
+                <div class="preview-container">
+                    <div class="discord-message">
+                        <div class="discord-message-header">
+                            <span class="bot-name">Sea Dogs Tavern Bot</span>
+                            <span class="bot-tag">BOT</span>
+                        </div>
+                        
+                        <div id="embed-preview-content" class="discord-embed">
+                            <!-- 미리보기는 자바스크립트로 동적 생성됨 -->
+                            <div class="embed-placeholder">
+                                <i class="fas fa-eye"></i>
+                                <p>임베드를 작성하면 이곳에 미리보기가 표시됩니다.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,210 @@
+/* 모듈 관리 컨테이너 */
+.module-mgmt-container {
+    padding: 20px;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.module-mgmt-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.module-mgmt-header h1 {
+    color: var(--secondary-color);
+    font-size: 1.8rem;
+    margin-bottom: 10px;
+}
+
+.module-mgmt-description {
+    color: #666;
+    font-size: 1rem;
+}
+
+/* 모듈 관리 콘텐츠 */
+.module-mgmt-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* 모듈 목록 */
+.module-item {
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-left: 4px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.module-item:hover {
+    background-color: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.module-item.enabled {
+    border-left-color: #27ae60;
+}
+
+.module-item.disabled {
+    border-left-color: #e74c3c;
+    opacity: 0.7;
+}
+
+.module-info {
+    flex: 1;
+}
+
+.module-name {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--secondary-color);
+    display: flex;
+    align-items: center;
+}
+
+.module-name i {
+    margin-right: 8px;
+    color: #555;
+}
+
+.module-description {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.module-status {
+    display: flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.module-status.enabled {
+    background-color: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+}
+
+.module-status.disabled {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+.module-status i {
+    margin-right: 5px;
+}
+
+/* 사용자 설정 폼 */
+#user-settings-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox-group label {
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* 모듈 정보 모달 */
+.module-info-details {
+    margin: 20px 0;
+}
+
+.module-info-details .info-item {
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+.module-info-details .info-label {
+    font-weight: 600;
+    color: #555;
+    display: inline-block;
+    width: 80px;
+}
+
+.module-commands {
+    margin-top: 10px;
+}
+
+.command-tag {
+    display: inline-block;
+    background-color: #f0f0f0;
+    padding: 3px 8px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+}
+
+.module-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    gap: 10px;
+}
+
+.module-actions button {
+    flex: 1;
+}
+
+/* 빈 상태 */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #aaa;
+    text-align: center;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.empty-state p {
+    margin: 0;
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 반응형 스타일 */
+@media (max-width: 768px) {
+    .module-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .module-status {
+        margin-top: 10px;
+    }
+    
+    .module-actions {
+        flex-direction: column;
+    }
+}

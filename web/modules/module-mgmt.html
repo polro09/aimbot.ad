@@ -1,0 +1,101 @@
+<div class="module-mgmt-container">
+    <div class="module-mgmt-header">
+        <h1>모듈 관리</h1>
+        <p class="module-mgmt-description">봇 모듈의 상태를 확인하고 관리할 수 있습니다.</p>
+    </div>
+    
+    <div class="module-mgmt-content">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2><i class="fas fa-puzzle-piece"></i> 모듈 목록</h2>
+                <div class="card-actions">
+                    <button id="refresh-modules-btn" class="btn-icon" title="모듈 목록 새로고침">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-content">
+                <div id="modules-container">
+                    <div class="empty-state">
+                        <i class="fas fa-puzzle-piece"></i>
+                        <p>모듈 정보를 불러오는 중입니다...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2><i class="fas fa-cogs"></i> 사용자 설정</h2>
+            </div>
+            <div class="card-content">
+                <form id="user-settings-form">
+                    <div class="form-group">
+                        <label for="setting-prefix">명령어 접두사</label>
+                        <input type="text" id="setting-prefix" placeholder="!">
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="setting-notify-errors">
+                        <label for="setting-notify-errors">오류 알림 활성화</label>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="setting-notify-joins">
+                        <label for="setting-notify-joins">서버 참가 알림 활성화</label>
+                    </div>
+                    
+                    <div class="form-group checkbox-group">
+                        <input type="checkbox" id="setting-notify-commands">
+                        <label for="setting-notify-commands">명령어 사용 알림 활성화</label>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-save"></i> 설정 저장
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 모듈 정보 모달 -->
+    <div id="module-info-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modal-module-name">모듈 정보</h2>
+            
+            <div class="module-info-details">
+                <div class="info-item">
+                    <span class="info-label">설명:</span>
+                    <span id="modal-module-description" class="info-value">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">버전:</span>
+                    <span id="modal-module-version" class="info-value">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">상태:</span>
+                    <span id="modal-module-status" class="info-value">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">명령어:</span>
+                    <div id="modal-module-commands" class="info-value module-commands">-</div>
+                </div>
+            </div>
+            
+            <div class="module-actions">
+                <button id="modal-enable-btn" class="btn-primary">
+                    <i class="fas fa-toggle-on"></i> 활성화
+                </button>
+                <button id="modal-disable-btn" class="btn-secondary">
+                    <i class="fas fa-toggle-off"></i> 비활성화
+                </button>
+                <button id="modal-reload-btn" class="btn-action restart">
+                    <i class="fas fa-sync-alt"></i> 재로드
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

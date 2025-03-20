@@ -1,0 +1,12 @@
+{
+    "watch": [
+      "*.js",
+      "commands/",
+      "events/"
+    ],
+    "ignore": [
+      "node_modules/",
+      "data/"
+    ],
+    "ext": "js,json"
+  }

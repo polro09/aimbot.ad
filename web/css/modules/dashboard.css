@@ -1,0 +1,331 @@
+/* 대시보드 컨테이너 */
+.dashboard-container {
+    padding: 20px;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.dashboard-header h1 {
+    color: var(--secondary-color);
+    font-size: 1.8rem;
+    margin: 0;
+}
+
+/* 봇 상태 표시 */
+.bot-status {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.status-label {
+    font-weight: 500;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background-color: #f0f0f0;
+    font-weight: 500;
+}
+
+.status-indicator.online {
+    color: #27ae60;
+}
+
+.status-indicator.offline {
+    color: #e74c3c;
+}
+
+.status-indicator i {
+    font-size: 0.8rem;
+}
+
+/* 봇 제어 버튼 */
+.bot-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-action.start {
+    background-color: #27ae60;
+    color: white;
+}
+
+.btn-action.start:hover {
+    background-color: #219653;
+}
+
+.btn-action.stop {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-action.stop:hover {
+    background-color: #c0392b;
+}
+
+.btn-action.restart {
+    background-color: #f39c12;
+    color: white;
+}
+
+.btn-action.restart:hover {
+    background-color: #d35400;
+}
+
+/* 대시보드 콘텐츠 */
+.dashboard-content {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.dashboard-row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+/* 대시보드 카드 */
+.dashboard-card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    flex: 1;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-header {
+    background-color: var(--secondary-color);
+    color: white;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.card-header h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.card-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 5px;
+    opacity: 0.8;
+    transition: opacity 0.3s;
+}
+
+.btn-icon:hover {
+    opacity: 1;
+}
+
+.card-content {
+    padding: 15px;
+    flex: 1;
+    overflow: auto;
+}
+
+/* 시스템 정보 카드 */
+.system-info .info-item {
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 8px;
+}
+
+.system-info .info-label {
+    font-weight: 500;
+    color: #555;
+}
+
+.system-info .info-value {
+    font-family: 'Courier New', monospace;
+    background-color: #f5f5f5;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+/* 서버 목록 카드 */
+.servers-list .server-item {
+    padding: 10px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--primary-color);
+    background-color: #f9f9f9;
+}
+
+.servers-list .server-name {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.servers-list .server-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+/* 로그 카드 */
+.bot-logs {
+    flex: 2;
+}
+
+.logs-wrapper {
+    height: 300px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.log-entry {
+    padding: 8px;
+    margin-bottom: 5px;
+    border-radius: 4px;
+    border-left: 3px solid transparent;
+}
+
+.log-entry .timestamp {
+    color: #666;
+    margin-right: 10px;
+}
+
+.log-entry .type {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.log-entry .message {
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.log-entry.INFO {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-left-color: #3498db;
+}
+
+.log-entry.COMMAND {
+    background-color: rgba(155, 89, 182, 0.1);
+    border-left-color: #9b59b6;
+}
+
+.log-entry.ERROR {
+    background-color: rgba(231, 76, 60, 0.1);
+    border-left-color: #e74c3c;
+}
+
+.log-entry.MODULE {
+    background-color: rgba(46, 204, 113, 0.1);
+    border-left-color: #2ecc71;
+}
+
+/* 로그 필터 */
+.log-filter select {
+    padding: 5px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: transparent;
+    color: white;
+    font-size: 0.9rem;
+}
+
+.log-filter select option {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+/* 빈 상태 표시 */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #aaa;
+    text-align: center;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+}
+
+.empty-state p {
+    margin: 0;
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* 반응형 스타일 */
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .bot-status {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .dashboard-row {
+        flex-direction: column;
+    }
+    
+    .dashboard-card {
+        min-width: 100%;
+    }
+}

@@ -1,0 +1,160 @@
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>관리자 대시보드</h1>
+        <p class="admin-description">봇 관리자 기능 및 사용자 관리</p>
+    </div>
+    
+    <div class="admin-content">
+        <!-- 사용자 관리 섹션 -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2><i class="fas fa-users"></i> 사용자 관리</h2>
+                <div class="card-actions">
+                    <button id="add-user-btn" class="btn-icon" title="사용자 추가">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                    <button id="refresh-users-btn" class="btn-icon" title="사용자 목록 새로고침">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-content">
+                <div id="users-container">
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>사용자 정보를 불러오는 중입니다...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 초대 코드 관리 섹션 -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2><i class="fas fa-ticket-alt"></i> 초대 코드 관리</h2>
+                <div class="card-actions">
+                    <button id="add-invite-btn" class="btn-icon" title="초대 코드 생성">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button id="refresh-invites-btn" class="btn-icon" title="초대 코드 목록 새로고침">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="invite-code-generator">
+                    <div class="form-group">
+                        <input type="text" id="new-invite-code" placeholder="초대 코드 (비워두면 자동 생성)">
+                        <button id="generate-invite-btn" class="btn-primary">
+                            <i class="fas fa-plus"></i> 코드 생성하기
+                        </button>
+                    </div>
+                </div>
+                <div id="invite-codes-container">
+                    <div class="empty-state">
+                        <i class="fas fa-ticket-alt"></i>
+                        <p>초대 코드를 불러오는 중입니다...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 시스템 정보 섹션 -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2><i class="fas fa-info-circle"></i> 시스템 정보</h2>
+            </div>
+            <div class="card-content">
+                <div class="info-section">
+                    <div class="info-item">
+                        <span class="info-label">노드 버전:</span>
+                        <span id="node-version" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Discord.js 버전:</span>
+                        <span id="discord-version" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">웹서버 가동시간:</span>
+                        <span id="web-uptime" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">봇 가동시간:</span>
+                        <span id="bot-uptime" class="info-value">-</span>
+                    </div>
+                </div>
+                
+                <div class="admin-actions">
+                    <button id="restart-web-btn" class="btn-action restart">
+                        <i class="fas fa-sync-alt"></i> 웹서버 재시작
+                    </button>
+                    <button id="restart-both-btn" class="btn-action restart">
+                        <i class="fas fa-power-off"></i> 전체 시스템 재시작
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 사용자 추가 모달 -->
+    <div id="add-user-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-user-plus"></i> 사용자 추가</h2>
+            
+            <form id="add-user-form">
+                <div class="form-group">
+                    <label for="new-username">아이디</label>
+                    <input type="text" id="new-username" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="new-password">비밀번호</label>
+                    <input type="password" id="new-password" required>
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="new-user-admin">
+                    <label for="new-user-admin">관리자 권한 부여</label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> 사용자 추가
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 사용자 수정 모달 -->
+    <div id="edit-user-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2><i class="fas fa-user-edit"></i> <span id="edit-username-title">사용자 수정</span></h2>
+            
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-username-hidden">
+                
+                <div class="form-group">
+                    <label for="reset-password">새 비밀번호 (비워두면 변경 안함)</label>
+                    <input type="password" id="reset-password">
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="edit-user-admin">
+                    <label for="edit-user-admin">관리자 권한</label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" id="delete-user-btn" class="btn-danger">
+                        <i class="fas fa-trash"></i> 사용자 삭제
+                    </button>
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> 변경사항 저장
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

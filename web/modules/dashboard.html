@@ -1,0 +1,86 @@
+<div class="dashboard-container">
+    <div class="dashboard-header">
+        <h1>디스코드 봇 대시보드</h1>
+        <div class="bot-status">
+            <span class="status-label">봇 상태:</span>
+            <span id="bot-status-indicator" class="status-indicator offline">
+                <i class="fas fa-circle"></i>
+                <span id="bot-status-text">오프라인</span>
+            </span>
+            <div class="bot-controls">
+                <button id="start-bot-btn" class="btn-action start"><i class="fas fa-play"></i> 시작</button>
+                <button id="stop-bot-btn" class="btn-action stop"><i class="fas fa-stop"></i> 정지</button>
+                <button id="restart-bot-btn" class="btn-action restart"><i class="fas fa-sync-alt"></i> 재시작</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-content">
+        <div class="dashboard-row">
+            <!-- 시스템 정보 카드 -->
+            <div class="dashboard-card system-info">
+                <div class="card-header">
+                    <h2><i class="fas fa-server"></i> 시스템 정보</h2>
+                </div>
+                <div class="card-content">
+                    <div class="info-item">
+                        <span class="info-label">웹서버 가동시간:</span>
+                        <span id="web-uptime" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">봇 가동시간:</span>
+                        <span id="bot-uptime" class="info-value">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">로드된 모듈:</span>
+                        <span id="loaded-modules" class="info-value">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 서버 목록 카드 -->
+            <div class="dashboard-card servers-list">
+                <div class="card-header">
+                    <h2><i class="fas fa-network-wired"></i> 서버 목록</h2>
+                </div>
+                <div class="card-content">
+                    <div id="servers-container">
+                        <div class="empty-state">
+                            <i class="fas fa-server"></i>
+                            <p>서버 정보를 불러오는 중입니다...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="dashboard-row">
+            <!-- 봇 로그 카드 -->
+            <div class="dashboard-card bot-logs">
+                <div class="card-header">
+                    <h2><i class="fas fa-file-alt"></i> 봇 로그</h2>
+                    <div class="card-actions">
+                        <button id="clear-logs-btn" class="btn-icon"><i class="fas fa-broom"></i></button>
+                        <div class="log-filter">
+                            <select id="log-filter-select">
+                                <option value="all">모든 로그</option>
+                                <option value="INFO">정보</option>
+                                <option value="COMMAND">명령어</option>
+                                <option value="ERROR">오류</option>
+                                <option value="MODULE">모듈</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-content">
+                    <div id="logs-container" class="logs-wrapper">
+                        <div class="empty-state">
+                            <i class="fas fa-file-alt"></i>
+                            <p>로그를 불러오는 중입니다...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,37 @@
+{
+    "name": "sea-dogs-tavern-bot",
+    "version": "1.1.0",
+    "description": "모듈형 디스코드 봇",
+    "main": "main.js",
+    "scripts": {
+        "start": "node main.js",
+        "dev": "nodemon main.js",
+        "setup": "npm install && node -e \"require('fs').existsSync('.env') || require('fs').copyFileSync('.env.example', '.env')\"",
+        "lint": "eslint ."
+    },
+    "author": "Sea Dogs Tavern",
+    "license": "MIT",
+    "dependencies": {
+        "bcrypt": "^5.1.1",
+        "discord.js": "^14.18.0",
+        "dotenv": "^16.4.7",
+        "express": "^4.21.2",
+        "ws": "^8.18.1"
+    },
+    "devDependencies": {
+        "eslint": "^8.56.0",
+        "nodemon": "^3.1.9"
+    },
+    "nodemonConfig": {
+        "watch": [
+            "*.js",
+            "modules/",
+            "web/"
+        ],
+        "ignore": [
+            "node_modules/",
+            "data/"
+        ],
+        "ext": "js,json,html,css"
+    }
+}

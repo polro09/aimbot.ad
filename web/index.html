@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sea Dogs Tavern | 디스코드 봇 관리</title>
+    <!-- 기본 스타일시트 -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/loading.css">
+    <link rel="stylesheet" href="css/sidebar.css">
+    <!-- 모듈별 스타일시트는 동적으로 로드됨 -->
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- 구글 폰트 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 로딩 화면 -->
+    <div id="loading-container">
+        <div class="loading-content">
+            <div class="loading-logo">
+                <img src="https://imgur.com/Sd8qK9c.png" alt="Sea Dogs Tavern Logo">
+            </div>
+            <div class="loading-text">
+                <span id="loading-message">안녕하세요</span>
+            </div>
+            <div class="loading-progress-container">
+                <div class="loading-progress-bar" id="loading-progress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 메인 컨테이너 -->
+    <div id="main-container" style="display: none;">
+        <!-- 사이드바 메뉴 -->
+        <div class="side-bar">
+            <div class="side-bar__icon-box">
+                <div class="side-bar__icon-1">
+                    <div></div>
+                    <div></div>
+                    <div></div>
+                </div>
+            </div>
+            <ul>
+                <li>
+                    <a href="#main"><i class="fas fa-home"></i> 메인</a>
+                </li>
+                <li>
+                    <a href="#dashboard"><i class="fas fa-chart-line"></i> 대시보드</a>
+                </li>
+                <li>
+                    <a href="#module-mgmt"><i class="fas fa-puzzle-piece"></i> 모듈관리</a>
+                </li>
+                <li>
+                    <a href="#embed"><i class="fas fa-image"></i> 임베드</a>
+                </li>
+                <li>
+                    <a href="#admin"><i class="fas fa-lock"></i> 관리자</a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- 콘텐츠 영역 -->
+        <div id="content-container">
+            <!-- 메인 페이지 (처음 표시) -->
+            <div id="main-page" class="content-page active-page">
+                <div class="main-header animate-item">
+                    <img src="https://imgur.com/Sd8qK9c.png" alt="Sea Dogs Tavern Logo" class="main-logo">
+                </div>
+                <div class="main-body animate-item">
+                    <h1>Aimbot 대시보드</h1>
+                </div>
+                <div class="main-footer animate-item">
+                    <p>AOW Union • TBO SDT clan</p>
+                    <div class="discord-links">
+                        <a href="#" class="discord-link">SDT 디스코드 서버</a>
+                        <a href="#" class="discord-link">TBO 디스코드 서버</a>
+                    </div>
+                    <p>디스코드 봇 제작 및 호스팅 문의</p>
+                    <div class="tech-tags">
+                        <span class="tag">Discord.js</span>
+                        <span class="tag">Python</span>
+                        <span class="tag">API 연동</span>
+                        <span class="tag">웹/클라우드 호스팅</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 모듈 컨텐츠는 여기에 동적으로 로드됨 -->
+            <div id="module-content"></div>
+        </div>
+    </div>
+
+    <!-- 로그인 모달 -->
+    <div id="login-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>로그인</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="username">아이디</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">비밀번호</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="btn-primary">로그인</button>
+            </form>
+            <p class="login-message"></p>
+        </div>
+    </div>
+
+    <!-- 기본 스크립트 -->
+    <script src="js/main.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/auth.js"></script>
+    <!-- 모듈별 스크립트는 동적으로 로드됨 -->
+</body>
+</html>

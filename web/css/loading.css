@@ -1,0 +1,87 @@
+/* 로딩 화면 스타일 */
+#loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--secondary-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 1;
+    transition: opacity 0.5s ease-out;
+}
+
+#loading-container.fade-out {
+    opacity: 0;
+}
+
+.loading-content {
+    text-align: center;
+    color: white;
+    width: 80%;
+    max-width: 500px;
+}
+
+.loading-logo {
+    margin-bottom: 30px;
+    animation: pulse 2s infinite;
+}
+
+.loading-logo img {
+    max-width: 200px;
+    height: auto;
+}
+
+.loading-text {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    height: 40px;
+}
+
+.loading-progress-container {
+    width: 100%;
+    height: 10px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    width: 0;
+    background-color: var(--primary-color);
+    transition: width 0.5s ease-in-out;
+}
+
+/* 로딩 단계별 메시지 애니메이션 */
+@keyframes fadeTextIn {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+#loading-message {
+    display: inline-block;
+    animation: fadeTextIn 0.5s forwards;
+}
+
+/* 로고 펄스 애니메이션 */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+/* 미디어 쿼리 */
+@media (max-width: 768px) {
+    .loading-logo img {
+        max-width: 150px;
+    }
+    
+    .loading-text {
+        font-size: 1.2rem;
+    }
+}
