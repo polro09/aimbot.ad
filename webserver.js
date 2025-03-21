@@ -18,7 +18,12 @@ class WebServer {
         // 서버 상태 변수
         this.serverStatus = {
             startTime: new Date()
-        };
+        
+
+// 인스턴스 생성
+const webServer = new WebServer();
+
+module.exports = webServer;;
         
         // 활성 웹소켓 연결 카운트
         this.activeConnections = 0;
@@ -117,7 +122,8 @@ class WebServer {
         ws.userSession = {
             isLoggedIn: false,
             isAdmin: false,
-            username: null
+            username: null,
+            role: null
         };
         
         // 클라이언트가 연결되면 초기 상태 정보 전송
@@ -148,6 +154,11 @@ class WebServer {
             clearInterval(interval);
             this.activeConnections--;
             console.log(`웹 대시보드 연결 종료됨 (남은 연결: ${this.activeConnections})`);
+            
+            // 사용자가 로그인 상태였다면 온라인 관리자 목록 업데이트
+            if (ws.userSession && ws.userSession.isLoggedIn) {
+                this._broadcastOnlineAdmins();
+            }
         });
         
         // 봇 로그 이벤트 수신기 등록
@@ -438,14 +449,19 @@ class WebServer {
                     ws.userSession.isLoggedIn = true;
                     ws.userSession.isAdmin = true;
                     ws.userSession.username = username;
+                    ws.userSession.role = 'admin';
                     
                     // 응답 전송
                     this._sendMessage(ws, {
                         type: 'loginResult',
                         success: true,
                         message: '관리자 로그인 성공',
-                        role: 'admin'
+                        role: 'admin',
+                        assignedChannels: []
                     });
+                    
+                    // 온라인 관리자 목록 업데이트
+                    this._broadcastOnlineAdmins();
                     return;
                 }
                 
@@ -454,15 +470,23 @@ class WebServer {
                     const user = storage.authenticateUser(username, password);
                     if (user) {
                         ws.userSession.isLoggedIn = true;
-                        ws.userSession.isAdmin = user.role === 'admin';
+                        ws.userSession.isAdmin = user.role === 'admin' || user.role === 'level1';
                         ws.userSession.username = username;
+                        ws.userSession.role = user.role;
+                        
+                        // 사용자 정보에서 할당된 채널 가져오기
+                        const assignedChannels = storage.getUserChannels(username);
                         
                         this._sendMessage(ws, {
                             type: 'loginResult',
                             success: true,
                             message: '로그인 성공',
-                            role: user.role
+                            role: user.role,
+                            assignedChannels: assignedChannels
                         });
+                        
+                        // 온라인 관리자 목록 업데이트
+                        this._broadcastOnlineAdmins();
                     } else {
                         this._sendMessage(ws, {
                             type: 'loginResult',
@@ -475,32 +499,6 @@ class WebServer {
                         type: 'loginResult',
                         success: false,
                         message: `로그인 처리 중 오류 발생: ${error.message}`
-                    });
-                }
-                break;
-                
-            // 관리자 로그인 인증 요청 처리
-            case 'adminLogin':
-                const adminUsername = data.username;
-                const adminPassword = data.password;
-                
-                // 관리자 계정 체크
-                if (adminUsername === config.auth.username && adminPassword === config.auth.password) {
-                    ws.userSession.isLoggedIn = true;
-                    ws.userSession.isAdmin = true;
-                    ws.userSession.username = adminUsername;
-                    
-                    // 응답 전송
-                    this._sendMessage(ws, {
-                        type: 'adminLoginResult',
-                        success: true,
-                        message: '관리자 로그인 성공'
-                    });
-                } else {
-                    this._sendMessage(ws, {
-                        type: 'adminLoginResult',
-                        success: false,
-                        message: '관리자 계정 정보가 올바르지 않습니다.'
                     });
                 }
                 break;
@@ -795,7 +793,7 @@ class WebServer {
                 }
                 break;
             
-            // 모듈 상태 가져오기 (추가됨)
+            // 모듈 상태 가져오기
             case 'getModuleStatus':
                 console.log('웹 대시보드에서 모듈 상태 요청');
                 try {
@@ -808,6 +806,201 @@ class WebServer {
                     this._sendMessage(ws, {
                         type: 'error',
                         message: `모듈 상태 조회 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+                
+            // 사용자 역할 업데이트 요청 처리
+            case 'updateUserRole':
+                // 관리자 권한 확인
+                if (!ws.userSession.isAdmin) {
+                    this._sendErrorMessage(ws, '관리자 권한이 필요합니다.');
+                    return;
+                }
+                
+                console.log(`웹 대시보드에서 사용자 역할 업데이트 요청: ${data.username} -> ${data.role}`);
+                
+                try {
+                    if (!data.username || !data.role) {
+                        throw new Error('사용자명과 역할은 필수입니다.');
+                    }
+                    
+                    // 역할 검증
+                    const validRoles = ['level1', 'level2', 'level3', 'user'];
+                    if (!validRoles.includes(data.role)) {
+                        throw new Error('유효하지 않은 역할입니다.');
+                    }
+                    
+                    // 사용자 역할 업데이트
+                    await storage.updateUserRole(data.username, data.role);
+                    
+                    this._sendMessage(ws, {
+                        type: 'userRoleUpdated',
+                        success: true,
+                        message: '사용자 역할이 업데이트되었습니다.',
+                        username: data.username,
+                        role: data.role
+                    });
+                    
+                    // 사용자 목록 새로고침
+                    this._broadcastUsersList();
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'userRoleError',
+                        success: false,
+                        message: `역할 업데이트 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+                
+            // 채널 할당 요청 처리
+            case 'assignChannel':
+                // 관리자 권한 확인
+                if (!ws.userSession.isAdmin) {
+                    this._sendErrorMessage(ws, '관리자 권한이 필요합니다.');
+                    return;
+                }
+                
+                console.log(`웹 대시보드에서 채널 할당 요청: ${data.username} -> ${data.channelId}`);
+                
+                try {
+                    if (!data.username || !data.serverId || !data.channelId) {
+                        throw new Error('사용자명, 서버 ID, 채널 ID는 필수입니다.');
+                    }
+                    
+                    // 채널 정보 가져오기
+                    const guild = bot.client.guilds.cache.get(data.serverId);
+                    const channel = guild.channels.cache.get(data.channelId);
+                    
+                    if (!guild || !channel) {
+                        throw new Error('서버 또는 채널을 찾을 수 없습니다.');
+                    }
+                    
+                    // 채널 할당
+                    await storage.assignChannelToUser(
+                        data.username, 
+                        data.serverId, 
+                        data.channelId, 
+                        guild.name, 
+                        channel.name
+                    );
+                    
+                    this._sendMessage(ws, {
+                        type: 'channelAssigned',
+                        success: true,
+                        message: '채널이 성공적으로 할당되었습니다.',
+                        username: data.username
+                    });
+                    
+                    // 할당된 채널 목록 새로고침
+                    const userChannels = storage.getUserChannels(data.username);
+                    this._sendMessage(ws, {
+                        type: 'userChannels',
+                        username: data.username,
+                        channels: userChannels
+                    });
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'channelAssignError',
+                        success: false,
+                        message: `채널 할당 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+                
+            // 채널 할당 해제 요청 처리
+            case 'unassignChannel':
+                // 관리자 권한 확인
+                if (!ws.userSession.isAdmin) {
+                    this._sendErrorMessage(ws, '관리자 권한이 필요합니다.');
+                    return;
+                }
+                
+                console.log(`웹 대시보드에서 채널 할당 해제 요청: ${data.username} -> ${data.channelId}`);
+                
+                try {
+                    if (!data.username || !data.channelId) {
+                        throw new Error('사용자명과 채널 ID는 필수입니다.');
+                    }
+                    
+                    // 채널 할당 해제
+                    await storage.unassignChannelFromUser(data.username, data.channelId);
+                    
+                    this._sendMessage(ws, {
+                        type: 'channelUnassigned',
+                        success: true,
+                        message: '채널 할당이 해제되었습니다.',
+                        username: data.username
+                    });
+                    
+                    // 할당된 채널 목록 새로고침
+                    const userChannels = storage.getUserChannels(data.username);
+                    this._sendMessage(ws, {
+                        type: 'userChannels',
+                        username: data.username,
+                        channels: userChannels
+                    });
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'channelUnassignError',
+                        success: false,
+                        message: `채널 할당 해제 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+                
+            // 사용자 채널 목록 요청 처리
+            case 'getUserChannels':
+                try {
+                    if (!data.username) {
+                        throw new Error('사용자명은 필수입니다.');
+                    }
+                    
+                    // 사용자 채널 목록 가져오기
+                    const userChannels = storage.getUserChannels(data.username);
+                    
+                    this._sendMessage(ws, {
+                        type: 'userChannels',
+                        username: data.username,
+                        channels: userChannels
+                    });
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'userChannelsError',
+                        success: false,
+                        message: `채널 목록 조회 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+                
+            // 온라인 관리자 목록 요청 처리
+            case 'getOnlineAdmins':
+                try {
+                    // 온라인 관리자 목록 생성
+                    const onlineAdmins = [];
+                    
+                    this.wss.clients.forEach(client => {
+                        if (client.readyState === WebSocket.OPEN && 
+                            client.userSession && 
+                            client.userSession.isLoggedIn && 
+                            (client.userSession.isAdmin || ['level1', 'level2', 'level3'].includes(client.userSession.role))) {
+                            
+                            onlineAdmins.push({
+                                username: client.userSession.username,
+                                role: client.userSession.role
+                            });
+                        }
+                    });
+                    
+                    this._sendMessage(ws, {
+                        type: 'onlineAdmins',
+                        admins: onlineAdmins
+                    });
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'onlineAdminsError',
+                        success: false,
+                        message: `온라인 관리자 목록 조회 중 오류 발생: ${error.message}`
                     });
                 }
                 break;
@@ -863,6 +1056,39 @@ class WebServer {
             });
         } catch (error) {
             console.error(`사용자 목록 브로드캐스트 중 오류 발생: ${error.message}`);
+        }
+    }
+    
+    // 온라인 관리자 목록 브로드캐스트
+    _broadcastOnlineAdmins() {
+        try {
+            // 온라인 관리자 목록 생성
+            const onlineAdmins = [];
+            
+            this.wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN && 
+                    client.userSession && 
+                    client.userSession.isLoggedIn && 
+                    (client.userSession.isAdmin || ['level1', 'level2', 'level3'].includes(client.userSession.role))) {
+                    
+                    onlineAdmins.push({
+                        username: client.userSession.username,
+                        role: client.userSession.role
+                    });
+                }
+            });
+            
+            // 모든 접속자에게 온라인 관리자 목록 전송
+            this.wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    this._sendMessage(client, {
+                        type: 'onlineAdmins',
+                        admins: onlineAdmins
+                    });
+                }
+            });
+        } catch (error) {
+            console.error(`온라인 관리자 목록 브로드캐스트 중 오류 발생: ${error.message}`);
         }
     }
     
@@ -974,8 +1200,3 @@ class WebServer {
         });
     }
 }
-
-// 인스턴스 생성
-const webServer = new WebServer();
-
-module.exports = webServer;
