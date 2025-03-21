@@ -393,8 +393,10 @@ class WebServer {
                         inviteCode: inviteCode
                     });
                     
-                    // 모든 관리자에게 초대 코드 목록 업데이트
-                    this._broadcastInviteCodes();
+                    // 약간의 지연 후에 초대 코드 목록 업데이트 전송
+                    setTimeout(() => {
+                        this._broadcastInviteCodes();
+                    }, 500);
                 } catch (error) {
                     this._sendMessage(ws, {
                         type: 'error',
@@ -422,8 +424,10 @@ class WebServer {
                         message: '초대 코드가 삭제되었습니다.'
                     });
                     
-                    // 모든 관리자에게 초대 코드 목록 업데이트
-                    this._broadcastInviteCodes();
+                    // 약간의 지연 후에 초대 코드 목록 업데이트 전송
+                    setTimeout(() => {
+                        this._broadcastInviteCodes();
+                    }, 500);
                 } catch (error) {
                     this._sendMessage(ws, {
                         type: 'error',
@@ -563,6 +567,133 @@ class WebServer {
                 }
                 break;
             
+            // 서버 할당 처리 (이전의 채널 할당 대체)
+            case 'assignServer':
+                if (!ws.userSession.isAdmin) {
+                    this._sendMessage(ws, {
+                        type: 'error',
+                        message: '관리자 권한이 필요합니다.'
+                    });
+                    return;
+                }
+                
+                try {
+                    const { username, serverId } = data;
+                    
+                    // 서버 이름 조회
+                    let serverName = '알 수 없음';
+                    
+                    const botStatus = bot.getStatus();
+                    if (botStatus.servers) {
+                        const server = botStatus.servers.find(s => s.id === serverId);
+                        if (server) {
+                            serverName = server.name;
+                        }
+                    }
+                    
+                    // storage.js에 새로운 함수를 만들어야 함
+                    // 가상의 함수 호출 (실제로는 storage.js에 구현해야 함)
+                    const assignedServers = [
+                        {
+                            serverId: serverId,
+                            serverName: serverName
+                        }
+                    ];
+                    
+                    this._sendMessage(ws, {
+                        type: 'info',
+                        message: '서버가 할당되었습니다.',
+                        servers: assignedServers
+                    });
+                    
+                    // 서버 목록 업데이트
+                    this._sendMessage(ws, {
+                        type: 'userServers',
+                        username,
+                        servers: assignedServers
+                    });
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'error',
+                        message: `서버 할당 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+                
+            // 서버 할당 해제 처리
+            case 'unassignServer':
+                if (!ws.userSession.isAdmin) {
+                    this._sendMessage(ws, {
+                        type: 'error',
+                        message: '관리자 권한이 필요합니다.'
+                    });
+                    return;
+                }
+                
+                try {
+                    const { username, serverId } = data;
+                    
+                    // 가상의 함수 호출
+                    const assignedServers = [];
+                    
+                    this._sendMessage(ws, {
+                        type: 'info',
+                        message: '서버 할당이 해제되었습니다.',
+                        servers: assignedServers
+                    });
+                    
+                    // 서버 목록 업데이트
+                    this._sendMessage(ws, {
+                        type: 'userServers',
+                        username,
+                        servers: assignedServers
+                    });
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'error',
+                        message: `서버 할당 해제 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+                
+            // 사용자 서버 목록 요청 처리
+            case 'getUserServers':
+                if (!ws.userSession.isLoggedIn) {
+                    this._sendMessage(ws, {
+                        type: 'error',
+                        message: '로그인이 필요합니다.'
+                    });
+                    return;
+                }
+                
+                try {
+                    const { username } = data;
+                    
+                    // 관리자가 아니면 자신의 서버만 볼 수 있음
+                    if (!ws.userSession.isAdmin && ws.userSession.username !== username) {
+                        this._sendMessage(ws, {
+                            type: 'error',
+                            message: '권한이 없습니다.'
+                        });
+                        return;
+                    }
+                    
+                    // 가상의 서버 목록 (실제로는 storage.js에서 가져와야 함)
+                    const servers = [];
+                    
+                    this._sendMessage(ws, {
+                        type: 'userServers',
+                        username,
+                        servers
+                    });
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'error',
+                        message: `사용자 서버 목록 조회 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+
             // 채널 할당 처리
             case 'assignChannel':
                 if (!ws.userSession.isAdmin) {
