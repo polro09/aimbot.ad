@@ -1,7 +1,13 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 관리자 모듈 기능
+ * 관리자 모듈 기능 - 수정 버전
  */
+
+// 전역 변수 - 중복 요청 방지
+let isGeneratingInviteCode = false;
+let isDeletingInviteCode = false;
+let isUpdatingUserRole = false;
+let isAssigningServer = false;
 
 // 관리자 모듈 초기화
 function initAdminModule() {
@@ -65,6 +71,8 @@ function registerAdminEventListeners() {
     
     if (generateInviteBtn) {
         generateInviteBtn.addEventListener('click', () => {
+            // 중복 요청 방지
+            if (isGeneratingInviteCode) return;
             generateInviteCode();
         });
     }
@@ -82,13 +90,17 @@ function registerAdminEventListeners() {
     
     if (updateRoleBtn) {
         updateRoleBtn.addEventListener('click', () => {
+            // 중복 요청 방지
+            if (isUpdatingUserRole) return;
             updateUserRole();
         });
     }
     
     if (assignChannelBtn) {
         assignChannelBtn.addEventListener('click', () => {
-            assignChannel();
+            // 중복 요청 방지
+            if (isAssigningServer) return;
+            assignServer();
         });
     }
     
@@ -246,9 +258,6 @@ function handleUserItemClick(user) {
         userRoleSelect.value = user.role || 'user';
     }
     
-    // 선택된 사용자의 할당된 채널 목록 로드
-    loadAssignedChannels(user.username);
-    
     // 서버 목록 로드
     loadServersList();
 }
@@ -345,26 +354,6 @@ function updateInviteCodesList(inviteCodes) {
     });
 }
 
-// 할당된 채널 목록 로드
-function loadAssignedChannels(username) {
-    const assignedChannelsList = document.getElementById('assigned-channels-list');
-    if (!assignedChannelsList) return;
-    
-    // 로딩 상태 표시
-    assignedChannelsList.innerHTML = `
-        <div class="empty-state">
-            <i class="fas fa-spinner fa-spin"></i>
-            <p>채널 정보를 불러오는 중입니다...</p>
-        </div>
-    `;
-    
-    // 할당된 채널 요청
-    WebSocketManager.sendMessage({
-        command: 'getUserChannels',
-        username: username
-    });
-}
-
 // 서버 목록 로드
 function loadServersList() {
     const serverSelect = document.getElementById('server-select-assign');
@@ -397,25 +386,8 @@ function loadServersList() {
 
 // 채널 목록 로드
 function loadChannelsList(serverId) {
-    const channelSelect = document.getElementById('channel-select-assign');
-    if (!channelSelect) return;
-    
-    // 기존 옵션 초기화
-    while (channelSelect.options.length > 1) {
-        channelSelect.remove(1);
-    }
-    
-    // 로딩 옵션 추가
-    const loadingOption = document.createElement('option');
-    loadingOption.disabled = true;
-    loadingOption.textContent = '채널 목록 로딩 중...';
-    channelSelect.appendChild(loadingOption);
-    
-    // 채널 목록 요청
-    WebSocketManager.sendMessage({
-        command: 'getChannels',
-        serverId: serverId
-    });
+    // 대시보드 서버 기능으로 변경되어 이 함수는 사용하지 않음
+    console.log("서버 목록 로드 중");
 }
 
 // 사용자 추가 모달 표시
@@ -524,7 +496,17 @@ function deleteUser() {
 
 // 초대 코드 생성
 function generateInviteCode() {
+    // 중복 요청 방지
+    if (isGeneratingInviteCode) return;
+    isGeneratingInviteCode = true;
+    
     const customCode = document.getElementById('new-invite-code').value.trim();
+    
+    // 초대 코드 생성 버튼 비활성화
+    const generateBtn = document.getElementById('generate-invite-btn');
+    if (generateBtn) {
+        generateBtn.disabled = true;
+    }
     
     // 초대 코드 생성 요청
     WebSocketManager.sendMessage({
@@ -536,6 +518,14 @@ function generateInviteCode() {
     document.getElementById('new-invite-code').value = '';
     
     Utilities.showNotification('초대 코드를 생성하는 중입니다...', 'info');
+    
+    // 3초 후에 버튼 다시 활성화
+    setTimeout(() => {
+        isGeneratingInviteCode = false;
+        if (generateBtn) {
+            generateBtn.disabled = false;
+        }
+    }, 3000);
 }
 
 // 초대 코드 삭제
@@ -544,6 +534,10 @@ function deleteInviteCode(code, event) {
     if (event) {
         event.stopPropagation();
     }
+    
+    // 중복 요청 방지
+    if (isDeletingInviteCode) return;
+    isDeletingInviteCode = true;
     
     if (!code) return;
     
@@ -555,17 +549,43 @@ function deleteInviteCode(code, event) {
         });
         
         Utilities.showNotification('초대 코드를 삭제하는 중입니다...', 'info');
+        
+        // 버튼 비활성화
+        if (event && event.target) {
+            const button = event.target.closest('button');
+            if (button) {
+                button.disabled = true;
+            }
+        }
+        
+        // 3초 후에 플래그 초기화
+        setTimeout(() => {
+            isDeletingInviteCode = false;
+        }, 3000);
+    } else {
+        isDeletingInviteCode = false;
     }
 }
 
 // 사용자 권한 업데이트
 function updateUserRole() {
+    // 중복 요청 방지
+    if (isUpdatingUserRole) return;
+    isUpdatingUserRole = true;
+    
     const username = document.getElementById('selected-username').textContent;
     const role = document.getElementById('user-role').value;
     
     if (!username || username === '-') {
         Utilities.showNotification('사용자를 선택해주세요.', 'error');
+        isUpdatingUserRole = false;
         return;
+    }
+    
+    // 버튼 비활성화
+    const updateRoleBtn = document.getElementById('update-role-btn');
+    if (updateRoleBtn) {
+        updateRoleBtn.disabled = true;
     }
     
     // 사용자 권한 업데이트 요청
@@ -576,53 +596,87 @@ function updateUserRole() {
     });
     
     Utilities.showNotification('사용자 권한을 업데이트하는 중입니다...', 'info');
+    
+    // 3초 후에 버튼 다시 활성화
+    setTimeout(() => {
+        isUpdatingUserRole = false;
+        if (updateRoleBtn) {
+            updateRoleBtn.disabled = false;
+        }
+    }, 3000);
 }
 
-// 채널 할당
-function assignChannel() {
+// 서버 할당
+function assignServer() {
+    // 중복 요청 방지
+    if (isAssigningServer) return;
+    isAssigningServer = true;
+    
     const username = document.getElementById('selected-username').textContent;
     const serverId = document.getElementById('server-select-assign').value;
-    const channelId = document.getElementById('channel-select-assign').value;
     
     if (!username || username === '-') {
         Utilities.showNotification('사용자를 선택해주세요.', 'error');
+        isAssigningServer = false;
         return;
     }
     
-    if (!serverId || !channelId) {
-        Utilities.showNotification('서버와 채널을 선택해주세요.', 'error');
+    if (!serverId) {
+        Utilities.showNotification('서버를 선택해주세요.', 'error');
+        isAssigningServer = false;
         return;
     }
     
-    // 채널 할당 요청
+    // 버튼 비활성화
+    const assignBtn = document.getElementById('assign-channel-btn');
+    if (assignBtn) {
+        assignBtn.disabled = true;
+    }
+    
+    // 서버 할당 요청 (채널 ID는 더이상 사용하지 않음)
     WebSocketManager.sendMessage({
-        command: 'assignChannel',
+        command: 'assignServer',
         username: username,
-        serverId: serverId,
-        channelId: channelId
+        serverId: serverId
     });
     
-    Utilities.showNotification('채널을 할당하는 중입니다...', 'info');
+    Utilities.showNotification('서버를 할당하는 중입니다...', 'info');
+    
+    // 3초 후에 버튼 다시 활성화
+    setTimeout(() => {
+        isAssigningServer = false;
+        if (assignBtn) {
+            assignBtn.disabled = false;
+        }
+    }, 3000);
 }
 
-// 채널 할당 해제
-function unassignChannel(username, channelId, event) {
+// 서버 할당 해제
+function unassignServer(username, serverId, event) {
     // 이벤트 버블링 중지
     if (event) {
         event.stopPropagation();
     }
     
-    if (!username || !channelId) return;
+    if (!username || !serverId) return;
     
-    if (confirm('이 채널 할당을 해제하시겠습니까?')) {
-        // 채널 할당 해제 요청
+    if (confirm('이 서버 할당을 해제하시겠습니까?')) {
+        // 서버 할당 해제 요청
         WebSocketManager.sendMessage({
-            command: 'unassignChannel',
+            command: 'unassignServer',
             username: username,
-            channelId: channelId
+            serverId: serverId
         });
         
-        Utilities.showNotification('채널 할당을 해제하는 중입니다...', 'info');
+        Utilities.showNotification('서버 할당을 해제하는 중입니다...', 'info');
+        
+        // 버튼 비활성화
+        if (event && event.target) {
+            const button = event.target.closest('button');
+            if (button) {
+                button.disabled = true;
+            }
+        }
     }
 }
 
@@ -646,6 +700,44 @@ function copyToClipboard(text, event) {
         });
 }
 
+// 서버 목록 업데이트
+function updateServersList(username, servers) {
+    const serversListElement = document.getElementById('assigned-servers-list');
+    if (!serversListElement) return;
+    
+    if (!servers || servers.length === 0) {
+        serversListElement.innerHTML = `
+            <div class="empty-state">
+                <p>할당된 서버가 없습니다.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // 서버 목록 생성
+    serversListElement.innerHTML = '';
+    servers.forEach(server => {
+        const serverItem = document.createElement('div');
+        serverItem.className = 'server-item';
+        
+        serverItem.innerHTML = `
+            <div class="server-info">
+                <span class="server-name">
+                    <i class="fas fa-server"></i> ${server.serverName || server.name || '알 수 없는 서버'}
+                </span>
+                <span class="server-id">${server.serverId || server.id || '-'}</span>
+            </div>
+            <div class="server-actions">
+                <button class="btn-remove" onclick="unassignServer('${username}', '${server.serverId || server.id}', event)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        serversListElement.appendChild(serverItem);
+    });
+}
+
 // 웹소켓 메시지 핸들러
 WebSocketManager.messageHandlers['usersList'] = (message) => {
     if (message.users) {
@@ -659,76 +751,19 @@ WebSocketManager.messageHandlers['inviteCodesList'] = (message) => {
     }
 };
 
-WebSocketManager.messageHandlers['userChannels'] = (message) => {
-    const assignedChannelsList = document.getElementById('assigned-channels-list');
-    if (!assignedChannelsList) return;
+WebSocketManager.messageHandlers['userServers'] = (message) => {
+    const serversListElement = document.getElementById('assigned-servers-list');
+    if (!serversListElement) return;
     
-    if (!message.channels || message.channels.length === 0) {
-        assignedChannelsList.innerHTML = `
+    if (!message.servers || message.servers.length === 0) {
+        serversListElement.innerHTML = `
             <div class="empty-state">
-                <p>할당된 채널이 없습니다.</p>
+                <p>할당된 서버가 없습니다.</p>
             </div>
         `;
         return;
     }
     
-    // 채널 목록 생성
-    assignedChannelsList.innerHTML = '';
-    message.channels.forEach(channel => {
-        const channelItem = document.createElement('div');
-        channelItem.className = 'channel-item';
-        
-        channelItem.innerHTML = `
-            <div class="channel-info">
-                <span class="channel-name">
-                    <i class="fas fa-hashtag"></i> ${channel.name}
-                </span>
-                <span class="channel-id">${channel.id}</span>
-            </div>
-            <div class="channel-actions">
-                <button class="btn-remove" onclick="unassignChannel('${message.username}', '${channel.id}', event)">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-        
-        assignedChannelsList.appendChild(channelItem);
-    });
-};
-
-WebSocketManager.messageHandlers['channels'] = (message) => {
-    const channelSelect = document.getElementById('channel-select-assign');
-    if (!channelSelect) return;
-    
-    // 기존 옵션 초기화 (첫 번째 옵션 제외)
-    while (channelSelect.options.length > 1) {
-        channelSelect.remove(1);
-    }
-    
-    if (!message.channels || message.channels.length === 0) {
-        const option = document.createElement('option');
-        option.disabled = true;
-        option.textContent = message.error || '등록된 채널이 없습니다';
-        channelSelect.appendChild(option);
-        return;
-    }
-    
-    // 텍스트 채널만 필터링 (type 0은 텍스트 채널)
-    const textChannels = message.channels.filter(channel => channel.type === 0);
-    
-    if (textChannels.length === 0) {
-        const option = document.createElement('option');
-        option.disabled = true;
-        option.textContent = '텍스트 채널이 없습니다';
-        channelSelect.appendChild(option);
-        return;
-    }
-    
-    // 채널 목록 옵션 추가
-    textChannels.forEach(channel => {
-        const option = document.createElement('option');
-        option.value = channel.id;
-        option.textContent = '#' + channel.name;
-        channelSelect.appendChild(option);
-    });
+    // 서버 목록 생성
+    updateServersList(message.username, message.servers);
 };

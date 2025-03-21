@@ -1,6 +1,6 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 대시보드 기능 개선
+ * 대시보드 기능 개선 - 수정 버전
  */
 
 // 대시보드 업데이트 함수
@@ -10,8 +10,9 @@ function updateDashboardStatus(data) {
     const botStatusText = document.getElementById('bot-status-text');
     
     if (botStatusIndicator && botStatusText) {
-        // 봇이 실행 중인지 확인
-        const isRunning = data.isRunning || false;
+        // 봇이 실행 중인지 확인 (isRunning이 없으면 botStatus 확인)
+        const isRunning = data.isRunning !== undefined ? data.isRunning : 
+                         (data.botStatus === '실행 중' || data.botStatus === 'online');
         
         if (isRunning) {
             botStatusIndicator.className = 'status-indicator online';
@@ -24,10 +25,14 @@ function updateDashboardStatus(data) {
         // 버튼 활성화/비활성화
         const startBtn = document.getElementById('start-bot-btn');
         const stopBtn = document.getElementById('stop-bot-btn');
+        const restartBtn = document.getElementById('restart-bot-btn');
         
         if (startBtn && stopBtn) {
             startBtn.disabled = isRunning;
             stopBtn.disabled = !isRunning;
+            if (restartBtn) {
+                restartBtn.disabled = !isRunning;
+            }
         }
     }
     
@@ -50,6 +55,7 @@ function updateSystemInfo(data) {
     // 가동 시간 표시
     const webUptimeElement = document.getElementById('web-uptime');
     const botUptimeElement = document.getElementById('bot-uptime');
+    const loadedModulesElement = document.getElementById('loaded-modules');
     
     if (webUptimeElement) {
         webUptimeElement.textContent = data.serverUptime || '정보 없음';
@@ -60,13 +66,21 @@ function updateSystemInfo(data) {
     }
     
     // 모듈 수 표시
-    const loadedModulesElement = document.getElementById('loaded-modules');
-    if (loadedModulesElement && data.modules) {
-        loadedModulesElement.textContent = Array.isArray(data.modules) ? 
-            `${data.modules.length} 모듈` : 
-            typeof data.modules === 'number' ? 
-                `${data.modules} 모듈` : 
-                '정보 없음';
+    if (loadedModulesElement) {
+        let moduleCount = 0;
+        if (data.modules) {
+            if (Array.isArray(data.modules)) {
+                moduleCount = data.modules.length;
+            } else if (typeof data.modules === 'number') {
+                moduleCount = data.modules;
+            } else if (typeof data.moduleStatus === 'object') {
+                moduleCount = Object.keys(data.moduleStatus).length;
+            }
+        }
+        
+        loadedModulesElement.textContent = moduleCount > 0 ? 
+            `${moduleCount} 모듈` : 
+            '정보 없음';
     }
 }
 
@@ -120,6 +134,14 @@ function updateBotLogs(logs) {
     // 이전 로그 엔트리 수
     const prevEntryCount = logsContainer.querySelectorAll('.log-entry').length;
     
+    // 이미 표시된 로그 ID 추적
+    const existingLogIds = new Set();
+    logsContainer.querySelectorAll('.log-entry').forEach(entry => {
+        if (entry.dataset.logId) {
+            existingLogIds.add(entry.dataset.logId);
+        }
+    });
+    
     // 각 로그 타입별 색상
     const typeColors = {
         'INFO': '#3498db',
@@ -129,36 +151,54 @@ function updateBotLogs(logs) {
     };
     
     // 새로운 로그만 추가 (최신 로그가 맨 위에 표시)
-    const newLogs = logs.slice(0, logs.length - prevEntryCount);
-    
-    newLogs.forEach(log => {
-        const logEntry = document.createElement('div');
-        logEntry.className = `log-entry ${log.type}`;
-        logEntry.setAttribute('data-type', log.type);
+    if (logs && logs.length > 0) {
+        let logsAdded = 0;
         
-        // 타임스탬프 포맷팅
-        let formattedTime = '';
-        try {
-            const timestamp = new Date(log.timestamp);
-            formattedTime = timestamp.toLocaleTimeString();
-        } catch (e) {
-            console.warn('로그 타임스탬프 파싱 오류:', e);
-            formattedTime = '00:00:00';
+        for (let i = 0; i < logs.length; i++) {
+            const log = logs[i];
+            // 타임스탬프와 메시지로 고유 ID 생성
+            const logId = `${log.timestamp}-${log.message}`.replace(/[^a-zA-Z0-9]/g, '');
+            
+            // 이미 표시된 로그는 건너뛰기
+            if (existingLogIds.has(logId)) {
+                continue;
+            }
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${log.type}`;
+            logEntry.setAttribute('data-type', log.type);
+            logEntry.setAttribute('data-log-id', logId);
+            
+            // 타임스탬프 포맷팅
+            let formattedTime = '';
+            try {
+                const timestamp = new Date(log.timestamp);
+                formattedTime = timestamp.toLocaleTimeString();
+            } catch (e) {
+                formattedTime = '00:00:00';
+            }
+            
+            logEntry.innerHTML = `
+                <span class="timestamp">[${formattedTime}]</span>
+                <span class="type" style="color: ${typeColors[log.type] || '#666'}">${log.type}</span>
+                <span class="message">${log.message}</span>
+            `;
+            
+            // 로그 컨테이너의 맨 앞에 추가 (최신 로그가 위에 표시)
+            if (logsContainer.firstChild) {
+                logsContainer.insertBefore(logEntry, logsContainer.firstChild);
+            } else {
+                logsContainer.appendChild(logEntry);
+            }
+            
+            logsAdded++;
+            
+            // 최대 100개 로그 유지
+            if (logsContainer.childElementCount > 100) {
+                logsContainer.removeChild(logsContainer.lastChild);
+            }
         }
-        
-        logEntry.innerHTML = `
-            <span class="timestamp">[${formattedTime}]</span>
-            <span class="type" style="color: ${typeColors[log.type] || '#666'}">${log.type}</span>
-            <span class="message">${log.message}</span>
-        `;
-        
-        // 로그 컨테이너의 맨 앞에 추가 (최신 로그가 위에 표시)
-        if (logsContainer.firstChild) {
-            logsContainer.insertBefore(logEntry, logsContainer.firstChild);
-        } else {
-            logsContainer.appendChild(logEntry);
-        }
-    });
+    }
     
     // 로그 필터 적용
     const logFilterSelect = document.getElementById('log-filter-select');
@@ -194,7 +234,9 @@ function initDashboardModule() {
     initLogFilter();
     
     // 최초 업데이트 요청
-    WebSocketManager.sendMessage({ command: 'start' });
+    setTimeout(() => {
+        WebSocketManager.sendMessage({ command: 'getBotStatus' });
+    }, 500);
 }
 
 // 이벤트 리스너 등록 함수
@@ -210,6 +252,11 @@ function registerDashboardEventListeners() {
             startBtn.disabled = true; // 중복 클릭 방지
             WebSocketManager.sendMessage({ command: 'start' });
             Utilities.showNotification('봇 시작 요청 중...', 'info');
+            
+            // 3초 후 상태 업데이트 요청
+            setTimeout(() => {
+                WebSocketManager.sendMessage({ command: 'getBotStatus' });
+            }, 3000);
         });
     }
     
@@ -219,6 +266,11 @@ function registerDashboardEventListeners() {
                 stopBtn.disabled = true; // 중복 클릭 방지
                 WebSocketManager.sendMessage({ command: 'stop' });
                 Utilities.showNotification('봇 종료 요청 중...', 'info');
+                
+                // 3초 후 상태 업데이트 요청
+                setTimeout(() => {
+                    WebSocketManager.sendMessage({ command: 'getBotStatus' });
+                }, 3000);
             }
         });
     }
@@ -230,10 +282,11 @@ function registerDashboardEventListeners() {
                 WebSocketManager.sendMessage({ command: 'restart' });
                 Utilities.showNotification('봇 재시작 요청 중...', 'info');
                 
-                // 3초 후 버튼 다시 활성화
+                // 5초 후 버튼 다시 활성화 및 상태 업데이트
                 setTimeout(() => {
                     restartBtn.disabled = false;
-                }, 3000);
+                    WebSocketManager.sendMessage({ command: 'getBotStatus' });
+                }, 5000);
             }
         });
     }
@@ -283,119 +336,6 @@ function clearLogs() {
     }
 }
 
-// 모듈 정보 갱신 함수 - 모듈 관리 페이지용
-function updateModulesList(moduleStatus) {
-    console.log('모듈 정보 업데이트 시작');
-    const modulesContainer = document.getElementById('modules-container');
-    if (!modulesContainer) {
-        console.log('모듈 컨테이너가 존재하지 않습니다.');
-        return;
-    }
-    
-    // 컨테이너 비우기
-    modulesContainer.innerHTML = '';
-    
-    // 모듈이 없을 경우
-    if (!moduleStatus || Object.keys(moduleStatus).length === 0) {
-        const emptyState = document.createElement('div');
-        emptyState.className = 'empty-state';
-        emptyState.innerHTML = '<i class="fas fa-puzzle-piece"></i><p>등록된 모듈이 없습니다.</p>';
-        modulesContainer.appendChild(emptyState);
-        console.log('모듈이 없습니다.');
-        return;
-    }
-    
-    // 모듈 목록 생성
-    Object.entries(moduleStatus).forEach(([fileName, module]) => {
-        const moduleItem = document.createElement('div');
-        moduleItem.className = `module-item ${module.enabled ? 'enabled' : 'disabled'}`;
-        moduleItem.dataset.module = fileName;
-        
-        // 모듈 정보
-        const moduleInfo = document.createElement('div');
-        moduleInfo.className = 'module-info';
-        
-        const moduleName = document.createElement('div');
-        moduleName.className = 'module-name';
-        moduleName.innerHTML = `<i class="fas fa-puzzle-piece"></i>${module.name || fileName}`;
-        
-        const moduleDescription = document.createElement('div');
-        moduleDescription.className = 'module-description';
-        moduleDescription.textContent = module.description || '설명 없음';
-        
-        moduleInfo.appendChild(moduleName);
-        moduleInfo.appendChild(moduleDescription);
-        
-        // 모듈 상태
-        const moduleStatus = document.createElement('div');
-        moduleStatus.className = `module-status ${module.enabled ? 'enabled' : 'disabled'}`;
-        moduleStatus.innerHTML = module.enabled ? 
-            '<i class="fas fa-check-circle"></i> 활성화' : 
-            '<i class="fas fa-times-circle"></i> 비활성화';
-        
-        moduleItem.appendChild(moduleInfo);
-        moduleItem.appendChild(moduleStatus);
-        
-        // 모듈 클릭 이벤트
-        moduleItem.addEventListener('click', () => {
-            // 모듈 모달 표시 함수 호출
-            if (typeof showModuleModal === 'function') {
-                showModuleModal(fileName, module);
-            } else {
-                console.log('showModuleModal 함수가 정의되지 않았습니다.');
-            }
-        });
-        
-        modulesContainer.appendChild(moduleItem);
-    });
-    
-    console.log('모듈 정보 업데이트 완료');
-}
-
-// 온라인 관리자 목록 업데이트 함수
-function updateOnlineAdmins(admins) {
-    const onlineAdminsList = document.getElementById('online-admins-list');
-    if (!onlineAdminsList) return;
-    
-    // 목록 초기화
-    onlineAdminsList.innerHTML = '';
-    
-    if (!admins || admins.length === 0) {
-        onlineAdminsList.innerHTML = '<div class="no-admins">온라인 관리자가 없습니다.</div>';
-        return;
-    }
-    
-    // 관리자 목록 생성
-    admins.forEach(admin => {
-        const adminItem = document.createElement('div');
-        adminItem.className = 'admin-item';
-        
-        let roleIcon = 'fa-user';
-        let roleClass = 'role-user';
-        
-        if (admin.role === 'admin' || admin.role === 'level1') {
-            roleIcon = 'fa-crown';
-            roleClass = 'role-admin';
-        } else if (admin.role === 'level2') {
-            roleIcon = 'fa-shield-alt';
-            roleClass = 'role-mod';
-        } else if (admin.role === 'level3') {
-            roleIcon = 'fa-user-shield';
-            roleClass = 'role-helper';
-        }
-        
-        adminItem.innerHTML = `
-            <div class="admin-name">
-                <i class="fas ${roleIcon} ${roleClass}"></i>
-                ${admin.username}
-            </div>
-            <div class="admin-status">온라인</div>
-        `;
-        
-        onlineAdminsList.appendChild(adminItem);
-    });
-}
-
 // 임베드 모듈 개선 - 서버/채널 선택 기능
 function fixEmbedServerSelection() {
     const serverSelect = document.getElementById('server-select');
@@ -421,30 +361,21 @@ function fixEmbedServerSelection() {
         }
         
         // 상태 업데이트 요청
-        WebSocketManager.sendMessage({ command: 'start' }, () => {
-            // 로컬 스토리지에서 봇 상태 정보 가져오기
-            const botStatus = localStorage.getItem('botStatus');
-            if (!botStatus) return;
-            
-            try {
-                const status = JSON.parse(botStatus);
-                if (status.servers && status.servers.length > 0) {
-                    // 서버 목록 옵션 추가
-                    status.servers.forEach(server => {
-                        const option = document.createElement('option');
-                        option.value = server.id;
-                        option.textContent = server.name;
-                        serverSelect.appendChild(option);
-                    });
-                } else {
-                    // 서버가 없을 경우
+        WebSocketManager.sendMessage({ command: 'getBotStatus' }, (response) => {
+            if (response.servers && response.servers.length > 0) {
+                // 서버 목록 옵션 추가
+                response.servers.forEach(server => {
                     const option = document.createElement('option');
-                    option.disabled = true;
-                    option.textContent = '등록된 서버가 없습니다';
+                    option.value = server.id;
+                    option.textContent = server.name;
                     serverSelect.appendChild(option);
-                }
-            } catch (e) {
-                console.error('서버 목록 파싱 오류:', e);
+                });
+            } else {
+                // 서버가 없을 경우
+                const option = document.createElement('option');
+                option.disabled = true;
+                option.textContent = '등록된 서버가 없습니다';
+                serverSelect.appendChild(option);
             }
         });
     }
@@ -466,56 +397,68 @@ function fixEmbedServerSelection() {
         WebSocketManager.sendMessage({
             command: 'getChannels',
             serverId: serverId
-        }, (response) => {
+        });
+        
+        // 채널 목록 로드 이벤트 리스너
+        const loadHandler = function(event) {
+            const channels = event.detail;
+            
             // 기존 옵션 초기화 (첫 번째 옵션 제외)
             while (channelSelect.options.length > 1) {
                 channelSelect.remove(1);
             }
             
-            if (!response.channels || response.channels.length === 0) {
+            if (channels && channels.length > 0) {
+                // 텍스트 채널만 필터링
+                const textChannels = channels.filter(channel => channel.type === 0);
+                
+                if (textChannels.length > 0) {
+                    // 채널 목록 옵션 추가
+                    textChannels.forEach(channel => {
+                        const option = document.createElement('option');
+                        option.value = channel.id;
+                        option.textContent = '#' + channel.name;
+                        channelSelect.appendChild(option);
+                    });
+                } else {
+                    // 텍스트 채널이 없을 경우
+                    const option = document.createElement('option');
+                    option.disabled = true;
+                    option.textContent = '텍스트 채널이 없습니다';
+                    channelSelect.appendChild(option);
+                }
+            } else {
                 // 채널이 없을 경우
                 const option = document.createElement('option');
                 option.disabled = true;
-                option.textContent = response.error || '등록된 채널이 없습니다';
+                option.textContent = '등록된 채널이 없습니다';
                 channelSelect.appendChild(option);
-                return;
             }
             
-            // 텍스트 채널만 필터링 (type 0은 텍스트 채널)
-            const textChannels = response.channels.filter(channel => channel.type === 0);
-            
-            if (textChannels.length === 0) {
-                // 텍스트 채널이 없을 경우
-                const option = document.createElement('option');
-                option.disabled = true;
-                option.textContent = '텍스트 채널이 없습니다';
-                channelSelect.appendChild(option);
-                return;
-            }
-            
-            // 채널 목록 옵션 추가
-            textChannels.forEach(channel => {
-                const option = document.createElement('option');
-                option.value = channel.id;
-                option.textContent = '#' + channel.name;
-                channelSelect.appendChild(option);
-            });
-        });
+            // 이벤트 리스너 제거 (중복 방지)
+            document.removeEventListener('channels_loaded', loadHandler);
+        };
+        
+        document.addEventListener('channels_loaded', loadHandler);
     }
 }
 
 // 페이지 로드 완료 후 실행
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
-        // 모듈 초기화가 완료된 후 개선 기능 적용
-        const currentModule = window.location.hash.substring(1);
-        if (currentModule === 'embed') {
+        // 대시보드 초기 상태 요청
+        if (window.location.hash === '#dashboard') {
+            WebSocketManager.sendMessage({ command: 'getBotStatus' });
+        }
+        
+        // 임베드 페이지 초기화
+        if (window.location.hash === '#embed') {
             fixEmbedServerSelection();
         }
     }, 6500); // 로딩 애니메이션 완료 시간 기준
 });
 
-// 모듈 초기화 시 엠베드 모듈 개선 적용
+// 모듈 로드 이벤트 리스너
 document.addEventListener('module_loaded', function(e) {
     if (e.detail === 'embed') {
         setTimeout(() => {

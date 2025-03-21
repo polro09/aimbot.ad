@@ -1,6 +1,6 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 웹소켓 통신 관리
+ * 웹소켓 통신 관리 - 수정 버전
  */
 
 const WebSocketManager = {
@@ -11,6 +11,7 @@ const WebSocketManager = {
     requestCallbacks: {}, // 요청에 대한 콜백 함수 저장
     messageHandlers: {}, // 메시지 타입별 핸들러
     isInitialized: false, // 초기화 상태 추적
+    pendingCommands: {}, // 중복 요청 방지를 위한 커맨드 추적
     
     init: function() {
         if (this.isInitialized) return; // 중복 초기화 방지
@@ -87,6 +88,7 @@ const WebSocketManager = {
     handleOpen: function() {
         console.log('웹소켓 연결 성공');
         this.reconnectAttempts = 0; // 재연결 성공 시 카운터 초기화
+        this.pendingCommands = {}; // 명령 추적 초기화
         
         // 초기 상태 요청
         this.requestInitialStatus();
@@ -96,8 +98,13 @@ const WebSocketManager = {
         try {
             const message = JSON.parse(event.data);
             
-            // 로깅 (디버깅용)
-            console.log('웹소켓 메시지 수신:', message);
+            // 로깅 (디버깅용 - 메시지 타입만 로그)
+            console.log('웹소켓 메시지 수신:', message.type || 'serverStatus');
+            
+            // 요청 ID가 있는 경우 해당 명령 완료 표시
+            if (message.requestId && this.pendingCommands[message.requestId]) {
+                delete this.pendingCommands[message.requestId];
+            }
             
             // 메시지 타입 확인
             if (!message.type) {
@@ -150,7 +157,7 @@ const WebSocketManager = {
             
             setTimeout(() => {
                 if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-                    console.log('웹소켓 재연결 후 메시지 재전송:', originalMessage);
+                    console.log('웹소켓 재연결 후 메시지 재전송:', originalMessage.command);
                     this.sendMessage(originalMessage, originalCallback);
                 } else {
                     console.warn('재전송 실패: 웹소켓이 여전히 연결되지 않았습니다.');
@@ -160,20 +167,97 @@ const WebSocketManager = {
             return false;
         }
         
+        // 중복 요청 방지
+        const commandKey = message.command;
+        if (commandKey && this.isCommandPending(commandKey, message)) {
+            console.log(`명령 무시 (중복): ${commandKey}`);
+            return false;
+        }
+        
         // 요청 ID 추가 (선택적)
+        const requestId = Date.now().toString() + Math.random().toString(36).substring(2, 8);
+        message.requestId = requestId;
+        
         if (callback) {
-            const requestId = Date.now().toString() + Math.random().toString(36).substring(2, 8);
-            message.requestId = requestId;
             this.requestCallbacks[requestId] = callback;
         }
         
+        // 명령 추적 설정
+        if (commandKey) {
+            this.trackCommand(commandKey, requestId, message);
+        }
+        
         try {
-            console.log('웹소켓으로 메시지 전송:', message);
+            console.log('웹소켓으로 메시지 전송:', message.command || 'unknown');
             this.socket.send(JSON.stringify(message));
             return true;
         } catch (error) {
             console.error('메시지 전송 오류:', error);
+            
+            // 명령 추적에서 제거
+            if (commandKey) {
+                this.untrackCommand(commandKey, requestId);
+            }
+            
             return false;
+        }
+    },
+    
+    // 명령이 이미 처리 중인지 확인
+    isCommandPending: function(command, message) {
+        // 특정 명령은 항상 허용 (중복 검사 안함)
+        const alwaysAllowCommands = ['login', 'register', 'getUserChannels', 'assignChannel', 'unassignChannel'];
+        if (alwaysAllowCommands.includes(command)) {
+            return false;
+        }
+        
+        // 초대 코드 생성/삭제는 매개변수로 비교
+        if (command === 'generateInviteCode' || command === 'deleteInviteCode') {
+            // 배열 형태로 저장된 명령들 체크
+            const pendingCommands = this.pendingCommands[command] || [];
+            return pendingCommands.some(item => {
+                if (command === 'generateInviteCode' && item.message.code === message.code) {
+                    return true;
+                }
+                if (command === 'deleteInviteCode' && item.message.code === message.code) {
+                    return true;
+                }
+                return false;
+            });
+        }
+        
+        // 나머지 명령은 단순히 명령 이름으로 확인
+        return this.pendingCommands[command] && this.pendingCommands[command].length > 0;
+    },
+    
+    // 명령 추적에 추가
+    trackCommand: function(command, requestId, message) {
+        if (!this.pendingCommands[command]) {
+            this.pendingCommands[command] = [];
+        }
+        
+        this.pendingCommands[command].push({
+            requestId,
+            timestamp: Date.now(),
+            message: message
+        });
+        
+        // 일정 시간 후 명령 자동 제거 (10초)
+        setTimeout(() => {
+            this.untrackCommand(command, requestId);
+        }, 10000);
+    },
+    
+    // 명령 추적에서 제거
+    untrackCommand: function(command, requestId) {
+        if (this.pendingCommands[command]) {
+            this.pendingCommands[command] = this.pendingCommands[command].filter(
+                item => item.requestId !== requestId
+            );
+            
+            if (this.pendingCommands[command].length === 0) {
+                delete this.pendingCommands[command];
+            }
         }
     },
     
@@ -229,15 +313,44 @@ const WebSocketManager = {
             localStorage.setItem('botStatus', JSON.stringify(message));
         };
         
-        // 에러 메시지
+        // 에러 메시지 - 중복 메시지 방지 추가
         this.messageHandlers['error'] = (message) => {
-            Utilities.showNotification(message.message, 'error');
+            // 특정 오류 메시지 체크를 위한 변수
+            const errorMsg = message.message || '';
+            
+            // 무시할 오류 메시지 패턴
+            const ignorePatterns = [
+                '봇 시작에 실패했습니다',
+                '이미 할당된 채널입니다'
+            ];
+            
+            // 해당 패턴이 있으면 무시
+            if (ignorePatterns.some(pattern => errorMsg.includes(pattern))) {
+                console.log('무시된 오류 메시지:', errorMsg);
+                return;
+            }
+            
+            Utilities.showNotification(errorMsg, 'error');
         };
         
-        // 기본 정보 메시지
+        // 기본 정보 메시지 - 중복 처리 방지
         this.messageHandlers['info'] = (message) => {
             if (message.message) {
+                // 최근 표시된 알림과 동일한 경우 무시
+                const lastNotification = localStorage.getItem('lastNotification');
+                const currentTime = Date.now();
+                const lastTime = parseInt(localStorage.getItem('lastNotificationTime') || '0');
+                
+                // 3초 이내에 동일한 메시지가 표시된 경우 무시
+                if (lastNotification === message.message && (currentTime - lastTime) < 3000) {
+                    console.log('중복 알림 무시:', message.message);
+                    return;
+                }
+                
+                // 알림 표시 및 저장
                 Utilities.showNotification(message.message, 'info');
+                localStorage.setItem('lastNotification', message.message);
+                localStorage.setItem('lastNotificationTime', currentTime.toString());
             }
         };
         
@@ -273,17 +386,25 @@ const WebSocketManager = {
     requestDashboardData: function() {
         if (typeof AuthManager !== 'undefined' && !AuthManager.isLoggedIn()) return;
         
-        // 모듈 상태 요청
-        this.sendMessage({ command: 'getModuleStatus' });
+        // 모듈 상태 요청 (1초 간격으로 순차 요청하여 서버 부하 방지)
+        setTimeout(() => {
+            this.sendMessage({ command: 'getModuleStatus' });
+        }, 500);
         
         // 사용자 설정 요청
-        this.sendMessage({ command: 'getUserSettings' });
+        setTimeout(() => {
+            this.sendMessage({ command: 'getUserSettings' });
+        }, 1000);
         
         // 서버 상태 요청
-        this.sendMessage({ command: 'getBotStatus' });
+        setTimeout(() => {
+            this.sendMessage({ command: 'getBotStatus' });
+        }, 1500);
         
         // 온라인 관리자 요청
-        this.sendMessage({ command: 'getOnlineAdmins' });
+        setTimeout(() => {
+            this.sendMessage({ command: 'getOnlineAdmins' });
+        }, 2000);
     }
 };
 

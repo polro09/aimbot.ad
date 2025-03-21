@@ -1,0 +1,195 @@
+<div class="admin-container">
+    <div class="admin-header">
+        <h1><i class="fas fa-lock"></i> 관리자 설정</h1>
+        <p class="admin-description">사용자 관리 및 시스템 설정을 변경합니다.</p>
+    </div>
+    
+    <div class="admin-content">
+        <!-- 사용자 관리 카드 -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2><i class="fas fa-users"></i> 사용자 관리</h2>
+                <div class="card-actions">
+                    <button id="add-user-btn" class="btn-icon" title="사용자 추가">
+                        <i class="fas fa-user-plus"></i>
+                    </button>
+                    <button id="refresh-users-btn" class="btn-icon" title="사용자 목록 새로고침">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-content">
+                <div id="users-container">
+                    <!-- 사용자 목록이 동적으로 표시됨 -->
+                    <div class="empty-state">
+                        <i class="fas fa-users"></i>
+                        <p>사용자 정보를 불러오는 중입니다...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 초대 코드 관리 카드 -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2><i class="fas fa-key"></i> 초대 코드 관리</h2>
+                <div class="card-actions">
+                    <button id="refresh-invites-btn" class="btn-icon" title="초대 코드 목록 새로고침">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="invite-code-generator">
+                    <div class="form-group">
+                        <input type="text" id="new-invite-code" placeholder="초대 코드 입력 (비워두면 자동 생성)">
+                        <button id="generate-invite-btn" class="btn-primary">
+                            <i class="fas fa-plus"></i> 코드 생성
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="invite-codes-container">
+                    <!-- 초대 코드 목록이 동적으로 표시됨 -->
+                    <div class="empty-state">
+                        <i class="fas fa-key"></i>
+                        <p>초대 코드를 불러오는 중입니다...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 사용자 권한 관리 패널 -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2><i class="fas fa-user-shield"></i> 사용자 권한 및 서버 관리</h2>
+            </div>
+            <div class="card-content">
+                <div id="user-management-container">
+                    <!-- 사용자 정보 표시 -->
+                    <div id="selected-user-info" class="selected-user-info" style="display: none;">
+                        <h3>선택된 사용자 정보</h3>
+                        <div class="info-section">
+                            <div class="info-item">
+                                <span class="info-label">사용자:</span>
+                                <span id="selected-username" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">가입일:</span>
+                                <span id="selected-created" class="info-value">-</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">최근 로그인:</span>
+                                <span id="selected-last-login" class="info-value">-</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 권한 설정 -->
+                        <div class="form-section">
+                            <h4>권한 설정</h4>
+                            <div class="form-group">
+                                <label for="user-role">권한 레벨</label>
+                                <select id="user-role" class="styled-select">
+                                    <option value="level1">1등급 관리자 (전체 기능)</option>
+                                    <option value="level2">2등급 관리자 (대시보드, 임베드, 모듈)</option>
+                                    <option value="level3">3등급 관리자 (대시보드, 임베드)</option>
+                                    <option value="user">일반 사용자</option>
+                                </select>
+                            </div>
+                            <button id="update-role-btn" class="btn-primary">
+                                <i class="fas fa-save"></i> 권한 저장
+                            </button>
+                        </div>
+                        
+                        <!-- 서버 할당 -->
+                        <div class="form-section">
+                            <h4>서버 할당</h4>
+                            <div class="form-group">
+                                <label for="server-select-assign">서버 선택</label>
+                                <select id="server-select-assign" class="styled-select">
+                                    <option value="">-- 서버 선택 --</option>
+                                </select>
+                            </div>
+                            <button id="assign-channel-btn" class="btn-primary">
+                                <i class="fas fa-plus"></i> 서버 할당
+                            </button>
+                        </div>
+                        
+                        <!-- 할당된 서버 목록 -->
+                        <div class="assigned-servers-section">
+                            <h4>할당된 서버</h4>
+                            <div id="assigned-servers-list" class="assigned-servers-list">
+                                <!-- 여기에 할당된 서버 목록이 동적으로 표시됨 -->
+                                <div class="empty-state">
+                                    <p>할당된 서버가 없습니다.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 사용자 선택 안내 메시지 -->
+                    <div id="no-user-selected" class="empty-state">
+                        <i class="fas fa-user"></i>
+                        <p>사용자 목록에서 사용자를 선택해주세요.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 사용자 추가 모달 -->
+    <div id="add-user-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>사용자 추가</h2>
+            <form id="add-user-form">
+                <div class="form-group">
+                    <label for="new-username">아이디</label>
+                    <input type="text" id="new-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="new-password">비밀번호</label>
+                    <input type="password" id="new-password" required>
+                </div>
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="new-user-admin">
+                    <label for="new-user-admin">관리자 권한 부여</label>
+                </div>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-user-plus"></i> 사용자 추가
+                </button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 사용자 편집 모달 -->
+    <div id="edit-user-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>사용자 설정</h2>
+            <h3 id="edit-username-title">사용자명</h3>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-username-hidden">
+                
+                <div class="form-group">
+                    <label for="reset-password">비밀번호 재설정 (비워두면 유지)</label>
+                    <input type="password" id="reset-password">
+                </div>
+                
+                <div class="form-group checkbox-group">
+                    <input type="checkbox" id="edit-user-admin">
+                    <label for="edit-user-admin">관리자 권한</label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">
+                        <i class="fas fa-save"></i> 저장
+                    </button>
+                    <button type="button" id="delete-user-btn" class="btn-danger">
+                        <i class="fas fa-trash"></i> 삭제
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
