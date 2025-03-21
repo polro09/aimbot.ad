@@ -1,0 +1,180 @@
+/* 사용자 정보 영역 스타일 */
+.user-info-area {
+    background-color: #1a1a1a;
+    color: #f5f5f5;
+    padding: 10px 20px;
+    border-bottom: 1px solid #333;
+    position: relative;
+    z-index: 100;
+}
+
+.user-info-content {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.user-info-details {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.user-info-label {
+    font-weight: 500;
+    color: #999;
+}
+
+.user-info-value {
+    font-weight: 600;
+    color: #fff;
+}
+
+.user-info-actions {
+    margin-left: 20px;
+}
+
+.btn-logout {
+    background-color: transparent;
+    border: 1px solid #e74c3c;
+    color: #e74c3c;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.btn-logout:hover {
+    background-color: #e74c3c;
+    color: #fff;
+}
+
+/* 온라인 관리자 영역 스타일 */
+.online-admins-area {
+    background-color: #1a1a1a;
+    color: #f5f5f5;
+    padding: 10px 20px;
+    border-bottom: 1px solid #333;
+    position: relative;
+    z-index: 99;
+}
+
+.online-admins-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.online-admins-title {
+    font-weight: 600;
+    color: #999;
+    white-space: nowrap;
+}
+
+.online-admins-list {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.admin-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: #252525;
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+
+.admin-name {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: 500;
+}
+
+.admin-status {
+    color: #2ecc71;
+    font-size: 0.8rem;
+}
+
+.no-admins {
+    color: #888;
+    font-style: italic;
+}
+
+/* 관리자 역할 아이콘 색상 */
+.role-admin {
+    color: #e74c3c;
+}
+
+.role-mod {
+    color: #f39c12;
+}
+
+.role-helper {
+    color: #3498db;
+}
+
+.role-user {
+    color: #95a5a6;
+}
+
+/* 로그인 메뉴 아이템 */
+.login-menu-item {
+    margin-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 20px;
+}
+
+/* 회원가입 링크 */
+.register-link {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.register-link a {
+    color: #3498db;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.register-link a:hover {
+    color: #2980b9;
+}
+
+/* 메시지 스타일 */
+.login-message, .register-message {
+    margin-top: 15px;
+    color: #e74c3c;
+}
+
+/* 콘텐츠 컨테이너 마진 조정 */
+#content-container {
+    margin-top: 80px; /* 사용자 정보 및 온라인 관리자 영역을 위한 여백 */
+}
+
+/* 모바일 반응형 */
+@media (max-width: 768px) {
+    .user-info-content,
+    .online-admins-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .user-info-actions {
+        margin-left: 0;
+        margin-top: 10px;
+    }
+    
+    #content-container {
+        margin-top: 150px;
+    }
+}

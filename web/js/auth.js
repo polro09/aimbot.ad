@@ -1,6 +1,6 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 개선된 인증 관리 시스템
+ * 인증 관리 시스템
  */
 
 const AuthManager = {
@@ -26,6 +26,12 @@ const AuthManager = {
                 console.error('저장된 사용자 정보 파싱 오류:', e);
                 localStorage.removeItem('auth_user');
             }
+        }
+        
+        // 로그인 버튼 이벤트 리스너
+        const loginBtn = document.getElementById('login-btn');
+        if (loginBtn) {
+            loginBtn.addEventListener('click', this.showLoginModal.bind(this));
         }
         
         // 로그인 모달 이벤트 리스너

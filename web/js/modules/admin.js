@@ -21,9 +21,6 @@ function initAdminModule() {
     
     // 초대 코드 목록 로드
     loadInviteCodes();
-    
-    // 시스템 정보 업데이트
-    updateSystemInfo();
 }
 
 // 관리자 접근 오류 표시
@@ -79,24 +76,28 @@ function registerAdminEventListeners() {
         });
     }
     
-    // 시스템 관리 이벤트
-    const restartWebBtn = document.getElementById('restart-web-btn');
-    const restartBothBtn = document.getElementById('restart-both-btn');
+    // 사용자 권한 관리 이벤트
+    const updateRoleBtn = document.getElementById('update-role-btn');
+    const assignChannelBtn = document.getElementById('assign-channel-btn');
     
-    if (restartWebBtn) {
-        restartWebBtn.addEventListener('click', () => {
-            if (confirm('웹서버를 재시작하시겠습니까?')) {
-                WebSocketManager.sendMessage({ command: 'restartWebServer' });
-                Utilities.showNotification('웹서버 재시작 요청을 보냈습니다.', 'info');
-            }
+    if (updateRoleBtn) {
+        updateRoleBtn.addEventListener('click', () => {
+            updateUserRole();
         });
     }
     
-    if (restartBothBtn) {
-        restartBothBtn.addEventListener('click', () => {
-            if (confirm('전체 시스템(봇 및 웹서버)을 재시작하시겠습니까?')) {
-                WebSocketManager.sendMessage({ command: 'restartSystem' });
-                Utilities.showNotification('시스템 재시작 요청을 보냈습니다.', 'info');
+    if (assignChannelBtn) {
+        assignChannelBtn.addEventListener('click', () => {
+            assignChannel();
+        });
+    }
+    
+    // 서버 선택 이벤트
+    const serverSelect = document.getElementById('server-select-assign');
+    if (serverSelect) {
+        serverSelect.addEventListener('change', () => {
+            if (serverSelect.value) {
+                loadChannelsList(serverSelect.value);
             }
         });
     }
@@ -207,18 +208,66 @@ function updateUsersList(users) {
                     <span>최근 로그인: ${lastLoginDate}</span>
                 </div>
             </div>
-            <div class="user-role ${user.role === 'admin' ? 'admin' : 'user'}">
-                ${user.role === 'admin' ? '관리자' : '사용자'}
+            <div class="user-role ${user.role === 'admin' || user.role === 'level1' ? 'admin' : 'user'}">
+                ${getRoleText(user.role)}
             </div>
         `;
         
         // 사용자 클릭 이벤트
         userItem.addEventListener('click', () => {
-            showEditUserModal(user);
+            handleUserItemClick(user);
         });
         
         usersContainer.appendChild(userItem);
     });
+}
+
+// 권한 레벨 텍스트 가져오기
+function getRoleText(role) {
+    if (role === 'admin' || role === 'level1') {
+        return '1등급 관리자';
+    } else if (role === 'level2') {
+        return '2등급 관리자';
+    } else if (role === 'level3') {
+        return '3등급 관리자';
+    } else {
+        return '일반 사용자';
+    }
+}
+
+// 사용자 항목 클릭 처리
+function handleUserItemClick(user) {
+    // 선택된 사용자 정보 표시
+    showSelectedUserInfo(user);
+    
+    // 선택된 사용자의 권한 설정
+    const userRoleSelect = document.getElementById('user-role');
+    if (userRoleSelect) {
+        userRoleSelect.value = user.role || 'user';
+    }
+    
+    // 선택된 사용자의 할당된 채널 목록 로드
+    loadAssignedChannels(user.username);
+    
+    // 서버 목록 로드
+    loadServersList();
+}
+
+// 선택된 사용자 정보 표시
+function showSelectedUserInfo(user) {
+    const selectedUserInfo = document.getElementById('selected-user-info');
+    const noUserSelected = document.getElementById('no-user-selected');
+    
+    if (selectedUserInfo && noUserSelected) {
+        // 선택된 사용자 정보 표시
+        selectedUserInfo.style.display = 'block';
+        noUserSelected.style.display = 'none';
+        
+        // 사용자 정보 업데이트
+        document.getElementById('selected-username').textContent = user.username || '-';
+        document.getElementById('selected-created').textContent = user.created ? new Date(user.created).toLocaleString() : '-';
+        document.getElementById('selected-last-login').textContent = user.lastLogin ? new Date(user.lastLogin).toLocaleString() : '로그인 기록 없음';
+    }
 }
 
 // 초대 코드 목록 로드
@@ -250,7 +299,7 @@ function updateInviteCodesList(inviteCodes) {
     if (!inviteCodes || inviteCodes.length === 0) {
         inviteCodesContainer.innerHTML = `
             <div class="empty-state">
-                <i class="fas fa-ticket-alt"></i>
+                <i class="fas fa-key"></i>
                 <p>등록된 초대 코드가 없습니다.</p>
             </div>
         `;
@@ -296,81 +345,114 @@ function updateInviteCodesList(inviteCodes) {
     });
 }
 
-// 시스템 정보 업데이트
-function updateSystemInfo() {
-    // 봇 상태 요청
-    WebSocketManager.sendMessage({ command: 'getBotInfo' });
+// 할당된 채널 목록 로드
+function loadAssignedChannels(username) {
+    const assignedChannelsList = document.getElementById('assigned-channels-list');
+    if (!assignedChannelsList) return;
     
-    // 시스템 정보 업데이트 (5초마다)
-    setInterval(() => {
-        WebSocketManager.sendMessage({ command: 'getBotInfo' });
-    }, 5000);
+    // 로딩 상태 표시
+    assignedChannelsList.innerHTML = `
+        <div class="empty-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <p>채널 정보를 불러오는 중입니다...</p>
+        </div>
+    `;
+    
+    // 할당된 채널 요청
+    WebSocketManager.sendMessage({
+        command: 'getUserChannels',
+        username: username
+    });
 }
 
-// 시스템 정보 업데이트 처리
-function updateBotInfo(data) {
-    if (!data) return;
+// 서버 목록 로드
+function loadServersList() {
+    const serverSelect = document.getElementById('server-select-assign');
+    if (!serverSelect) return;
     
-    // 버전 정보 업데이트
-    const nodeVersionElement = document.getElementById('node-version');
-    const discordVersionElement = document.getElementById('discord-version');
-    
-    if (nodeVersionElement && data.nodeVersion) {
-        nodeVersionElement.textContent = data.nodeVersion;
+    // 기존 옵션 초기화 (첫 번째 옵션 제외)
+    while (serverSelect.options.length > 1) {
+        serverSelect.remove(1);
     }
     
-    if (discordVersionElement && data.discordVersion) {
-        discordVersionElement.textContent = data.discordVersion;
+    // 서버 목록 요청
+    WebSocketManager.sendMessage({ command: 'getBotStatus' }, (response) => {
+        if (response.servers && response.servers.length > 0) {
+            // 서버 목록 옵션 추가
+            response.servers.forEach(server => {
+                const option = document.createElement('option');
+                option.value = server.id;
+                option.textContent = server.name;
+                serverSelect.appendChild(option);
+            });
+        } else {
+            // 서버가 없을 경우
+            const option = document.createElement('option');
+            option.disabled = true;
+            option.textContent = '등록된 서버가 없습니다';
+            serverSelect.appendChild(option);
+        }
+    });
+}
+
+// 채널 목록 로드
+function loadChannelsList(serverId) {
+    const channelSelect = document.getElementById('channel-select-assign');
+    if (!channelSelect) return;
+    
+    // 기존 옵션 초기화
+    while (channelSelect.options.length > 1) {
+        channelSelect.remove(1);
     }
     
-    // 가동 시간 업데이트
-    const webUptimeElement = document.getElementById('web-uptime');
-    const botUptimeElement = document.getElementById('bot-uptime');
+    // 로딩 옵션 추가
+    const loadingOption = document.createElement('option');
+    loadingOption.disabled = true;
+    loadingOption.textContent = '채널 목록 로딩 중...';
+    channelSelect.appendChild(loadingOption);
     
-    if (webUptimeElement && data.serverUptime) {
-        webUptimeElement.textContent = data.serverUptime;
-    }
-    
-    if (botUptimeElement && data.botUptime) {
-        botUptimeElement.textContent = data.botUptime;
-    }
+    // 채널 목록 요청
+    WebSocketManager.sendMessage({
+        command: 'getChannels',
+        serverId: serverId
+    });
 }
 
 // 사용자 추가 모달 표시
 function showAddUserModal() {
     const modal = document.getElementById('add-user-modal');
-    if (!modal) return;
-    
-    // 폼 초기화
-    const form = document.getElementById('add-user-form');
-    if (form) form.reset();
-    
-    // 모달 표시
-    modal.style.display = 'block';
+    if (modal) {
+        // 폼 초기화
+        const form = document.getElementById('add-user-form');
+        if (form) form.reset();
+        
+        // 모달 표시
+        modal.style.display = 'block';
+    }
 }
 
-// 사용자 수정 모달 표시
+// 사용자 편집 모달 표시
 function showEditUserModal(user) {
     const modal = document.getElementById('edit-user-modal');
-    if (!modal) return;
-    
-    // 사용자 정보 설정
-    document.getElementById('edit-username-title').textContent = user.username;
-    document.getElementById('edit-username-hidden').value = user.username;
-    document.getElementById('reset-password').value = '';
-    document.getElementById('edit-user-admin').checked = user.role === 'admin';
-    
-    // 삭제 버튼 활성화 (자기 자신은 삭제 불가)
-    const deleteBtn = document.getElementById('delete-user-btn');
-    if (deleteBtn) {
-        const currentUser = AuthManager.user?.username;
-        deleteBtn.disabled = (user.username === currentUser);
-        deleteBtn.title = (user.username === currentUser) ? 
-            '현재 로그인한 사용자는 삭제할 수 없습니다' : '사용자 삭제';
+    if (modal) {
+        // 사용자 정보 설정
+        document.getElementById('edit-username-title').textContent = user.username;
+        document.getElementById('edit-username-hidden').value = user.username;
+        document.getElementById('reset-password').value = '';
+        document.getElementById('edit-user-admin').checked = user.role === 'admin' || user.role === 'level1';
+        
+        // 삭제 버튼 활성화 (자기 자신은 삭제 불가)
+        const deleteBtn = document.getElementById('delete-user-btn');
+        if (deleteBtn) {
+            const currentUser = AuthManager.user?.username;
+            deleteBtn.disabled = (user.username === currentUser);
+            deleteBtn.title = (user.username === currentUser) ? 
+                '현재 로그인한 사용자는 삭제할 수 없습니다' : '사용자 삭제';
+        }
+        
+        // 모달 표시
+        modal.style.display = 'block';
     }
-    
-    // 모달 표시
-    modal.style.display = 'block';
 }
 
 // 사용자 추가
@@ -389,7 +471,7 @@ function addUser() {
         command: 'addUser',
         username: username,
         password: password,
-        role: isAdmin ? 'admin' : 'user'
+        role: isAdmin ? 'level1' : 'user'
     });
     
     // 모달 닫기
@@ -411,7 +493,7 @@ function updateUser() {
         command: 'updateUser',
         username: username,
         newPassword: newPassword || null, // 비밀번호가 비어있으면 null 전송
-        role: isAdmin ? 'admin' : 'user'
+        role: isAdmin ? 'level1' : 'user'
     });
     
     // 모달 닫기
@@ -476,6 +558,74 @@ function deleteInviteCode(code, event) {
     }
 }
 
+// 사용자 권한 업데이트
+function updateUserRole() {
+    const username = document.getElementById('selected-username').textContent;
+    const role = document.getElementById('user-role').value;
+    
+    if (!username || username === '-') {
+        Utilities.showNotification('사용자를 선택해주세요.', 'error');
+        return;
+    }
+    
+    // 사용자 권한 업데이트 요청
+    WebSocketManager.sendMessage({
+        command: 'updateUserRole',
+        username: username,
+        role: role
+    });
+    
+    Utilities.showNotification('사용자 권한을 업데이트하는 중입니다...', 'info');
+}
+
+// 채널 할당
+function assignChannel() {
+    const username = document.getElementById('selected-username').textContent;
+    const serverId = document.getElementById('server-select-assign').value;
+    const channelId = document.getElementById('channel-select-assign').value;
+    
+    if (!username || username === '-') {
+        Utilities.showNotification('사용자를 선택해주세요.', 'error');
+        return;
+    }
+    
+    if (!serverId || !channelId) {
+        Utilities.showNotification('서버와 채널을 선택해주세요.', 'error');
+        return;
+    }
+    
+    // 채널 할당 요청
+    WebSocketManager.sendMessage({
+        command: 'assignChannel',
+        username: username,
+        serverId: serverId,
+        channelId: channelId
+    });
+    
+    Utilities.showNotification('채널을 할당하는 중입니다...', 'info');
+}
+
+// 채널 할당 해제
+function unassignChannel(username, channelId, event) {
+    // 이벤트 버블링 중지
+    if (event) {
+        event.stopPropagation();
+    }
+    
+    if (!username || !channelId) return;
+    
+    if (confirm('이 채널 할당을 해제하시겠습니까?')) {
+        // 채널 할당 해제 요청
+        WebSocketManager.sendMessage({
+            command: 'unassignChannel',
+            username: username,
+            channelId: channelId
+        });
+        
+        Utilities.showNotification('채널 할당을 해제하는 중입니다...', 'info');
+    }
+}
+
 // 클립보드에 복사
 function copyToClipboard(text, event) {
     // 이벤트 버블링 중지
@@ -496,7 +646,7 @@ function copyToClipboard(text, event) {
         });
 }
 
-// 웹소켓 응답 핸들러 등록
+// 웹소켓 메시지 핸들러
 WebSocketManager.messageHandlers['usersList'] = (message) => {
     if (message.users) {
         updateUsersList(message.users);
@@ -509,64 +659,76 @@ WebSocketManager.messageHandlers['inviteCodesList'] = (message) => {
     }
 };
 
-WebSocketManager.messageHandlers['inviteCodeGenerated'] = (message) => {
-    if (message.success) {
-        Utilities.showNotification(message.message, 'success');
-        // 초대 코드 목록 새로고침
-        loadInviteCodes();
-    } else {
-        Utilities.showNotification(message.message, 'error');
+WebSocketManager.messageHandlers['userChannels'] = (message) => {
+    const assignedChannelsList = document.getElementById('assigned-channels-list');
+    if (!assignedChannelsList) return;
+    
+    if (!message.channels || message.channels.length === 0) {
+        assignedChannelsList.innerHTML = `
+            <div class="empty-state">
+                <p>할당된 채널이 없습니다.</p>
+            </div>
+        `;
+        return;
     }
+    
+    // 채널 목록 생성
+    assignedChannelsList.innerHTML = '';
+    message.channels.forEach(channel => {
+        const channelItem = document.createElement('div');
+        channelItem.className = 'channel-item';
+        
+        channelItem.innerHTML = `
+            <div class="channel-info">
+                <span class="channel-name">
+                    <i class="fas fa-hashtag"></i> ${channel.name}
+                </span>
+                <span class="channel-id">${channel.id}</span>
+            </div>
+            <div class="channel-actions">
+                <button class="btn-remove" onclick="unassignChannel('${message.username}', '${channel.id}', event)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        assignedChannelsList.appendChild(channelItem);
+    });
 };
 
-WebSocketManager.messageHandlers['inviteCodeDeleted'] = (message) => {
-    if (message.success) {
-        Utilities.showNotification(message.message, 'success');
-        // 초대 코드 목록 새로고침
-        loadInviteCodes();
-    } else {
-        Utilities.showNotification(message.message, 'error');
+WebSocketManager.messageHandlers['channels'] = (message) => {
+    const channelSelect = document.getElementById('channel-select-assign');
+    if (!channelSelect) return;
+    
+    // 기존 옵션 초기화 (첫 번째 옵션 제외)
+    while (channelSelect.options.length > 1) {
+        channelSelect.remove(1);
     }
-};
-
-WebSocketManager.messageHandlers['inviteCodeError'] = (message) => {
-    Utilities.showNotification(message.message, 'error');
-};
-
-WebSocketManager.messageHandlers['userAdded'] = (message) => {
-    if (message.success) {
-        Utilities.showNotification(message.message, 'success');
-        // 사용자 목록 새로고침
-        loadUsersList();
-    } else {
-        Utilities.showNotification(message.message, 'error');
+    
+    if (!message.channels || message.channels.length === 0) {
+        const option = document.createElement('option');
+        option.disabled = true;
+        option.textContent = message.error || '등록된 채널이 없습니다';
+        channelSelect.appendChild(option);
+        return;
     }
-};
-
-WebSocketManager.messageHandlers['userUpdated'] = (message) => {
-    if (message.success) {
-        Utilities.showNotification(message.message, 'success');
-        // 사용자 목록 새로고침
-        loadUsersList();
-    } else {
-        Utilities.showNotification(message.message, 'error');
+    
+    // 텍스트 채널만 필터링 (type 0은 텍스트 채널)
+    const textChannels = message.channels.filter(channel => channel.type === 0);
+    
+    if (textChannels.length === 0) {
+        const option = document.createElement('option');
+        option.disabled = true;
+        option.textContent = '텍스트 채널이 없습니다';
+        channelSelect.appendChild(option);
+        return;
     }
-};
-
-WebSocketManager.messageHandlers['userDeleted'] = (message) => {
-    if (message.success) {
-        Utilities.showNotification(message.message, 'success');
-        // 사용자 목록 새로고침
-        loadUsersList();
-    } else {
-        Utilities.showNotification(message.message, 'error');
-    }
-};
-
-WebSocketManager.messageHandlers['botInfo'] = (message) => {
-    updateBotInfo(message);
-};
-
-WebSocketManager.messageHandlers['usersError'] = (message) => {
-    Utilities.showNotification(message.message, 'error');
+    
+    // 채널 목록 옵션 추가
+    textChannels.forEach(channel => {
+        const option = document.createElement('option');
+        option.value = channel.id;
+        option.textContent = '#' + channel.name;
+        channelSelect.appendChild(option);
+    });
 };

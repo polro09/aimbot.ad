@@ -27,10 +27,6 @@ const WebSocketManager = {
         
         // 기본 메시지 핸들러 등록
         this.registerMessageHandlers();
-        
-        // WebSocketManager 준비 완료 이벤트 발행
-        const event = new CustomEvent('websocket_ready');
-        document.dispatchEvent(event);
     },
     
     connect: function() {
@@ -90,9 +86,7 @@ const WebSocketManager = {
             const message = JSON.parse(event.data);
             
             // 로깅 (디버깅용)
-            if (message.type !== 'serverStatus') { // 상태 업데이트는 너무 많아서 로깅에서 제외
-                console.log('웹소켓 메시지 수신:', message);
-            }
+            console.log('웹소켓 메시지 수신:', message);
             
             // 등록된 핸들러 호출
             if (this.messageHandlers[message.type]) {
@@ -104,9 +98,6 @@ const WebSocketManager = {
                 this.requestCallbacks[message.requestId](message);
                 delete this.requestCallbacks[message.requestId]; // 콜백 제거
             }
-            
-            // 범용 상태 업데이트 처리
-            this.updateDashboardIfNeeded(message);
         } catch (error) {
             console.error('웹소켓 메시지 처리 오류:', error, event.data);
         }
@@ -130,41 +121,6 @@ const WebSocketManager = {
             console.error('웹소켓이 연결되지 않았습니다.');
             this.scheduleReconnect();
             return false;
-        }
-        
-        // getBotInfo 및 getOnlineAdmins 명령 매핑 (호환성)
-        if (message.command === 'getBotInfo') {
-            message.command = 'start'; // getBotInfo 대신 start 사용
-            console.log('getBotInfo 명령을 start로 변환했습니다.');
-        } else if (message.command === 'getOnlineAdmins') {
-            // 온라인 관리자 정보를 모의로 처리 (backend에 구현된 기능이 없을 경우)
-            console.log('getOnlineAdmins 명령 처리 중');
-            
-            // 모의 데이터로 즉시 결과 반환
-            if (callback) {
-                setTimeout(() => {
-                    callback({
-                        type: 'onlineAdmins',
-                        admins: [
-                            { username: 'Admin1', role: 'admin' },
-                            { username: 'Moderator1', role: 'level2' }
-                        ]
-                    });
-                }, 100);
-            }
-            
-            // 실제 서버에 전송하지 않고 모의 이벤트 발생
-            setTimeout(() => {
-                this.messageHandlers['onlineAdmins']?.({
-                    type: 'onlineAdmins',
-                    admins: [
-                        { username: 'Admin1', role: 'admin' },
-                        { username: 'Moderator1', role: 'level2' }
-                    ]
-                });
-            }, 200);
-            
-            return true;
         }
         
         // 요청 ID 추가 (선택적)
@@ -192,48 +148,10 @@ const WebSocketManager = {
             }
         };
         
-        // 서버 상태 정보
-        this.messageHandlers['serverStatus'] = (message) => {
-            // 시스템 정보 보완 (누락된 경우)
-            if (!message.botUptime) {
-                message.botUptime = '정보 없음';
-            }
-            if (!message.serverUptime) {
-                message.serverUptime = '정보 없음';
-            }
-            
-            // 봇 상태 보완
-            if (typeof message.isRunning === 'undefined') {
-                // logs가 있으면 활성 상태로 가정
-                message.isRunning = Array.isArray(message.logs) && message.logs.length > 0;
-            }
-            
-            // 대시보드 페이지에 정보 업데이트
-            if (typeof updateDashboardStatus === 'function') {
-                updateDashboardStatus(message);
-            }
-            
-            // 관리자 페이지에서도 봇 정보 업데이트를 위해 사용
-            if (typeof updateBotInfo === 'function') {
-                updateBotInfo(message);
-            }
-            
-            // 상태 정보를 로컬 스토리지에 저장 (다른 곳에서 사용할 수 있도록)
-            localStorage.setItem('botStatus', JSON.stringify(message));
-        };
-        
-        // 에러 메시지
-        this.messageHandlers['error'] = (message) => {
-            Utilities.showNotification(message.message, 'error');
-        };
-        
-        // 모듈 상태 업데이트
-        this.messageHandlers['moduleStatusUpdate'] = (message) => {
-            Utilities.showNotification(message.message, 'info');
-            
-            // 모듈 관리 페이지 업데이트
-            if (typeof updateModulesList === 'function') {
-                updateModulesList(message.moduleStatus);
+        // 회원가입 결과
+        this.messageHandlers['registerResult'] = (message) => {
+            if (typeof AuthManager !== 'undefined' && AuthManager.handleRegisterResponse) {
+                AuthManager.handleRegisterResponse(message);
             }
         };
         
@@ -244,56 +162,25 @@ const WebSocketManager = {
             }
         };
         
-        // 봇 시작/종료/재시작 응답
-        this.messageHandlers['start-complete'] = (message) => {
-            Utilities.showNotification(message.message || '봇이 성공적으로 시작되었습니다.', 'success');
-            
-            // 상태 업데이트 요청
-            setTimeout(() => {
-                this.sendMessage({ command: 'start' });
-            }, 500);
-        };
-        
-        this.messageHandlers['stop-complete'] = (message) => {
-            Utilities.showNotification(message.message || '봇이 성공적으로 종료되었습니다.', 'info');
-            
-            // 상태 업데이트 요청
-            setTimeout(() => {
-                this.sendMessage({ command: 'start' });
-            }, 500);
-        };
-        
-        this.messageHandlers['restart-complete'] = (message) => {
-            Utilities.showNotification(message.message || '봇이 성공적으로 재시작되었습니다.', 'success');
-            
-            // 상태 업데이트 요청
-            setTimeout(() => {
-                this.sendMessage({ command: 'start' });
-            }, 1000);
-        };
-        
-        // 실패 메시지들
-        this.messageHandlers['start-failed'] = 
-        this.messageHandlers['stop-failed'] = 
-        this.messageHandlers['restart-failed'] = (message) => {
-            Utilities.showNotification(message.message || '작업 실패', 'error');
-        };
-        
-        // 회원가입 결과
-        this.messageHandlers['registerResult'] = (message) => {
-            if (typeof AuthManager !== 'undefined' && AuthManager.handleRegisterResponse) {
-                AuthManager.handleRegisterResponse(message);
+        // 사용자 정보 업데이트
+        this.messageHandlers['userInfoUpdate'] = (message) => {
+            if (message.success && message.user && typeof AuthManager !== 'undefined') {
+                // 사용자 정보 업데이트
+                AuthManager.login(message.user);
+                
+                // 알림 표시
+                Utilities.showNotification(message.message || '사용자 정보가 업데이트되었습니다.', 'success');
+            } else {
+                Utilities.showNotification(message.message || '사용자 정보 업데이트 실패', 'error');
             }
         };
         
-        // 모듈 상태 정보
-        this.messageHandlers['moduleStatus'] = (message) => {
-            if (message.moduleStatus && typeof updateModulesList === 'function') {
-                updateModulesList(message.moduleStatus);
-            }
+        // 에러 메시지
+        this.messageHandlers['error'] = (message) => {
+            Utilities.showNotification(message.message, 'error');
         };
         
-        // 기본 정보 메시지 (모든 메시지 처리를 위한 백업 핸들러)
+        // 기본 정보 메시지
         this.messageHandlers['info'] = (message) => {
             if (message.message) {
                 Utilities.showNotification(message.message, 'info');
@@ -303,12 +190,6 @@ const WebSocketManager = {
     
     // 초기 상태 요청
     requestInitialStatus: function() {
-        // 인증 설정 확인
-        this.sendMessage({ command: 'getAuthConfig' });
-        
-        // 서버 상태 요청
-        this.sendMessage({ command: 'start' });
-        
         // 온라인 관리자 요청
         this.sendMessage({ command: 'getOnlineAdmins' });
     },
@@ -324,29 +205,10 @@ const WebSocketManager = {
         this.sendMessage({ command: 'getUserSettings' });
         
         // 서버 상태 요청
-        this.sendMessage({ command: 'start' });
+        this.sendMessage({ command: 'getBotStatus' });
         
         // 온라인 관리자 요청
         this.sendMessage({ command: 'getOnlineAdmins' });
-    },
-    
-    // 범용 상태 업데이트 처리
-    updateDashboardIfNeeded: function(message) {
-        // 봇 로그 업데이트가 포함된 경우
-        if (message.logs) {
-            // 로그 업데이트 함수가 있으면 호출
-            if (typeof updateBotLogs === 'function') {
-                updateBotLogs(message.logs);
-            }
-        }
-        
-        // 서버 목록이 포함된 경우
-        if (message.servers) {
-            // 서버 목록 업데이트 함수가 있으면 호출
-            if (typeof updateServersList === 'function') {
-                updateServersList(message.servers);
-            }
-        }
     }
 };
 
