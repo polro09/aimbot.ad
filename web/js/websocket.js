@@ -10,8 +10,12 @@ const WebSocketManager = {
     reconnectTimeout: null,
     requestCallbacks: {}, // 요청에 대한 콜백 함수 저장
     messageHandlers: {}, // 메시지 타입별 핸들러
+    isInitialized: false, // 초기화 상태 추적
     
     init: function() {
+        if (this.isInitialized) return; // 중복 초기화 방지
+        
+        this.isInitialized = true;
         this.connect();
         
         // 인증 이벤트 리스너
@@ -27,6 +31,8 @@ const WebSocketManager = {
         
         // 기본 메시지 핸들러 등록
         this.registerMessageHandlers();
+        
+        console.log('WebSocketManager 초기화 완료');
     },
     
     connect: function() {
@@ -35,6 +41,7 @@ const WebSocketManager = {
         const wsUrl = `${protocol}//${window.location.host}`;
         
         try {
+            console.log(`웹소켓 연결 시도: ${wsUrl}`);
             this.socket = new WebSocket(wsUrl);
             
             this.socket.onopen = this.handleOpen.bind(this);
@@ -49,7 +56,11 @@ const WebSocketManager = {
     
     reconnect: function() {
         if (this.socket) {
-            this.socket.close();
+            try {
+                this.socket.close();
+            } catch (e) {
+                console.error('소켓 닫기 오류:', e);
+            }
         }
         
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -88,9 +99,17 @@ const WebSocketManager = {
             // 로깅 (디버깅용)
             console.log('웹소켓 메시지 수신:', message);
             
+            // 메시지 타입 확인
+            if (!message.type) {
+                // 서버 상태 정보인 경우 (type이 없는 경우)
+                message.type = 'serverStatus';
+            }
+            
             // 등록된 핸들러 호출
             if (this.messageHandlers[message.type]) {
                 this.messageHandlers[message.type](message);
+            } else {
+                console.warn(`처리되지 않은 메시지 타입: ${message.type}`);
             }
             
             // 요청 ID가 있으면 콜백 실행
@@ -118,19 +137,38 @@ const WebSocketManager = {
     
     sendMessage: function(message, callback) {
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-            console.error('웹소켓이 연결되지 않았습니다.');
-            this.scheduleReconnect();
+            console.error('웹소켓이 연결되지 않았습니다. 연결 상태:', this.socket ? this.socket.readyState : '소켓 없음');
+            
+            // 재연결 시도
+            if (!this.reconnectTimeout) {
+                this.scheduleReconnect();
+            }
+            
+            // 연결된 후 메시지 재전송 처리
+            const originalMessage = {...message};
+            const originalCallback = callback;
+            
+            setTimeout(() => {
+                if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                    console.log('웹소켓 재연결 후 메시지 재전송:', originalMessage);
+                    this.sendMessage(originalMessage, originalCallback);
+                } else {
+                    console.warn('재전송 실패: 웹소켓이 여전히 연결되지 않았습니다.');
+                }
+            }, 3000);
+            
             return false;
         }
         
         // 요청 ID 추가 (선택적)
         if (callback) {
-            const requestId = Date.now().toString();
+            const requestId = Date.now().toString() + Math.random().toString(36).substring(2, 8);
             message.requestId = requestId;
             this.requestCallbacks[requestId] = callback;
         }
         
         try {
+            console.log('웹소켓으로 메시지 전송:', message);
             this.socket.send(JSON.stringify(message));
             return true;
         } catch (error) {
@@ -175,6 +213,22 @@ const WebSocketManager = {
             }
         };
         
+        // 서버 상태 정보
+        this.messageHandlers['serverStatus'] = (message) => {
+            // 대시보드 페이지에 정보 업데이트
+            if (typeof updateDashboardStatus === 'function') {
+                updateDashboardStatus(message);
+            }
+            
+            // 관리자 페이지에서도 봇 정보 업데이트를 위해 사용
+            if (typeof updateBotInfo === 'function') {
+                updateBotInfo(message);
+            }
+            
+            // 상태 정보를 로컬 스토리지에 저장 (다른 곳에서 사용할 수 있도록)
+            localStorage.setItem('botStatus', JSON.stringify(message));
+        };
+        
         // 에러 메시지
         this.messageHandlers['error'] = (message) => {
             Utilities.showNotification(message.message, 'error');
@@ -185,6 +239,27 @@ const WebSocketManager = {
             if (message.message) {
                 Utilities.showNotification(message.message, 'info');
             }
+        };
+        
+        // 모듈 상태 정보
+        this.messageHandlers['moduleStatus'] = (message) => {
+            if (message.moduleStatus && typeof updateModulesList === 'function') {
+                updateModulesList(message.moduleStatus);
+            }
+        };
+        
+        // 사용자 설정 정보
+        this.messageHandlers['userSettings'] = (message) => {
+            if (message.settings && typeof updateUserSettings === 'function') {
+                updateUserSettings(message.settings);
+            }
+        };
+        
+        // 채널 정보
+        this.messageHandlers['channels'] = (message) => {
+            // 채널 목록 로드 이벤트 발생
+            const event = new CustomEvent('channels_loaded', { detail: message.channels });
+            document.dispatchEvent(event);
         };
     },
     
@@ -216,5 +291,5 @@ const WebSocketManager = {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         WebSocketManager.init();
-    }, 6000); // 로딩 애니메이션이 끝난 후
+    }, 3000); // 로딩 애니메이션보다 일찍 초기화
 });

@@ -37,6 +37,14 @@ const Router = {
             return;
         }
         
+        // 대시보드는 로그인만 되어 있으면 접근 가능 (모든 등급 접근 가능)
+        if (hash === 'dashboard' && !AuthManager.isLoggedIn()) {
+            AuthManager.showLoginModal(() => {
+                this.loadModuleAndActivate(hash);
+            });
+            return;
+        }
+        
         // 로그인 확인 (admin, dashboard, module-mgmt, embed는 로그인 필요)
         if (['admin', 'dashboard', 'module-mgmt', 'embed'].includes(hash) && !AuthManager.isLoggedIn()) {
             AuthManager.showLoginModal(() => {

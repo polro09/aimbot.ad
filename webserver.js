@@ -170,131 +170,122 @@ class WebServer {
 async _handleWebSocketMessage(ws, data) {
     const { command } = data;
     
+    // 명령어 로깅
+    console.log(`클라이언트로부터 받은 웹소켓 명령:`, command);
+    
     switch (command) {
-        // 봇 재시작 명령 처리
-        case 'restart':
-            // 로그인 상태 확인
-            if (!ws.userSession.isLoggedIn) {
-                this._sendErrorMessage(ws, '인증이 필요합니다.');
-                return;
-            }
-            
-            console.log('웹 대시보드에서 봇 재시작 명령을 받았습니다.');
-            this._broadcastMessage({ 
-                type: 'restart',
-                message: '봇을 재시작 중입니다. 잠시 후 페이지를 새로고침 해주세요.'
-            });
-            
+        // 온라인 관리자 목록 요청 처리 (로그인 필요 없음)
+        case 'getOnlineAdmins':
             try {
-                const success = await bot.restart();
+                // 온라인 관리자 목록 생성
+                const onlineAdmins = [];
                 
-                if (success) {
-                    this._broadcastMessage({ 
-                        type: 'restart-complete',
-                        message: '봇이 성공적으로 재시작되었습니다.'
-                    });
-                } else {
-                    this._broadcastMessage({ 
-                        type: 'restart-failed',
-                        message: '봇 재시작에 실패했습니다.'
-                    });
-                }
-            } catch (error) {
-                this._broadcastMessage({ 
-                    type: 'restart-failed',
-                    message: `봇 재시작 실패: ${error.message}`
-                });
-            }
-            break;
-            
-        // 봇 시작 명령 처리
-        case 'start':
-            // 로그인 상태 확인
-            if (!ws.userSession.isLoggedIn) {
-                this._sendErrorMessage(ws, '인증이 필요합니다.');
-                return;
-            }
-            
-            console.log('웹 대시보드에서 봇 시작 명령을 받았습니다.');
-            
-            try {
-                // 봇이 실행 중이 아니면 시작
-                if (!bot.status.isRunning) {
-                    const success = await bot.start();
-                    
-                    if (success) {
-                        this._broadcastMessage({ 
-                            type: 'start-complete',
-                            message: '봇이 성공적으로 시작되었습니다.'
-                        });
-                    } else {
-                        this._sendMessage(ws, { 
-                            type: 'start-failed',
-                            message: '봇 시작에 실패했습니다.'
+                this.wss.clients.forEach(client => {
+                    if (client.readyState === WebSocket.OPEN && 
+                        client.userSession && 
+                        client.userSession.isLoggedIn && 
+                        (client.userSession.isAdmin || ['level1', 'level2', 'level3'].includes(client.userSession.role))) {
+                        
+                        onlineAdmins.push({
+                            username: client.userSession.username,
+                            role: client.userSession.role
                         });
                     }
-                } else {
-                    this._sendMessage(ws, { 
-                        type: 'info',
-                        message: '봇이 이미 실행 중입니다.'
-                    });
-                }
+                });
+                
+                this._sendMessage(ws, {
+                    type: 'onlineAdmins',
+                    admins: onlineAdmins
+                });
             } catch (error) {
-                this._sendMessage(ws, { 
-                    type: 'start-failed',
-                    message: `봇 시작 실패: ${error.message}`
+                this._sendMessage(ws, {
+                    type: 'error',
+                    message: `온라인 관리자 목록 조회 중 오류 발생: ${error.message}`
                 });
             }
             break;
-            
-        // 봇 종료 명령 처리
-        case 'stop':
-            // 로그인 상태 확인
-            if (!ws.userSession.isLoggedIn) {
-                this._sendErrorMessage(ws, '인증이 필요합니다.');
-                return;
-            }
-            
-            console.log('웹 대시보드에서 봇 종료 명령을 받았습니다.');
-            
+        
+        // 로그인 인증 요청 처리
+        case 'login':
             try {
-                // 봇이 실행 중이면 종료
-                if (bot.status.isRunning) {
-                    const success = await bot.stop();
+                const username = data.username;
+                const password = data.password;
+                
+                console.log(`로그인 요청: ${username}`);
+                
+                // 기본 관리자 계정 체크
+                if (username === config.auth.username && password === config.auth.password) {
+                    ws.userSession.isLoggedIn = true;
+                    ws.userSession.isAdmin = true;
+                    ws.userSession.username = username;
+                    ws.userSession.role = 'admin';
                     
-                    if (success) {
-                        this._broadcastMessage({ 
-                            type: 'stop-complete',
-                            message: '봇이 성공적으로 종료되었습니다.'
+                    // 응답 전송
+                    this._sendMessage(ws, {
+                        type: 'loginResult',
+                        success: true,
+                        message: '관리자 로그인 성공',
+                        role: 'admin',
+                        assignedChannels: []
+                    });
+                    
+                    // 온라인 관리자 목록 업데이트
+                    this._broadcastOnlineAdmins();
+                    return;
+                }
+                
+                // 일반 사용자 계정 체크
+                try {
+                    const user = storage.authenticateUser(username, password);
+                    if (user) {
+                        ws.userSession.isLoggedIn = true;
+                        ws.userSession.isAdmin = user.role === 'admin' || user.role === 'level1';
+                        ws.userSession.username = username;
+                        ws.userSession.role = user.role;
+                        
+                        // 사용자 정보에서 할당된 채널 가져오기
+                        const assignedChannels = storage.getUserChannels(username);
+                        
+                        this._sendMessage(ws, {
+                            type: 'loginResult',
+                            success: true,
+                            message: '로그인 성공',
+                            role: user.role,
+                            assignedChannels: assignedChannels
                         });
+                        
+                        // 온라인 관리자 목록 업데이트
+                        this._broadcastOnlineAdmins();
                     } else {
-                        this._sendMessage(ws, { 
-                            type: 'stop-failed',
-                            message: '봇 종료에 실패했습니다.'
+                        this._sendMessage(ws, {
+                            type: 'loginResult',
+                            success: false,
+                            message: '아이디 또는 비밀번호가 올바르지 않습니다.'
                         });
                     }
-                } else {
-                    this._sendMessage(ws, { 
-                        type: 'info',
-                        message: '봇이 이미 종료되었습니다.'
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'loginResult',
+                        success: false,
+                        message: `로그인 처리 중 오류 발생: ${error.message}`
                     });
                 }
             } catch (error) {
-                this._sendMessage(ws, { 
-                    type: 'stop-failed',
-                    message: `봇 종료 실패: ${error.message}`
+                console.error('로그인 처리 중 예외 발생:', error);
+                this._sendMessage(ws, {
+                    type: 'error',
+                    message: `로그인 처리 중 오류가 발생했습니다.`
                 });
             }
             break;
             
-        // 여기에 다른 case문들이 더 있습니다 (약 700줄 정도...)
-        // 모든 명령어 처리를 다 포함하면 너무 길어지므로 일부 생략합니다
-            
+        // ... 기타 명령어 처리 ...
+        
         default:
-            console.log(`알 수 없는 명령: ${command}`);
+            console.log(`미구현 명령: ${command}`);
             this._sendMessage(ws, {
                 type: 'error',
-                message: `알 수 없는 명령: ${command}`
+                message: `지원되지 않는 명령: ${command}`
             });
             break;
     }

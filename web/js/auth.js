@@ -162,12 +162,16 @@ const AuthManager = {
         // 로딩 메시지
         messageElement.textContent = '로그인 중...';
         
-        // 웹소켓으로 로그인 요청
-        WebSocketManager.sendMessage({
-            command: 'login',
-            username: username,
-            password: password
-        });
+        // 버그 수정: 웹소켓으로 로그인 요청
+        if (typeof WebSocketManager !== 'undefined' && WebSocketManager.sendMessage) {
+            WebSocketManager.sendMessage({
+                command: 'login',
+                username: username,
+                password: password
+            });
+        } else {
+            messageElement.textContent = '웹소켓 연결이 준비되지 않았습니다. 페이지를 새로고침 해주세요.';
+        }
     },
     
     // 회원가입 처리
@@ -194,13 +198,17 @@ const AuthManager = {
         // 로딩 메시지
         messageElement.textContent = '회원가입 중...';
         
-        // 웹소켓으로 회원가입 요청
-        WebSocketManager.sendMessage({
-            command: 'register',
-            username: username,
-            password: password,
-            inviteCode: inviteCode
-        });
+        // 버그 수정: 웹소켓으로 회원가입 요청
+        if (typeof WebSocketManager !== 'undefined' && WebSocketManager.sendMessage) {
+            WebSocketManager.sendMessage({
+                command: 'register',
+                username: username,
+                password: password,
+                inviteCode: inviteCode
+            });
+        } else {
+            messageElement.textContent = '웹소켓 연결이 준비되지 않았습니다. 페이지를 새로고침 해주세요.';
+        }
     },
     
     // 로그인 응답 처리
@@ -331,7 +339,12 @@ const AuthManager = {
         const loginMenuItem = document.querySelector('.login-menu-item');
         const userInfoArea = document.getElementById('user-info-area');
         const onlineAdminsArea = document.getElementById('online-admins-area');
+        const sidebarUserInfo = document.querySelector('.sidebar-user-info');
+        const sidebarOnlineAdmins = document.querySelector('.sidebar-online-admins');
+        
+        // 메뉴 항목 가져오기
         const adminMenuItem = document.querySelector('.side-bar a[href="#admin"]');
+        const dashboardMenuItem = document.querySelector('.side-bar a[href="#dashboard"]');
         const moduleMenuItem = document.querySelector('.side-bar a[href="#module-mgmt"]');
         const embedMenuItem = document.querySelector('.side-bar a[href="#embed"]');
         
@@ -340,10 +353,19 @@ const AuthManager = {
             if (loginMenuItem) loginMenuItem.style.display = 'none';
             if (userInfoArea) userInfoArea.style.display = 'flex';
             if (onlineAdminsArea) onlineAdminsArea.style.display = 'flex';
+            if (sidebarUserInfo) sidebarUserInfo.classList.add('active');
+            if (sidebarOnlineAdmins) sidebarOnlineAdmins.classList.add('active');
+            
+            // 사이드바 사용자 정보 업데이트
+            this.updateSidebarUserInfo();
             
             // 권한에 따른 메뉴 표시/숨김
             if (adminMenuItem) {
                 adminMenuItem.parentElement.style.display = this.hasPermission(1) ? 'block' : 'none';
+            }
+            
+            if (dashboardMenuItem) {
+                dashboardMenuItem.parentElement.style.display = this.hasPermission(4) ? 'block' : 'none';
             }
             
             if (moduleMenuItem) {
@@ -358,11 +380,50 @@ const AuthManager = {
             if (loginMenuItem) loginMenuItem.style.display = 'block';
             if (userInfoArea) userInfoArea.style.display = 'none';
             if (onlineAdminsArea) onlineAdminsArea.style.display = 'none';
+            if (sidebarUserInfo) sidebarUserInfo.classList.remove('active');
+            if (sidebarOnlineAdmins) sidebarOnlineAdmins.classList.remove('active');
             
             // 메뉴 접근 제한
             if (adminMenuItem) adminMenuItem.parentElement.style.display = 'none';
+            if (dashboardMenuItem) dashboardMenuItem.parentElement.style.display = 'none';
             if (moduleMenuItem) moduleMenuItem.parentElement.style.display = 'none';
             if (embedMenuItem) embedMenuItem.parentElement.style.display = 'none';
+        }
+    },
+    
+    // 사이드바 사용자 정보 업데이트
+    updateSidebarUserInfo: function() {
+        if (!this.user) return;
+        
+        const usernameEl = document.getElementById('sidebar-username');
+        const roleEl = document.getElementById('sidebar-role');
+        const serverEl = document.getElementById('sidebar-server');
+        
+        if (usernameEl) {
+            usernameEl.textContent = this.user.username;
+        }
+        
+        if (roleEl) {
+            let roleText = '일반 사용자';
+            if (this.user.role === 'admin' || this.user.role === 'level1') {
+                roleText = '관리자 (1등급)';
+            } else if (this.user.role === 'level2') {
+                roleText = '관리자 (2등급)';
+            } else if (this.user.role === 'level3') {
+                roleText = '관리자 (3등급)';
+            }
+            
+            roleEl.textContent = roleText;
+        }
+        
+        if (serverEl) {
+            if (this.user.assignedChannels && this.user.assignedChannels.length > 0) {
+                serverEl.textContent = Array.isArray(this.user.assignedChannels) ? 
+                    this.user.assignedChannels.join(', ') : 
+                    '할당된 서버 있음';
+            } else {
+                serverEl.textContent = '할당된 서버 없음';
+            }
         }
     },
     
@@ -374,6 +435,7 @@ const AuthManager = {
         const userInfoRole = document.getElementById('user-info-role');
         const userInfoServer = document.getElementById('user-info-server');
         
+        // 헤더 영역 사용자 정보
         if (userInfoName) {
             userInfoName.textContent = this.user.username;
         }
@@ -393,11 +455,16 @@ const AuthManager = {
         
         if (userInfoServer && this.user.assignedChannels) {
             if (this.user.assignedChannels.length > 0) {
-                userInfoServer.textContent = this.user.assignedChannels.join(', ');
+                userInfoServer.textContent = Array.isArray(this.user.assignedChannels) ? 
+                    this.user.assignedChannels.join(', ') : 
+                    '할당된 서버 있음';
             } else {
                 userInfoServer.textContent = '할당된 서버 없음';
             }
         }
+        
+        // 사이드바 사용자 정보도 업데이트
+        this.updateSidebarUserInfo();
     },
     
     // 사용자 정보 표시 숨기기
@@ -406,9 +473,19 @@ const AuthManager = {
         const userInfoRole = document.getElementById('user-info-role');
         const userInfoServer = document.getElementById('user-info-server');
         
+        // 헤더 영역 사용자 정보 초기화
         if (userInfoName) userInfoName.textContent = '';
         if (userInfoRole) userInfoRole.textContent = '';
         if (userInfoServer) userInfoServer.textContent = '';
+        
+        // 사이드바 사용자 정보 초기화
+        const sidebarUsername = document.getElementById('sidebar-username');
+        const sidebarRole = document.getElementById('sidebar-role');
+        const sidebarServer = document.getElementById('sidebar-server');
+        
+        if (sidebarUsername) sidebarUsername.textContent = '사용자';
+        if (sidebarRole) sidebarRole.textContent = '-';
+        if (sidebarServer) sidebarServer.textContent = '-';
     }
 };
 
@@ -416,5 +493,9 @@ const AuthManager = {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         AuthManager.init();
-    }, 6000); // 로딩 애니메이션이 끝난 후
+        
+        // 웹소켓 준비 이벤트 발생
+        const event = new CustomEvent('websocket_ready');
+        document.dispatchEvent(event);
+    }, 3000); // 로딩 애니메이션보다 일찍 초기화
 });
