@@ -244,59 +244,75 @@ class DiscordBot {
         }
     }
     
-    // 모듈 로딩 함수
-    async loadModules() {
+    // bot.js 파일의 loadModules 함수 수정
+// 기존 함수를 아래 코드로 교체하세요
+
+// 모듈 로딩 함수
+async loadModules() {
+    try {
+        // 모듈 디렉토리 확인
         try {
-            // 모듈 디렉토리 확인
-            try {
-                await fs.access(config.dirs.modules);
-            } catch (error) {
-                await fs.mkdir(config.dirs.modules, { recursive: true });
-            }
-            
-            // 모듈 파일 읽기
-            const files = await fs.readdir(config.dirs.modules);
-            const moduleFiles = files.filter(file => file.endsWith('.js'));
-            
-            // 각 모듈 로드
-            for (const file of moduleFiles) {
-                try {
-                    const modulePath = path.join(__dirname, config.dirs.modules, file);
-                    
-                    // 캐시 삭제 (개발 중 모듈 변경 사항 반영)
-                    delete require.cache[require.resolve(modulePath)];
-                    
-                    const module = require(modulePath);
-                    
-                    // 모듈 초기화 확인
-                    if (typeof module.init !== 'function') {
-                        this.log('ERROR', `모듈 ${file}에 init 함수가 없습니다.`);
-                        continue;
-                    }
-                    
-                    // 모듈 초기화
-                    await module.init(this.client, this.log.bind(this));
-                    
-                    // 모듈 명령어 추가
-                    if (module.commands) {
-                        for (const [name, command] of Object.entries(module.commands)) {
-                            this.client.commands.set(name, command);
-                        }
-                    }
-                    
-                    // 모듈 컬렉션에 추가
-                    this.client.modules.set(file, module);
-                    this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
-                } catch (error) {
-                    this.log('ERROR', `모듈 ${file} 로드 중 오류 발생: ${error.message}`);
-                }
-            }
-            
-            this.log('INFO', `총 ${this.client.modules.size}개의 모듈이 로드되었습니다.`);
+            await fs.access(config.dirs.modules);
         } catch (error) {
-            this.log('ERROR', `모듈 로드 중 오류 발생: ${error.message}`);
+            await fs.mkdir(config.dirs.modules, { recursive: true });
         }
+        
+        // 모듈 파일 읽기
+        const files = await fs.readdir(config.dirs.modules);
+        const moduleFiles = files.filter(file => file.endsWith('.js'));
+        
+        // 모듈 로딩 순서 조정 - 스토리지 의존성이 낮은 모듈 먼저 로드
+        const sortedModuleFiles = [...moduleFiles].sort((a, b) => {
+            const dependsOnStorage = file => 
+                file.includes('vacation') || 
+                file.includes('raid') || 
+                file.includes('ticket') || 
+                file.includes('welcome') || 
+                file.includes('voice');
+            
+            // 스토리지 의존성이 있는 모듈은 나중에 로드
+            return dependsOnStorage(a) ? 1 : dependsOnStorage(b) ? -1 : 0;
+        });
+        
+        // 각 모듈 로드
+        for (const file of sortedModuleFiles) {
+            try {
+                const modulePath = path.join(__dirname, config.dirs.modules, file);
+                
+                // 캐시 삭제 (개발 중 모듈 변경 사항 반영)
+                delete require.cache[require.resolve(modulePath)];
+                
+                const module = require(modulePath);
+                
+                // 모듈 초기화 확인
+                if (typeof module.init !== 'function') {
+                    this.log('ERROR', `모듈 ${file}에 init 함수가 없습니다.`);
+                    continue;
+                }
+                
+                // 모듈 초기화
+                await module.init(this.client, this.log.bind(this));
+                
+                // 모듈 명령어 추가
+                if (module.commands) {
+                    for (const [name, command] of Object.entries(module.commands)) {
+                        this.client.commands.set(name, command);
+                    }
+                }
+                
+                // 모듈 컬렉션에 추가
+                this.client.modules.set(file, module);
+                this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
+            } catch (error) {
+                this.log('ERROR', `모듈 ${file} 로드 중 오류 발생: ${error.message}`);
+            }
+        }
+        
+        this.log('INFO', `총 ${this.client.modules.size}개의 모듈이 로드되었습니다.`);
+    } catch (error) {
+        this.log('ERROR', `모듈 로드 중 오류 발생: ${error.message}`);
     }
+}
     
     // 모듈 상태 가져오기
     getModuleStatus() {

@@ -37,21 +37,25 @@ const ModuleManager = {
     },
     
     // 모듈 로드 함수
-    loadModule: function(moduleName) {
-        return new Promise((resolve, reject) => {
-            const module = this.modules[moduleName];
-            
-            if (!module) {
-                reject(new Error(`모듈 ${moduleName}를 찾을 수 없습니다.`));
-                return;
-            }
-            
-            if (module.loaded) {
-                resolve(); // 이미 로드됐으면 바로 완료
-                return;
-            }
-            
-            // HTML 콘텐츠 로드
+loadModule: function(moduleName) {
+    return new Promise((resolve, reject) => {
+        const module = this.modules[moduleName];
+        
+        if (!module) {
+            reject(new Error(`모듈 ${moduleName}를 찾을 수 없습니다.`));
+            return;
+        }
+        
+        if (module.loaded) {
+            resolve(); // 이미 로드됐으면 바로 완료
+            return;
+        }
+        
+        // 리소스 병렬 로딩
+        const promises = [];
+        
+        // HTML 콘텐츠 로드
+        promises.push(
             fetch(module.path)
                 .then(response => {
                     if (!response.ok) {
@@ -75,38 +79,46 @@ const ModuleManager = {
                     }
                     
                     moduleContent.appendChild(moduleContainer);
-                    
-                    // CSS 파일 로드
-                    if (module.css) {
-                        const link = document.createElement('link');
-                        link.rel = 'stylesheet';
-                        link.href = module.css;
-                        document.head.appendChild(link);
-                    }
-                    
-                    // JavaScript 파일 로드
-                    if (module.js) {
-                        const script = document.createElement('script');
-                        script.src = module.js;
-                        script.onload = () => {
-                            module.loaded = true;
-                            resolve();
-                        };
-                        script.onerror = () => {
-                            reject(new Error(`모듈 ${moduleName} 스크립트를 로드할 수 없습니다.`));
-                        };
-                        document.body.appendChild(script);
-                    } else {
+                })
+        );
+        
+        // CSS 파일 로드 (비동기)
+        if (module.css) {
+            promises.push(new Promise((cssResolve) => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = module.css;
+                link.onload = () => cssResolve();
+                link.onerror = () => cssResolve(); // 실패해도 진행
+                document.head.appendChild(link);
+            }));
+        }
+        
+        // 모든 리소스 로딩 완료 후 JS 로드
+        Promise.all(promises)
+            .then(() => {
+                if (module.js) {
+                    const script = document.createElement('script');
+                    script.src = module.js;
+                    script.onload = () => {
                         module.loaded = true;
                         resolve();
-                    }
-                })
-                .catch(error => {
-                    console.error(`모듈 ${moduleName} 로드 중 오류:`, error);
-                    reject(error);
-                });
-        });
-    },
+                    };
+                    script.onerror = () => {
+                        reject(new Error(`모듈 ${moduleName} 스크립트를 로드할 수 없습니다.`));
+                    };
+                    document.body.appendChild(script);
+                } else {
+                    module.loaded = true;
+                    resolve();
+                }
+            })
+            .catch(error => {
+                console.error(`모듈 ${moduleName} 로드 중 오류:`, error);
+                reject(error);
+            });
+    });
+},
     
     // 현재 모듈 활성화 함수
     activateModule: function(moduleName) {
@@ -140,12 +152,12 @@ const ModuleManager = {
 // 로딩 화면 관리
 const LoadingManager = {
     steps: [
-        { message: "안녕하세요", delay: 1000 },
-        { message: "메인 불러오는중", delay: 1000 },
-        { message: "대시보드 불러오는중", delay: 1000 },
-        { message: "임베드 설정중", delay: 1000 },
-        { message: "사용자 불러오는중", delay: 1000 },
-        { message: "환영합니다", delay: 1000 }
+        { message: "안녕하세요", delay: 500 },
+        { message: "메인 불러오는중", delay: 500 },
+        { message: "대시보드 불러오는중", delay: 500 },
+        { message: "임베드 설정중", delay: 500 },
+        { message: "사용자 불러오는중", delay: 500 },
+        { message: "환영합니다", delay: 500 }
     ],
     currentStep: 0,
     progressElement: null,
@@ -298,8 +310,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 로딩 애니메이션 시작
     LoadingManager.init();
     
-    // 라우터 초기화
+    // 라우터 초기화 - 시간 단축
     setTimeout(() => {
         Router.init();
-    }, 6000); // 로딩 애니메이션이 끝난 후
+    }, 3000); // 로딩 애니메이션 시간 단축 (6000ms -> 3000ms)
 });

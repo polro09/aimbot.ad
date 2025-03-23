@@ -174,6 +174,36 @@ class WebServer {
         // 명령어 로깅
         console.log(`클라이언트로부터 받은 웹소켓 명령:`, command);
         
+        // 관리자 권한이 필요한 명령어 목록
+        const adminCommands = [
+            'start', 'stop', 'restart', 'moduleAction', 
+            'addUser', 'updateUser', 'deleteUser', 
+            'generateInviteCode', 'deleteInviteCode'
+        ];
+        
+        // 관리자 권한 확인 (단일 지점에서 모든 권한 검증)
+        if (adminCommands.includes(command) && !ws.userSession.isAdmin) {
+            return this._sendMessage(ws, {
+                type: 'error',
+                message: '관리자 권한이 필요합니다.'
+            });
+        }
+        
+        // 로그인이 필요한 명령어 목록
+        const authCommands = [
+            'getModuleStatus', 'getUserSettings', 'saveUserSettings', 
+            'sendEmbed', 'getChannels', 'assignServer', 'unassignServer',
+            'getUserChannels', 'getUserServers'
+        ];
+        
+        // 로그인 확인 (단일 지점에서 모든 인증 검증)
+        if (authCommands.includes(command) && !ws.userSession.isLoggedIn) {
+            return this._sendMessage(ws, {
+                type: 'error',
+                message: '로그인이 필요합니다.'
+            });
+        }
+        
         switch (command) {
             // 온라인 관리자 목록 요청 처리 (로그인 필요 없음)
             case 'getOnlineAdmins':
@@ -317,14 +347,6 @@ class WebServer {
                 
             // 사용자 목록 요청 처리
             case 'getUsers':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const users = storage.getAll('users');
                     
@@ -350,14 +372,6 @@ class WebServer {
             
             // 초대 코드 목록 요청 처리
             case 'getInviteCodes':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const inviteCodes = storage.getAll('invite-codes');
                     
@@ -375,14 +389,6 @@ class WebServer {
             
             // 초대 코드 생성 처리
             case 'generateInviteCode':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const customCode = data.code || null;
                     const inviteCode = await storage.createInviteCode(customCode);
@@ -407,14 +413,6 @@ class WebServer {
             
             // 초대 코드 삭제 처리
             case 'deleteInviteCode':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { code } = data;
                     await storage.deleteInviteCode(code);
@@ -438,14 +436,6 @@ class WebServer {
             
             // 사용자 추가 처리
             case 'addUser':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username, password, role } = data;
                     const user = await storage.createUser(username, password, role);
@@ -472,14 +462,6 @@ class WebServer {
             
             // 사용자 업데이트 처리
             case 'updateUser':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username, newPassword, role } = data;
                     
@@ -510,14 +492,6 @@ class WebServer {
             
             // 사용자 삭제 처리
             case 'deleteUser':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username } = data;
                     await storage.deleteUser(username);
@@ -539,14 +513,6 @@ class WebServer {
             
             // 사용자 권한 업데이트 처리
             case 'updateUserRole':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username, role } = data;
                     const updatedUser = await storage.updateUserRole(username, role);
@@ -569,14 +535,6 @@ class WebServer {
             
             // 서버 할당 처리 (이전의 채널 할당 대체)
             case 'assignServer':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username, serverId } = data;
                     
@@ -622,14 +580,6 @@ class WebServer {
                 
             // 서버 할당 해제 처리
             case 'unassignServer':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username, serverId } = data;
                     
@@ -658,14 +608,6 @@ class WebServer {
                 
             // 사용자 서버 목록 요청 처리
             case 'getUserServers':
-                if (!ws.userSession.isLoggedIn) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '로그인이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username } = data;
                     
@@ -696,14 +638,6 @@ class WebServer {
 
             // 채널 할당 처리
             case 'assignChannel':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username, serverId, channelId } = data;
                     
@@ -747,14 +681,6 @@ class WebServer {
             
             // 채널 할당 해제 처리
             case 'unassignChannel':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username, channelId } = data;
                     const assignedChannels = await storage.unassignChannelFromUser(username, channelId);
@@ -781,14 +707,6 @@ class WebServer {
             
             // 사용자 채널 목록 요청 처리
             case 'getUserChannels':
-                if (!ws.userSession.isLoggedIn) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '로그인이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { username } = data;
                     
@@ -852,14 +770,6 @@ class WebServer {
             
             // 사용자 설정 저장 처리
             case 'saveUserSettings':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { settings } = data;
                     const success = await bot.saveUserSettings(settings);
@@ -886,14 +796,6 @@ class WebServer {
             
             // 임베드 전송 처리
             case 'sendEmbed':
-                if (!ws.userSession.isLoggedIn) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '로그인이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { serverId, channelId, embed } = data;
                     
@@ -914,14 +816,6 @@ class WebServer {
             
             // 채널 목록 요청 처리
             case 'getChannels':
-                if (!ws.userSession.isLoggedIn) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '로그인이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { serverId } = data;
                     
@@ -970,14 +864,6 @@ class WebServer {
             
             // 봇 시작 처리
             case 'start':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const success = await bot.start();
                     
@@ -1009,14 +895,6 @@ class WebServer {
             
             // 봇 정지 처리
             case 'stop':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const success = await bot.stop();
                     
@@ -1048,14 +926,6 @@ class WebServer {
             
             // 봇 재시작 처리
             case 'restart':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const success = await bot.restart();
                     
@@ -1087,14 +957,6 @@ class WebServer {
             
             // 모듈 작업 처리 (활성화/비활성화/재로드)
             case 'moduleAction':
-                if (!ws.userSession.isAdmin) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: '관리자 권한이 필요합니다.'
-                    });
-                    return;
-                }
-                
                 try {
                     const { action, moduleName } = data;
                     const success = await bot.moduleAction(action, moduleName);
@@ -1133,7 +995,7 @@ class WebServer {
                 });
                 break;
         } // switch 문 닫기
-    } // _handleWebSocketMessage 함수 닫기
+    }
     
     // 초대 코드 목록 브로드캐스트
     _broadcastInviteCodes() {
@@ -1319,7 +1181,7 @@ class WebServer {
             });
         });
     }
-} // WebServer 클래스 닫기
+}
 
 // 인스턴스 생성
 const webServer = new WebServer();

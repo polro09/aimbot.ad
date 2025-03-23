@@ -55,28 +55,39 @@ const WebSocketManager = {
         }
     },
     
-    reconnect: function() {
-        if (this.socket) {
-            try {
-                this.socket.close();
-            } catch (e) {
-                console.error('소켓 닫기 오류:', e);
-            }
+    // websocket.js 파일의 WebSocketManager 객체 내 reconnect 함수 교체
+reconnect: function() {
+    if (this.socket) {
+        try {
+            this.socket.close();
+        } catch (e) {
+            console.error('소켓 닫기 오류:', e);
         }
-        
+    }
+    
+    // 더 안정적인 지수 백오프 방식 적용
+    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 30000);
+    
+    clearTimeout(this.reconnectTimeout);
+    this.reconnectTimeout = setTimeout(() => {
         if (this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             console.log(`웹소켓 재연결 시도 ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
-            
-            clearTimeout(this.reconnectTimeout);
-            this.reconnectTimeout = setTimeout(() => {
-                this.connect();
-            }, Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000)); // 지수 백오프 (최대 30초)
+            this.connect();
         } else {
             console.error('최대 재연결 시도 횟수 초과');
-            Utilities.showNotification('서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.', 'error');
+            // 사용자에게 새로고침 요청
+            if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+                Utilities.showNotification('서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.', 'error');
+            }
+            // 5초 후 재시도 로직 초기화
+            setTimeout(() => {
+                this.reconnectAttempts = 0;
+                this.connect();
+            }, 5000);
         }
-    },
+    }, delay);
+},
     
     scheduleReconnect: function() {
         clearTimeout(this.reconnectTimeout);

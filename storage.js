@@ -80,6 +80,39 @@ class Storage {
         return this.stores[storeName];
     }
 
+    // 저장소 파일 불러오기 함수
+async load(storeName) {
+    try {
+        // 파일 경로 확인
+        const filePath = this.storeFiles[storeName];
+        if (!filePath) {
+            throw new Error(`저장소 파일 ${storeName}이(가) 존재하지 않습니다.`);
+        }
+        
+        // 파일 존재 여부 확인
+        try {
+            await fs.access(filePath);
+            
+            // 파일 읽기
+            const data = await fs.readFile(filePath, 'utf8');
+            this.stores[storeName] = JSON.parse(data || '{}');
+            
+            return true;
+        } catch (error) {
+            // 파일이 없으면 빈 객체로 초기화
+            this.stores[storeName] = {};
+            
+            // 파일 생성
+            await fs.writeFile(filePath, '{}', 'utf8');
+            
+            return false;
+        }
+    } catch (error) {
+        console.error(`저장소 ${storeName} 로드 중 오류 발생:`, error);
+        throw error;
+    }
+}
+
     // 저장소 전체 가져오기
     getAll(storeName) {
         return this.getStore(storeName);

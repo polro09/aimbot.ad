@@ -3,6 +3,38 @@
  * 임베드 모듈 기능
  */
 
+// 입력 정보 검증 함수
+function sanitizeInput(input) {
+    if (!input) return '';
+    
+    // XSS 방지 필터링
+    return input
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+// URL 검증 함수
+function validateUrl(url) {
+    if (!url) return '';
+    
+    try {
+        const parsedUrl = new URL(url);
+        // 허용된 도메인만 사용하기 위한 검증 추가
+        const allowedDomains = ['i.imgur.com', 'imgur.com', 'cdn.discordapp.com'];
+        if (!allowedDomains.some(domain => parsedUrl.hostname.includes(domain))) {
+            console.warn('안전하지 않은 URL이 감지되었습니다:', url);
+            return '';
+        }
+        return parsedUrl.toString();
+    } catch (e) {
+        console.warn('유효하지 않은 URL 형식:', url);
+        return '';
+    }
+}
+
 // 임베드 모듈 초기화
 function initEmbedModule() {
     console.log('임베드 모듈 초기화');
@@ -130,12 +162,10 @@ function loadChannelsList(serverId) {
     WebSocketManager.sendMessage({
         command: 'getChannels',
         serverId: serverId
-    }, (response) => {
-        // 채널 목록 수신 시 처리 (미구현)
     });
     
     // 웹소켓 응답 처리 이벤트 리스너
-    document.addEventListener('channels_loaded', function handleChannelsLoaded(event) {
+    const loadHandler = function(event) {
         const channels = event.detail;
         
         // 기존 옵션 초기화 (첫 번째 옵션 제외)
@@ -170,9 +200,11 @@ function loadChannelsList(serverId) {
             channelSelect.appendChild(option);
         }
         
-        // 이벤트 리스너 제거
-        document.removeEventListener('channels_loaded', handleChannelsLoaded);
-    });
+        // 이벤트 리스너 제거 (중복 방지)
+        document.removeEventListener('channels_loaded', loadHandler);
+    };
+    
+    document.addEventListener('channels_loaded', loadHandler);
 }
 
 // 색상 선택기 설정
@@ -372,29 +404,29 @@ function sendEmbed() {
         return;
     }
     
-    // 임베드 데이터 수집
+    // 임베드 데이터 수집 및 검증
     const embedData = {
-        title: document.getElementById('embed-title').value,
-        description: document.getElementById('embed-description').value,
+        title: sanitizeInput(document.getElementById('embed-title').value),
+        description: sanitizeInput(document.getElementById('embed-description').value),
         color: document.getElementById('embed-color').value.replace('#', ''),
-        author: document.getElementById('embed-author').value,
+        author: sanitizeInput(document.getElementById('embed-author').value),
         footer: {
-            text: document.getElementById('embed-footer').value
+            text: sanitizeInput(document.getElementById('embed-footer').value)
         },
         thumbnail: {
-            url: document.getElementById('embed-thumbnail').value
+            url: validateUrl(document.getElementById('embed-thumbnail').value)
         },
         image: {
-            url: document.getElementById('embed-image').value
+            url: validateUrl(document.getElementById('embed-image').value)
         }
     };
     
-    // 필드 추가
+    // 필드 추가 (안전하게 검증)
     const fields = [];
     const fieldItems = document.querySelectorAll('.field-item');
     fieldItems.forEach(item => {
-        const fieldName = item.querySelector('.field-name').value;
-        const fieldValue = item.querySelector('.field-value').value;
+        const fieldName = sanitizeInput(item.querySelector('.field-name').value);
+        const fieldValue = sanitizeInput(item.querySelector('.field-value').value);
         const fieldInline = item.querySelector('.field-inline-check').checked;
         
         if (fieldName && fieldValue) {
