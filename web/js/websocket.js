@@ -308,21 +308,26 @@ reconnect: function() {
             }
         };
         
-        // 서버 상태 정보
-        this.messageHandlers['serverStatus'] = (message) => {
-            // 대시보드 페이지에 정보 업데이트
-            if (typeof updateDashboardStatus === 'function') {
-                updateDashboardStatus(message);
-            }
-            
-            // 관리자 페이지에서도 봇 정보 업데이트를 위해 사용
-            if (typeof updateBotInfo === 'function') {
-                updateBotInfo(message);
-            }
-            
-            // 상태 정보를 로컬 스토리지에 저장 (다른 곳에서 사용할 수 있도록)
-            localStorage.setItem('botStatus', JSON.stringify(message));
-        };
+        // 서버 상태 메시지 핸들러
+this.messageHandlers['serverStatus'] = (message) => {
+    // 대시보드 페이지에 정보 업데이트
+    if (typeof updateDashboardStatus === 'function') {
+        updateDashboardStatus(message);
+    }
+    
+    // 관리자 페이지에서도 봇 정보 업데이트를 위해 사용
+    if (typeof updateBotInfo === 'function') {
+        updateBotInfo(message);
+    }
+    
+    // 상태 정보를 로컬 스토리지에 저장 (다른 곳에서 사용할 수 있도록)
+    localStorage.setItem('botStatus', JSON.stringify(message));
+    
+    // 서버 목록 로드 함수가 있으면 호출
+    if (typeof loadServersList === 'function') {
+        loadServersList();
+    }
+};
         
         // 에러 메시지 - 중복 메시지 방지 추가
         this.messageHandlers['error'] = (message) => {

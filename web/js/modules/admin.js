@@ -86,7 +86,7 @@ function registerAdminEventListeners() {
     
     // 사용자 권한 관리 이벤트
     const updateRoleBtn = document.getElementById('update-role-btn');
-    const assignChannelBtn = document.getElementById('assign-channel-btn');
+    const assignServerBtn = document.getElementById('assign-server-btn');
     
     if (updateRoleBtn) {
         updateRoleBtn.addEventListener('click', () => {
@@ -96,8 +96,8 @@ function registerAdminEventListeners() {
         });
     }
     
-    if (assignChannelBtn) {
-        assignChannelBtn.addEventListener('click', () => {
+    if (assignServerBtn) {
+        assignServerBtn.addEventListener('click', () => {
             // 중복 요청 방지
             if (isAssigningServer) return;
             assignServer();
@@ -108,9 +108,7 @@ function registerAdminEventListeners() {
     const serverSelect = document.getElementById('server-select-assign');
     if (serverSelect) {
         serverSelect.addEventListener('change', () => {
-            if (serverSelect.value) {
-                loadChannelsList(serverSelect.value);
-            }
+            // 서버 선택시 필요한 추가 동작 있으면 여기에 추가
         });
     }
     
@@ -260,6 +258,12 @@ function handleUserItemClick(user) {
     
     // 서버 목록 로드
     loadServersList();
+    
+    // 사용자의 할당된 서버 목록 요청
+    WebSocketManager.sendMessage({
+        command: 'getUserServers',
+        username: user.username
+    });
 }
 
 // 선택된 사용자 정보 표시
@@ -382,12 +386,6 @@ function loadServersList() {
             serverSelect.appendChild(option);
         }
     });
-}
-
-// 채널 목록 로드
-function loadChannelsList(serverId) {
-    // 대시보드 서버 기능으로 변경되어 이 함수는 사용하지 않음
-    console.log("서버 목록 로드 중");
 }
 
 // 사용자 추가 모달 표시
@@ -633,7 +631,7 @@ function assignServer() {
         assignBtn.disabled = true;
     }
     
-    // 서버 할당 요청 (채널 ID는 더이상 사용하지 않음)
+    // 서버 할당 요청
     WebSocketManager.sendMessage({
         command: 'assignServer',
         username: username,

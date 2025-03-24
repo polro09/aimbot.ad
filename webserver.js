@@ -534,49 +534,101 @@ class WebServer {
                 break;
             
             // 서버 할당 처리 (이전의 채널 할당 대체)
-            case 'assignServer':
-                try {
-                    const { username, serverId } = data;
-                    
-                    // 서버 이름 조회
-                    let serverName = '알 수 없음';
-                    
-                    const botStatus = bot.getStatus();
-                    if (botStatus.servers) {
-                        const server = botStatus.servers.find(s => s.id === serverId);
-                        if (server) {
-                            serverName = server.name;
-                        }
-                    }
-                    
-                    // storage.js에 새로운 함수를 만들어야 함
-                    // 가상의 함수 호출 (실제로는 storage.js에 구현해야 함)
-                    const assignedServers = [
-                        {
-                            serverId: serverId,
-                            serverName: serverName
-                        }
-                    ];
-                    
-                    this._sendMessage(ws, {
-                        type: 'info',
-                        message: '서버가 할당되었습니다.',
-                        servers: assignedServers
-                    });
-                    
-                    // 서버 목록 업데이트
-                    this._sendMessage(ws, {
-                        type: 'userServers',
-                        username,
-                        servers: assignedServers
-                    });
-                } catch (error) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: `서버 할당 중 오류 발생: ${error.message}`
-                    });
-                }
-                break;
+case 'assignServer':
+    try {
+        const { username, serverId } = data;
+        
+        // 서버 이름 조회
+        let serverName = '알 수 없음';
+        
+        const botStatus = bot.getStatus();
+        if (botStatus.servers) {
+            const server = botStatus.servers.find(s => s.id === serverId);
+            if (server) {
+                serverName = server.name;
+            }
+        }
+        
+        // storage.js에 assignServerToUser 함수 호출
+        const assignedServers = await storage.assignServerToUser(username, serverId, serverName);
+        
+        this._sendMessage(ws, {
+            type: 'info',
+            message: '서버가 할당되었습니다.',
+            servers: assignedServers
+        });
+        
+        // 서버 목록 업데이트
+        this._sendMessage(ws, {
+            type: 'userServers',
+            username,
+            servers: assignedServers
+        });
+    } catch (error) {
+        this._sendMessage(ws, {
+            type: 'error',
+            message: `서버 할당 중 오류 발생: ${error.message}`
+        });
+    }
+    break;
+    
+// 서버 할당 해제 처리
+case 'unassignServer':
+    try {
+        const { username, serverId } = data;
+        
+        // storage.js에 구현된 함수 호출
+        const assignedServers = await storage.unassignServerFromUser(username, serverId);
+        
+        this._sendMessage(ws, {
+            type: 'info',
+            message: '서버 할당이 해제되었습니다.',
+            servers: assignedServers
+        });
+        
+        // 서버 목록 업데이트
+        this._sendMessage(ws, {
+            type: 'userServers',
+            username,
+            servers: assignedServers
+        });
+    } catch (error) {
+        this._sendMessage(ws, {
+            type: 'error',
+            message: `서버 할당 해제 중 오류 발생: ${error.message}`
+        });
+    }
+    break;
+    
+// 사용자 서버 목록 요청 처리
+case 'getUserServers':
+    try {
+        const { username } = data;
+        
+        // 관리자가 아니면 자신의 서버만 볼 수 있음
+        if (!ws.userSession.isAdmin && ws.userSession.username !== username) {
+            this._sendMessage(ws, {
+                type: 'error',
+                message: '권한이 없습니다.'
+            });
+            return;
+        }
+        
+        // storage.js에 구현된 함수 호출
+        const servers = storage.getUserServers(username);
+        
+        this._sendMessage(ws, {
+            type: 'userServers',
+            username,
+            servers
+        });
+    } catch (error) {
+        this._sendMessage(ws, {
+            type: 'error',
+            message: `사용자 서버 목록 조회 중 오류 발생: ${error.message}`
+        });
+    }
+    break;
                 
             // 서버 할당 해제 처리
             case 'unassignServer':

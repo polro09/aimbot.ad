@@ -7,26 +7,9 @@ const AuthManager = {
     user: null,
     
     init: function() {
-        // 저장된 세션 확인
-        const savedUser = localStorage.getItem('auth_user');
-        if (savedUser) {
-            try {
-                this.user = JSON.parse(savedUser);
-                console.log('세션에서 사용자 정보 복원됨:', this.user.username);
-                
-                // 토큰 유효성 확인
-                if (this.user.expiry && new Date(this.user.expiry) < new Date()) {
-                    console.log('세션 만료됨, 로그아웃 처리');
-                    this.logout();
-                } else {
-                    // 세션이 유효하면 사용자 정보 표시 갱신
-                    this.updateUserInfoDisplay();
-                }
-            } catch (e) {
-                console.error('저장된 사용자 정보 파싱 오류:', e);
-                localStorage.removeItem('auth_user');
-            }
-        }
+        // 페이지 새로고침/재접속 시 항상 로그아웃 상태로 시작
+        localStorage.removeItem('auth_user');
+        this.user = null;
         
         // 로그인 버튼 이벤트 리스너
         const loginBtn = document.getElementById('login-btn');
@@ -162,7 +145,7 @@ const AuthManager = {
         // 로딩 메시지
         messageElement.textContent = '로그인 중...';
         
-        // 버그 수정: 웹소켓으로 로그인 요청
+        // 웹소켓으로 로그인 요청
         if (typeof WebSocketManager !== 'undefined' && WebSocketManager.sendMessage) {
             WebSocketManager.sendMessage({
                 command: 'login',
@@ -198,7 +181,7 @@ const AuthManager = {
         // 로딩 메시지
         messageElement.textContent = '회원가입 중...';
         
-        // 버그 수정: 웹소켓으로 회원가입 요청
+        // 웹소켓으로 회원가입 요청
         if (typeof WebSocketManager !== 'undefined' && WebSocketManager.sendMessage) {
             WebSocketManager.sendMessage({
                 command: 'register',
@@ -417,7 +400,11 @@ const AuthManager = {
         }
         
         if (serverEl) {
-            if (this.user.assignedChannels && this.user.assignedChannels.length > 0) {
+            if (this.user.assignedServers && this.user.assignedServers.length > 0) {
+                serverEl.textContent = Array.isArray(this.user.assignedServers) ? 
+                    this.user.assignedServers.map(server => server.serverName).join(', ') : 
+                    '할당된 서버 있음';
+            } else if (this.user.assignedChannels && this.user.assignedChannels.length > 0) {
                 serverEl.textContent = Array.isArray(this.user.assignedChannels) ? 
                     this.user.assignedChannels.join(', ') : 
                     '할당된 서버 있음';
@@ -453,8 +440,12 @@ const AuthManager = {
             userInfoRole.textContent = roleText;
         }
         
-        if (userInfoServer && this.user.assignedChannels) {
-            if (this.user.assignedChannels.length > 0) {
+        if (userInfoServer) {
+            if (this.user.assignedServers && this.user.assignedServers.length > 0) {
+                userInfoServer.textContent = Array.isArray(this.user.assignedServers) ? 
+                    this.user.assignedServers.map(server => server.serverName).join(', ') : 
+                    '할당된 서버 있음';
+            } else if (this.user.assignedChannels && this.user.assignedChannels.length > 0) {
                 userInfoServer.textContent = Array.isArray(this.user.assignedChannels) ? 
                     this.user.assignedChannels.join(', ') : 
                     '할당된 서버 있음';

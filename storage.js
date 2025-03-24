@@ -710,766 +710,767 @@ class Storage {
                 backupFiles.sort((a, b) => {
                     const aTime = fsSync.statSync(path.join(backupDir, a)).mtime.getTime();
                     const bTime = fsSync.statSync(path.join(backupDir, b)).mtime.getTime();
-                    return aTime - bTime;
-                });
-                
-                // 초과분 삭제
-                const filesToDelete = backupFiles.slice(0, backupFiles.length - maxBackups);
-                
-                for (const file of filesToDelete) {
-                    await fs.unlink(path.join(backupDir, file));
-                    this.log('INFO', `오래된 백업 삭제: ${file}`);
-                }
-            }
-        } catch (error) {
-            this.log('ERROR', `백업 정리 중 오류 발생: ${error.message}`);
-        }
-    }
+                   return aTime - bTime;
+               });
+               
+               // 초과분 삭제
+               const filesToDelete = backupFiles.slice(0, backupFiles.length - maxBackups);
+               
+               for (const file of filesToDelete) {
+                   await fs.unlink(path.join(backupDir, file));
+                   this.log('INFO', `오래된 백업 삭제: ${file}`);
+               }
+           }
+       } catch (error) {
+           this.log('ERROR', `백업 정리 중 오류 발생: ${error.message}`);
+       }
+   }
 
-    /**
-     * 사용자 인증
-     * @param {string} username 사용자명
-     * @param {string} password 비밀번호
-     * @returns {Object|null} 사용자 정보 또는 인증 실패 시 null
-     */
-    authenticateUser(username, password) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            // 로그인 시도 로깅 (보안)
-            this.log('INFO', `사용자 인증 실패 (사용자 없음): ${username}`);
-            return null; // 사용자 없음
-        }
-        
-        const user = users[username];
-        
-        try {
-            // 비밀번호 확인
-            if (bcrypt.compareSync(password, user.passwordHash)) {
-                // 마지막 로그인 시간 업데이트
-                user.lastLogin = new Date().toISOString();
-                
-                // 비동기로 저장
-                this.save('users').catch(error => {
-                    this.log('ERROR', `사용자 로그인 정보 저장 실패: ${error.message}`);
-                });
-                
-                // 로그인 성공 로깅
-                this.log('INFO', `사용자 인증 성공: ${username}`);
-                
-                return {
-                    username: user.username,
-                    role: user.role || 'user',
-                    created: user.created,
-                    lastLogin: user.lastLogin
-                };
-            }
-            
-            // 로그인 실패 로깅
-            this.log('INFO', `사용자 인증 실패 (비밀번호 불일치): ${username}`);
-            return null; // 비밀번호 불일치
-        } catch (error) {
-            this.log('ERROR', `사용자 인증 중 오류: ${error.message}`);
-            return null;
-        }
-    }
+   /**
+    * 사용자 인증
+    * @param {string} username 사용자명
+    * @param {string} password 비밀번호
+    * @returns {Object|null} 사용자 정보 또는 인증 실패 시 null
+    */
+   authenticateUser(username, password) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           // 로그인 시도 로깅 (보안)
+           this.log('INFO', `사용자 인증 실패 (사용자 없음): ${username}`);
+           return null; // 사용자 없음
+       }
+       
+       const user = users[username];
+       
+       try {
+           // 비밀번호 확인
+           if (bcrypt.compareSync(password, user.passwordHash)) {
+               // 마지막 로그인 시간 업데이트
+               user.lastLogin = new Date().toISOString();
+               
+               // 비동기로 저장
+               this.save('users').catch(error => {
+                   this.log('ERROR', `사용자 로그인 정보 저장 실패: ${error.message}`);
+               });
+               
+               // 로그인 성공 로깅
+               this.log('INFO', `사용자 인증 성공: ${username}`);
+               
+               return {
+                   username: user.username,
+                   role: user.role || 'user',
+                   created: user.created,
+                   lastLogin: user.lastLogin
+               };
+           }
+           
+           // 로그인 실패 로깅
+           this.log('INFO', `사용자 인증 실패 (비밀번호 불일치): ${username}`);
+           return null; // 비밀번호 불일치
+       } catch (error) {
+           this.log('ERROR', `사용자 인증 중 오류: ${error.message}`);
+           return null;
+       }
+   }
 
-    /**
-     * 사용자 생성
-     * @param {string} username 사용자명
-     * @param {string} password 비밀번호
-     * @param {string} [role='user'] 권한
-     * @returns {Promise<Object>} 생성된 사용자 정보
-     */
-    async createUser(username, password, role = 'user') {
-        const users = this.getStore('users');
-        
-        // 사용자명 검증
-        if (!username || typeof username !== 'string') {
-            throw new Error('유효한 사용자명을 입력해주세요.');
-        }
-        
-        // 비밀번호 검증
-        if (!password || typeof password !== 'string' || password.length < 6) {
-            throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
-        }
-        
-        // 권한 검증
-        const validRoles = ['admin', 'level1', 'level2', 'level3', 'user'];
-        if (!validRoles.includes(role)) {
-            throw new Error('유효하지 않은 역할입니다.');
-        }
-        
-        // 사용자명 중복 확인
-        if (users[username]) {
-            throw new Error('이미 존재하는 사용자명입니다.');
-        }
-        
-        // 비밀번호 해시 생성
-        const saltRounds = 10;
-        const passwordHash = await bcrypt.hash(password, saltRounds);
-        
-        // 사용자 정보 생성
-        users[username] = {
-            username,
-            passwordHash,
-            role,
-            created: new Date().toISOString(),
-            lastLogin: null,
-            assignedChannels: [],
-            settings: {}
-        };
-        
-        // 저장
-        await this.save('users');
-        
-        // 사용자 생성 로깅
-        this.log('INFO', `새 사용자 생성: ${username}, 역할: ${role}`);
-        
-        return {
-            username,
-            role,
-            created: users[username].created
-        };
-    }
+   /**
+    * 사용자 생성
+    * @param {string} username 사용자명
+    * @param {string} password 비밀번호
+    * @param {string} [role='user'] 권한
+    * @returns {Promise<Object>} 생성된 사용자 정보
+    */
+   async createUser(username, password, role = 'user') {
+       const users = this.getStore('users');
+       
+       // 사용자명 검증
+       if (!username || typeof username !== 'string') {
+           throw new Error('유효한 사용자명을 입력해주세요.');
+       }
+       
+       // 비밀번호 검증
+       if (!password || typeof password !== 'string' || password.length < 6) {
+           throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
+       }
+       
+       // 권한 검증
+       const validRoles = ['admin', 'level1', 'level2', 'level3', 'user'];
+       if (!validRoles.includes(role)) {
+           throw new Error('유효하지 않은 역할입니다.');
+       }
+       
+       // 사용자명 중복 확인
+       if (users[username]) {
+           throw new Error('이미 존재하는 사용자명입니다.');
+       }
+       
+       // 비밀번호 해시 생성
+       const saltRounds = 10;
+       const passwordHash = await bcrypt.hash(password, saltRounds);
+       
+       // 사용자 정보 생성
+       users[username] = {
+           username,
+           passwordHash,
+           role,
+           created: new Date().toISOString(),
+           lastLogin: null,
+           assignedChannels: [],
+           assignedServers: [],
+           settings: {}
+       };
+       
+       // 저장
+       await this.save('users');
+       
+       // 사용자 생성 로깅
+       this.log('INFO', `새 사용자 생성: ${username}, 역할: ${role}`);
+       
+       return {
+           username,
+           role,
+           created: users[username].created
+       };
+   }
 
-    /**
-     * 사용자 삭제
-     * @param {string} username 사용자명
-     * @returns {Promise<Object>} 삭제 결과
-     */
-    async deleteUser(username) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        // 관리자 계정 삭제 방지
-        if (users[username].role === 'admin' && Object.values(users).filter(u => u.role === 'admin').length <= 1) {
-            throw new Error('마지막 관리자 계정은 삭제할 수 없습니다.');
-        }
-        
-        // 사용자 정보 백업
-        const userBackup = { ...users[username] };
-        
-        // 사용자 삭제
-        delete users[username];
-        
-        // 저장
-        await this.save('users');
-        
-        // 사용자 삭제 로깅
-        this.log('INFO', `사용자 삭제: ${username}`);
-        
-        return { 
-            success: true, 
-            message: '사용자가 삭제되었습니다.',
-            userBackup
-        };
-    }
+   /**
+    * 사용자 삭제
+    * @param {string} username 사용자명
+    * @returns {Promise<Object>} 삭제 결과
+    */
+   async deleteUser(username) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       // 관리자 계정 삭제 방지
+       if (users[username].role === 'admin' && Object.values(users).filter(u => u.role === 'admin').length <= 1) {
+           throw new Error('마지막 관리자 계정은 삭제할 수 없습니다.');
+       }
+       
+       // 사용자 정보 백업
+       const userBackup = { ...users[username] };
+       
+       // 사용자 삭제
+       delete users[username];
+       
+       // 저장
+       await this.save('users');
+       
+       // 사용자 삭제 로깅
+       this.log('INFO', `사용자 삭제: ${username}`);
+       
+       return { 
+           success: true, 
+           message: '사용자가 삭제되었습니다.',
+           userBackup
+       };
+   }
 
-    /**
-     * 비밀번호 재설정
-     * @param {string} username 사용자명
-     * @param {string} newPassword 새 비밀번호
-     * @returns {Promise<Object>} 결과
-     */
-    async resetUserPassword(username, newPassword) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        // 비밀번호 유효성 검사
-        if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
-            throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
-        }
-        
-        // 새 비밀번호 해시 생성
-        const saltRounds = 10;
-        const passwordHash = await bcrypt.hash(newPassword, saltRounds);
-        
-        // 비밀번호 업데이트
-        users[username].passwordHash = passwordHash;
-        users[username].passwordChangedAt = new Date().toISOString();
-        
-        // 저장
-        await this.save('users');
-        
-        // 비밀번호 변경 로깅
-        this.log('INFO', `사용자 비밀번호 변경: ${username}`);
-        
-        return { 
-            success: true, 
-            message: '비밀번호가 재설정되었습니다.'
-        };
-    }
+   /**
+    * 비밀번호 재설정
+    * @param {string} username 사용자명
+    * @param {string} newPassword 새 비밀번호
+    * @returns {Promise<Object>} 결과
+    */
+   async resetUserPassword(username, newPassword) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       // 비밀번호 유효성 검사
+       if (!newPassword || typeof newPassword !== 'string' || newPassword.length < 6) {
+           throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
+       }
+       
+       // 새 비밀번호 해시 생성
+       const saltRounds = 10;
+       const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+       
+       // 비밀번호 업데이트
+       users[username].passwordHash = passwordHash;
+       users[username].passwordChangedAt = new Date().toISOString();
+       
+       // 저장
+       await this.save('users');
+       
+       // 비밀번호 변경 로깅
+       this.log('INFO', `사용자 비밀번호 변경: ${username}`);
+       
+       return { 
+           success: true, 
+           message: '비밀번호가 재설정되었습니다.'
+       };
+   }
 
-    /**
-     * 초대 코드 생성
-     * @param {string} [customCode=null] 커스텀 코드
-     * @returns {Promise<Object>} 생성된 초대 코드
-     */
-    async createInviteCode(customCode = null) {
-        const inviteCodes = this.getStore('invite-codes');
-        
-        // 커스텀 코드가 있으면 사용, 없으면 랜덤 생성
-        let code = customCode;
-        if (!code) {
-            // 랜덤 코드 생성 (8자리)
-            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            code = '';
-            for (let i = 0; i < 8; i++) {
-                code += characters.charAt(Math.floor(Math.random() * characters.length));
-            }
-        }
-        
-        // 코드 포맷 검증
-        if (!/^[A-Z0-9]+$/.test(code)) {
-            throw new Error('초대 코드는 대문자와 숫자만 포함할 수 있습니다.');
-        }
-        
-        // 코드 중복 확인
-        if (inviteCodes[code]) {
-            throw new Error('이미 존재하는 초대 코드입니다.');
-        }
-        
-        // 초대 코드 정보 생성
-        inviteCodes[code] = {
-            code,
-            created: new Date().toISOString(),
-            createdBy: '시스템', // 생성자 정보 추가 가능
-            used: false,
-            usedBy: null,
-            usedAt: null
-        };
-        
-        // 저장
-        await this.save('invite-codes');
-        
-        // 초대 코드 생성 로깅
-        this.log('INFO', `새 초대 코드 생성: ${code}`);
-        
-        return inviteCodes[code];
-    }
+   /**
+    * 초대 코드 생성
+    * @param {string} [customCode=null] 커스텀 코드
+    * @returns {Promise<Object>} 생성된 초대 코드
+    */
+   async createInviteCode(customCode = null) {
+       const inviteCodes = this.getStore('invite-codes');
+       
+       // 커스텀 코드가 있으면 사용, 없으면 랜덤 생성
+       let code = customCode;
+       if (!code) {
+           // 랜덤 코드 생성 (8자리)
+           const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+           code = '';
+           for (let i = 0; i < 8; i++) {
+               code += characters.charAt(Math.floor(Math.random() * characters.length));
+           }
+       }
+       
+       // 코드 포맷 검증
+       if (!/^[A-Z0-9]+$/.test(code)) {
+           throw new Error('초대 코드는 대문자와 숫자만 포함할 수 있습니다.');
+       }
+       
+       // 코드 중복 확인
+       if (inviteCodes[code]) {
+           throw new Error('이미 존재하는 초대 코드입니다.');
+       }
+       
+       // 초대 코드 정보 생성
+       inviteCodes[code] = {
+           code,
+           created: new Date().toISOString(),
+           createdBy: '시스템', // 생성자 정보 추가 가능
+           used: false,
+           usedBy: null,
+           usedAt: null
+       };
+       
+       // 저장
+       await this.save('invite-codes');
+       
+       // 초대 코드 생성 로깅
+       this.log('INFO', `새 초대 코드 생성: ${code}`);
+       
+       return inviteCodes[code];
+   }
 
-    /**
-     * 초대 코드 삭제
-     * @param {string} code 초대 코드
-     * @returns {Promise<Object>} 삭제 결과
-     */
-    async deleteInviteCode(code) {
-        const inviteCodes = this.getStore('invite-codes');
-        
-        if (!inviteCodes[code]) {
-            throw new Error('초대 코드를 찾을 수 없습니다.');
-        }
-        
-        // 초대 코드 정보 백업
-        const codeInfo = { ...inviteCodes[code] };
-        
-        // 초대 코드 삭제
-        delete inviteCodes[code];
-        
-        // 저장
-        await this.save('invite-codes');
-        
-        // 초대 코드 삭제 로깅
-        this.log('INFO', `초대 코드 삭제: ${code}`);
-        
-        return { 
-            success: true, 
-            message: '초대 코드가 삭제되었습니다.',
-            codeInfo
-        };
-    }
+   /**
+    * 초대 코드 삭제
+    * @param {string} code 초대 코드
+    * @returns {Promise<Object>} 삭제 결과
+    */
+   async deleteInviteCode(code) {
+       const inviteCodes = this.getStore('invite-codes');
+       
+       if (!inviteCodes[code]) {
+           throw new Error('초대 코드를 찾을 수 없습니다.');
+       }
+       
+       // 초대 코드 정보 백업
+       const codeInfo = { ...inviteCodes[code] };
+       
+       // 초대 코드 삭제
+       delete inviteCodes[code];
+       
+       // 저장
+       await this.save('invite-codes');
+       
+       // 초대 코드 삭제 로깅
+       this.log('INFO', `초대 코드 삭제: ${code}`);
+       
+       return { 
+           success: true, 
+           message: '초대 코드가 삭제되었습니다.',
+           codeInfo
+       };
+   }
 
-    /**
-     * 초대 코드 사용
-     * @param {string} code 초대 코드
-     * @param {string} username 사용자명
-     * @returns {Promise<Object>} 결과
-     */
-    async useInviteCode(code, username) {
-        const inviteCodes = this.getStore('invite-codes');
-        
-        if (!inviteCodes[code]) {
-            throw new Error('유효하지 않은 초대 코드입니다.');
-        }
-        
-        if (inviteCodes[code].used) {
-            throw new Error('이미 사용된 초대 코드입니다.');
-        }
-        
-        // 초대 코드 사용 처리
-        inviteCodes[code].used = true;
-        inviteCodes[code].usedBy = username;
-        inviteCodes[code].usedAt = new Date().toISOString();
-        
-        // 저장
-        await this.save('invite-codes');
-        
-        // 초대 코드 사용 로깅
-        this.log('INFO', `초대 코드 사용: ${code}, 사용자: ${username}`);
-        
-        return { 
-            success: true, 
-            message: '초대 코드가 사용되었습니다.'
-        };
-    }
+   /**
+    * 초대 코드 사용
+    * @param {string} code 초대 코드
+    * @param {string} username 사용자명
+    * @returns {Promise<Object>} 결과
+    */
+   async useInviteCode(code, username) {
+       const inviteCodes = this.getStore('invite-codes');
+       
+       if (!inviteCodes[code]) {
+           throw new Error('유효하지 않은 초대 코드입니다.');
+       }
+       
+       if (inviteCodes[code].used) {
+           throw new Error('이미 사용된 초대 코드입니다.');
+       }
+       
+       // 초대 코드 사용 처리
+       inviteCodes[code].used = true;
+       inviteCodes[code].usedBy = username;
+       inviteCodes[code].usedAt = new Date().toISOString();
+       
+       // 저장
+       await this.save('invite-codes');
+       
+       // 초대 코드 사용 로깅
+       this.log('INFO', `초대 코드 사용: ${code}, 사용자: ${username}`);
+       
+       return { 
+           success: true, 
+           message: '초대 코드가 사용되었습니다.'
+       };
+   }
 
-    /**
-     * 초대 코드 유효성 확인
-     * @param {string} code 초대 코드
-     * @returns {boolean} 유효 여부
-     */
-    isValidInviteCode(code) {
-        const inviteCodes = this.getStore('invite-codes');
-        return inviteCodes[code] && !inviteCodes[code].used;
-    }
+   /**
+    * 초대 코드 유효성 확인
+    * @param {string} code 초대 코드
+    * @returns {boolean} 유효 여부
+    */
+   isValidInviteCode(code) {
+       const inviteCodes = this.getStore('invite-codes');
+       return inviteCodes[code] && !inviteCodes[code].used;
+   }
 
-    /**
-     * 사용자 역할 업데이트
-     * @param {string} username 사용자명
-     * @param {string} role 역할
-     * @returns {Promise<Object>} 업데이트된 사용자 정보
-     */
-    async updateUserRole(username, role) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        // 역할 검증
-        const validRoles = ['level1', 'level2', 'level3', 'user', 'admin'];
-        if (!validRoles.includes(role)) {
-            throw new Error('유효하지 않은 역할입니다.');
-        }
-        
-        // 관리자 권한 변경 제한 (마지막 관리자 계정 검사)
-        if (users[username].role === 'admin' && role !== 'admin') {
-            const adminCount = Object.values(users).filter(u => u.role === 'admin').length;
-            if (adminCount <= 1) {
-                throw new Error('마지막 관리자 계정의 권한은 변경할 수 없습니다.');
-            }
-        }
-        
-        // 이전 역할
-        const previousRole = users[username].role;
-        
-        // 사용자 역할 업데이트
-        users[username].role = role;
-        users[username].roleUpdatedAt = new Date().toISOString();
-        
-        // 저장
-        await this.save('users');
-        
-        // 사용자 역할 업데이트 로깅
-        this.log('INFO', `사용자 역할 변경: ${username}, ${previousRole} → ${role}`);
-        
-        return {
-            username,
-            role,
-            previousRole
-        };
-    }
+   /**
+    * 사용자 역할 업데이트
+    * @param {string} username 사용자명
+    * @param {string} role 역할
+    * @returns {Promise<Object>} 업데이트된 사용자 정보
+    */
+   async updateUserRole(username, role) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       // 역할 검증
+       const validRoles = ['level1', 'level2', 'level3', 'user', 'admin'];
+       if (!validRoles.includes(role)) {
+           throw new Error('유효하지 않은 역할입니다.');
+       }
+       
+       // 관리자 권한 변경 제한 (마지막 관리자 계정 검사)
+       if (users[username].role === 'admin' && role !== 'admin') {
+           const adminCount = Object.values(users).filter(u => u.role === 'admin').length;
+           if (adminCount <= 1) {
+               throw new Error('마지막 관리자 계정의 권한은 변경할 수 없습니다.');
+           }
+       }
+       
+       // 이전 역할
+       const previousRole = users[username].role;
+       
+       // 사용자 역할 업데이트
+       users[username].role = role;
+       users[username].roleUpdatedAt = new Date().toISOString();
+       
+       // 저장
+       await this.save('users');
+       
+       // 사용자 역할 업데이트 로깅
+       this.log('INFO', `사용자 역할 변경: ${username}, ${previousRole} → ${role}`);
+       
+       return {
+           username,
+           role,
+           previousRole
+       };
+   }
 
-    /**
-     * 사용자 채널 할당
-     * @param {string} username 사용자명
-     * @param {string} serverId 서버 ID
-     * @param {string} channelId 채널 ID
-     * @param {string} [serverName='알 수 없음'] 서버 이름
-     * @param {string} [channelName='알 수 없음'] 채널 이름
-     * @returns {Promise<Array>} 할당된 채널 목록
-     */
-    async assignChannelToUser(username, serverId, channelId, serverName = '알 수 없음', channelName = '알 수 없음') {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        // 서버 및 채널 ID 검증
-        if (!serverId || !channelId) {
-            throw new Error('서버 ID와 채널 ID는 필수입니다.');
-        }
-        
-        // 할당된 채널 목록이 없으면 초기화
-        if (!users[username].assignedChannels) {
-            users[username].assignedChannels = [];
-        }
-        
-        // 이미 할당된 채널인지 확인
-        const existingChannel = users[username].assignedChannels.find(ch => ch.channelId === channelId);
-        if (existingChannel) {
-            throw new Error('이미 할당된 채널입니다.');
-        }
-        
-        // 채널 정보 추가
-        users[username].assignedChannels.push({
-            serverId,
-            channelId,
-            serverName: serverName || '알 수 없음',
-            channelName: channelName || '알 수 없음',
-            assignedAt: new Date().toISOString()
-        });
-        
-        // 저장
-        await this.save('users');
-        
-        // 채널 할당 로깅
-        this.log('INFO', `사용자 ${username}에게 채널 할당: ${serverName} / ${channelName} (${channelId})`);
-        
-        return users[username].assignedChannels;
-    }
+   /**
+    * 사용자 채널 할당
+    * @param {string} username 사용자명
+    * @param {string} serverId 서버 ID
+    * @param {string} channelId 채널 ID
+    * @param {string} [serverName='알 수 없음'] 서버 이름
+    * @param {string} [channelName='알 수 없음'] 채널 이름
+    * @returns {Promise<Array>} 할당된 채널 목록
+    */
+   async assignChannelToUser(username, serverId, channelId, serverName = '알 수 없음', channelName = '알 수 없음') {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       // 서버 및 채널 ID 검증
+       if (!serverId || !channelId) {
+           throw new Error('서버 ID와 채널 ID는 필수입니다.');
+       }
+       
+       // 할당된 채널 목록이 없으면 초기화
+       if (!users[username].assignedChannels) {
+           users[username].assignedChannels = [];
+       }
+       
+       // 이미 할당된 채널인지 확인
+       const existingChannel = users[username].assignedChannels.find(ch => ch.channelId === channelId);
+       if (existingChannel) {
+           throw new Error('이미 할당된 채널입니다.');
+       }
+       
+       // 채널 정보 추가
+       users[username].assignedChannels.push({
+           serverId,
+           channelId,
+           serverName: serverName || '알 수 없음',
+           channelName: channelName || '알 수 없음',
+           assignedAt: new Date().toISOString()
+       });
+       
+       // 저장
+       await this.save('users');
+       
+       // 채널 할당 로깅
+       this.log('INFO', `사용자 ${username}에게 채널 할당: ${serverName} / ${channelName} (${channelId})`);
+       
+       return users[username].assignedChannels;
+   }
 
-    /**
-     * 사용자 채널 할당 해제
-     * @param {string} username 사용자명
-     * @param {string} channelId 채널 ID
-     * @returns {Promise<Array>} 남은 할당된 채널 목록
-     */
-    async unassignChannelFromUser(username, channelId) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        // 할당된 채널 목록이 없으면 초기화
-        if (!users[username].assignedChannels) {
-            users[username].assignedChannels = [];
-            return [];
-        }
-        
-        // 할당 해제할 채널 찾기
-        const channelIndex = users[username].assignedChannels.findIndex(ch => ch.channelId === channelId);
-        if (channelIndex === -1) {
-            throw new Error('할당된 채널을 찾을 수 없습니다.');
-        }
-        
-        // 채널 정보 백업
-        const removedChannel = { ...users[username].assignedChannels[channelIndex] };
-        
-        // 채널 제거
-        users[username].assignedChannels.splice(channelIndex, 1);
-        
-        // 저장
-        await this.save('users');
-        
-        // 채널 할당 해제 로깅
-        this.log('INFO', `사용자 ${username}의 채널 할당 해제: ${removedChannel.serverName} / ${removedChannel.channelName} (${channelId})`);
-        
-        return users[username].assignedChannels;
-    }
+   /**
+    * 사용자 채널 할당 해제
+    * @param {string} username 사용자명
+    * @param {string} channelId 채널 ID
+    * @returns {Promise<Array>} 남은 할당된 채널 목록
+    */
+   async unassignChannelFromUser(username, channelId) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       // 할당된 채널 목록이 없으면 초기화
+       if (!users[username].assignedChannels) {
+           users[username].assignedChannels = [];
+           return [];
+       }
+       
+       // 할당 해제할 채널 찾기
+       const channelIndex = users[username].assignedChannels.findIndex(ch => ch.channelId === channelId);
+       if (channelIndex === -1) {
+           throw new Error('할당된 채널을 찾을 수 없습니다.');
+       }
+       
+       // 채널 정보 백업
+       const removedChannel = { ...users[username].assignedChannels[channelIndex] };
+       
+       // 채널 제거
+       users[username].assignedChannels.splice(channelIndex, 1);
+       
+       // 저장
+       await this.save('users');
+       
+       // 채널 할당 해제 로깅
+       this.log('INFO', `사용자 ${username}의 채널 할당 해제: ${removedChannel.serverName} / ${removedChannel.channelName} (${channelId})`);
+       
+       return users[username].assignedChannels;
+   }
 
-    /**
-     * 사용자 채널 목록 가져오기
-     * @param {string} username 사용자명
-     * @returns {Array} 할당된 채널 목록
-     */
-    getUserChannels(username) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        return users[username].assignedChannels || [];
-    }
-    
-    /**
-     * 서버 할당 (새로운 기능)
-     * @param {string} username 사용자명
-     * @param {string} serverId 서버 ID
-     * @param {string} [serverName='알 수 없음'] 서버 이름
-     * @returns {Promise<Array>} 할당된 서버 목록
-     */
-    async assignServerToUser(username, serverId, serverName = '알 수 없음') {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        // 서버 ID 검증
-        if (!serverId) {
-            throw new Error('서버 ID는 필수입니다.');
-        }
-        
-        // 할당된 서버 목록이 없으면 초기화
-        if (!users[username].assignedServers) {
-            users[username].assignedServers = [];
-        }
-        
-        // 이미 할당된 서버인지 확인
-        const existingServer = users[username].assignedServers.find(s => s.serverId === serverId);
-        if (existingServer) {
-            throw new Error('이미 할당된 서버입니다.');
-        }
-        
-        // 서버 정보 추가
-        users[username].assignedServers.push({
-            serverId,
-            serverName: serverName || '알 수 없음',
-            assignedAt: new Date().toISOString()
-        });
-        
-        // 저장
-        await this.save('users');
-        
-        // 서버 할당 로깅
-        this.log('INFO', `사용자 ${username}에게 서버 할당: ${serverName} (${serverId})`);
-        
-        return users[username].assignedServers;
-    }
-    
-    /**
-     * 사용자 서버 할당 해제
-     * @param {string} username 사용자명
-     * @param {string} serverId 서버 ID
-     * @returns {Promise<Array>} 남은 할당된 서버 목록
-     */
-    async unassignServerFromUser(username, serverId) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        // 할당된 서버 목록이 없으면 초기화
-        if (!users[username].assignedServers) {
-            users[username].assignedServers = [];
-            return [];
-        }
-        
-        // 할당 해제할 서버 찾기
-        const serverIndex = users[username].assignedServers.findIndex(s => s.serverId === serverId);
-        if (serverIndex === -1) {
-            throw new Error('할당된 서버를 찾을 수 없습니다.');
-        }
-        
-        // 서버 정보 백업
-        const removedServer = { ...users[username].assignedServers[serverIndex] };
-        
-        // 서버 제거
-        users[username].assignedServers.splice(serverIndex, 1);
-        
-        // 저장
-        await this.save('users');
-        
-        // 서버 할당 해제 로깅
-        this.log('INFO', `사용자 ${username}의 서버 할당 해제: ${removedServer.serverName} (${serverId})`);
-        
-        return users[username].assignedServers;
-    }
-    
-    /**
-     * 사용자 서버 목록 가져오기
-     * @param {string} username 사용자명
-     * @returns {Array} 할당된 서버 목록
-     */
-    getUserServers(username) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            throw new Error('사용자를 찾을 수 없습니다.');
-        }
-        
-        return users[username].assignedServers || [];
-    }
-    
-    /**
-     * 모듈 설정 가져오기
-     * @param {string} moduleName 모듈 이름
-     * @returns {Object} 모듈 설정
-     */
-    getModuleSettings(moduleName) {
-        // 모듈 이름으로 저장소 이름 생성
-        const storeName = `${moduleName}-config`;
-        
-        // 저장소가 없으면 생성
-        if (!this.stores[storeName]) {
-            this.stores[storeName] = {};
-            
-            // 파일 경로 설정
-            this.storeFiles[storeName] = path.join(config.dirs.data, `${storeName}.json`);
-        }
-        
-        return this.getStore(storeName);
-    }
-    
-    /**
-     * 모듈 설정 저장
-     * @param {string} moduleName 모듈 이름
-     * @param {Object} settings 모듈 설정
-     * @returns {Promise<boolean>} 저장 성공 여부
-     */
-    async saveModuleSettings(moduleName, settings) {
-        // 모듈 이름으로 저장소 이름 생성
-        const storeName = `${moduleName}-config`;
-        
-        // 설정 유효성 검사
-        if (!settings || typeof settings !== 'object') {
-            throw new Error('설정은 객체여야 합니다.');
-        }
-        
-        // 저장소 업데이트
-        this.setAll(storeName, settings);
-        
-        // 파일 경로 설정 (없는 경우)
-        if (!this.storeFiles[storeName]) {
-            this.storeFiles[storeName] = path.join(config.dirs.data, `${storeName}.json`);
-        }
-        
-        // 저장
-        await this.save(storeName);
-        
-        this.log('INFO', `모듈 설정 저장: ${moduleName}`);
-        
-        return true;
-    }
-    
-    /**
-     * 봇 설정 가져오기
-     * @returns {Object} 봇 설정
-     */
-    getBotConfig() {
-        return this.getStore('bot-config');
-    }
-    
-    /**
-     * 봇 설정 저장
-     * @param {Object} config 봇 설정
-     * @returns {Promise<boolean>} 저장 성공 여부
-     */
-    async saveBotConfig(config) {
-        // 설정 유효성 검사
-        if (!config || typeof config !== 'object') {
-            throw new Error('설정은 객체여야 합니다.');
-        }
-        
-        // 현재 설정 가져오기
-        const currentConfig = this.getStore('bot-config');
-        
-        // 설정 병합
-        const mergedConfig = { ...currentConfig, ...config };
-        
-        // 저장소 업데이트
-        this.setAll('bot-config', mergedConfig);
-        
-        // 저장
-        await this.save('bot-config');
-        
-        this.log('INFO', '봇 설정이 저장되었습니다.');
-        
-        return true;
-    }
-    
-    /**
-     * 서버 설정 가져오기
-     * @param {string} serverId 서버 ID
-     * @returns {Object} 서버 설정
-     */
-    getServerSettings(serverId) {
-        const serverSettings = this.getStore('server-settings');
-        
-        // 서버 설정이 없으면 초기화
-        if (!serverSettings[serverId]) {
-            serverSettings[serverId] = {
-                serverId,
-                createdAt: new Date().toISOString(),
-                modules: {},
-                settings: {}
-            };
-        }
-        
-        return serverSettings[serverId];
-    }
-    
-    /**
-     * 서버 설정 저장
-     * @param {string} serverId 서버 ID
-     * @param {Object} settings 서버 설정
-     * @returns {Promise<boolean>} 저장 성공 여부
-     */
-    async saveServerSettings(serverId, settings) {
-        // 설정 유효성 검사
-        if (!settings || typeof settings !== 'object') {
-            throw new Error('설정은 객체여야 합니다.');
-        }
-        
-        // 서버 ID 검증
-        if (!serverId) {
-            throw new Error('서버 ID는 필수입니다.');
-        }
-        
-        // 서버 설정 가져오기
-        const serverSettings = this.getStore('server-settings');
-        
-        // 기존 설정 백업
-        const previousSettings = serverSettings[serverId] ? { ...serverSettings[serverId] } : null;
-        
-        // 설정 업데이트
-        serverSettings[serverId] = {
-            ...(previousSettings || { serverId, createdAt: new Date().toISOString() }),
-            ...settings,
-            updatedAt: new Date().toISOString()
-        };
-        
-        // 저장
-        await this.save('server-settings');
-        
-        this.log('INFO', `서버 설정 저장: ${serverId}`);
-        
-        return true;
-    }
-    
-    /**
-     * 사용자 이름으로 사용자 찾기
-     * @param {string} username 사용자명
-     * @returns {Object|null} 사용자 정보
-     */
-    findUserByUsername(username) {
-        const users = this.getStore('users');
-        
-        if (!users[username]) {
-            return null;
-        }
-        
-        // 민감 정보 제외한 사용자 정보 반환
-        const user = users[username];
-        return {
-            username: user.username,
-            role: user.role || 'user',
-            created: user.created,
-            lastLogin: user.lastLogin,
-            assignedChannels: user.assignedChannels || [],
-            assignedServers: user.assignedServers || []
-        };
-    }
-    
-    /**
-     * 역할별 사용자 목록 가져오기
-     * @param {string} [role] 특정 역할 (미지정 시 모든 사용자)
-     * @returns {Array} 사용자 목록
-     */
-    getUsersByRole(role = null) {
-        const users = this.getStore('users');
-        
-        return Object.values(users)
-            .filter(user => !role || user.role === role)
-            .map(user => ({
-                username: user.username,
-                role: user.role || 'user',
-                created: user.created,
-                lastLogin: user.lastLogin
-            }));
-    }
+   /**
+    * 사용자 채널 목록 가져오기
+    * @param {string} username 사용자명
+    * @returns {Array} 할당된 채널 목록
+    */
+   getUserChannels(username) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       return users[username].assignedChannels || [];
+   }
+   
+   /**
+    * 서버 할당
+    * @param {string} username 사용자명
+    * @param {string} serverId 서버 ID
+    * @param {string} [serverName='알 수 없음'] 서버 이름
+    * @returns {Promise<Array>} 할당된 서버 목록
+    */
+   async assignServerToUser(username, serverId, serverName = '알 수 없음') {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       // 서버 ID 검증
+       if (!serverId) {
+           throw new Error('서버 ID는 필수입니다.');
+       }
+       
+       // 할당된 서버 목록이 없으면 초기화
+       if (!users[username].assignedServers) {
+           users[username].assignedServers = [];
+       }
+       
+       // 이미 할당된 서버인지 확인
+       const existingServer = users[username].assignedServers.find(s => s.serverId === serverId);
+       if (existingServer) {
+           throw new Error('이미 할당된 서버입니다.');
+       }
+       
+       // 서버 정보 추가
+       users[username].assignedServers.push({
+           serverId,
+           serverName: serverName || '알 수 없음',
+           assignedAt: new Date().toISOString()
+       });
+       
+       // 저장
+       await this.save('users');
+       
+       // 서버 할당 로깅
+       this.log('INFO', `사용자 ${username}에게 서버 할당: ${serverName} (${serverId})`);
+       
+       return users[username].assignedServers;
+   }
+   
+   /**
+    * 사용자 서버 할당 해제
+    * @param {string} username 사용자명
+    * @param {string} serverId 서버 ID
+    * @returns {Promise<Array>} 남은 할당된 서버 목록
+    */
+   async unassignServerFromUser(username, serverId) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       // 할당된 서버 목록이 없으면 초기화
+       if (!users[username].assignedServers) {
+           users[username].assignedServers = [];
+           return [];
+       }
+       
+       // 할당 해제할 서버 찾기
+       const serverIndex = users[username].assignedServers.findIndex(s => s.serverId === serverId);
+       if (serverIndex === -1) {
+           throw new Error('할당된 서버를 찾을 수 없습니다.');
+       }
+       
+       // 서버 정보 백업
+       const removedServer = { ...users[username].assignedServers[serverIndex] };
+       
+       // 서버 제거
+       users[username].assignedServers.splice(serverIndex, 1);
+       
+       // 저장
+       await this.save('users');
+       
+       // 서버 할당 해제 로깅
+       this.log('INFO', `사용자 ${username}의 서버 할당 해제: ${removedServer.serverName} (${serverId})`);
+       
+       return users[username].assignedServers;
+   }
+   
+   /**
+    * 사용자 서버 목록 가져오기
+    * @param {string} username 사용자명
+    * @returns {Array} 할당된 서버 목록
+    */
+   getUserServers(username) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           throw new Error('사용자를 찾을 수 없습니다.');
+       }
+       
+       return users[username].assignedServers || [];
+   }
+   
+   /**
+    * 모듈 설정 가져오기
+    * @param {string} moduleName 모듈 이름
+    * @returns {Object} 모듈 설정
+    */
+   getModuleSettings(moduleName) {
+       // 모듈 이름으로 저장소 이름 생성
+       const storeName = `${moduleName}-config`;
+       
+       // 저장소가 없으면 생성
+       if (!this.stores[storeName]) {
+           this.stores[storeName] = {};
+           
+           // 파일 경로 설정
+           this.storeFiles[storeName] = path.join(config.dirs.data, `${storeName}.json`);
+       }
+       
+       return this.getStore(storeName);
+   }
+   
+   /**
+    * 모듈 설정 저장
+    * @param {string} moduleName 모듈 이름
+    * @param {Object} settings 모듈 설정
+    * @returns {Promise<boolean>} 저장 성공 여부
+    */
+   async saveModuleSettings(moduleName, settings) {
+       // 모듈 이름으로 저장소 이름 생성
+       const storeName = `${moduleName}-config`;
+       
+       // 설정 유효성 검사
+       if (!settings || typeof settings !== 'object') {
+           throw new Error('설정은 객체여야 합니다.');
+       }
+       
+       // 저장소 업데이트
+       this.setAll(storeName, settings);
+       
+       // 파일 경로 설정 (없는 경우)
+       if (!this.storeFiles[storeName]) {
+           this.storeFiles[storeName] = path.join(config.dirs.data, `${storeName}.json`);
+       }
+       
+       // 저장
+       await this.save(storeName);
+       
+       this.log('INFO', `모듈 설정 저장: ${moduleName}`);
+       
+       return true;
+   }
+   
+   /**
+    * 봇 설정 가져오기
+    * @returns {Object} 봇 설정
+    */
+   getBotConfig() {
+       return this.getStore('bot-config');
+   }
+   
+   /**
+    * 봇 설정 저장
+    * @param {Object} config 봇 설정
+    * @returns {Promise<boolean>} 저장 성공 여부
+    */
+   async saveBotConfig(config) {
+       // 설정 유효성 검사
+       if (!config || typeof config !== 'object') {
+           throw new Error('설정은 객체여야 합니다.');
+       }
+       
+       // 현재 설정 가져오기
+       const currentConfig = this.getStore('bot-config');
+       
+       // 설정 병합
+       const mergedConfig = { ...currentConfig, ...config };
+       
+       // 저장소 업데이트
+       this.setAll('bot-config', mergedConfig);
+       
+       // 저장
+       await this.save('bot-config');
+       
+       this.log('INFO', '봇 설정이 저장되었습니다.');
+       
+       return true;
+   }
+   
+   /**
+    * 서버 설정 가져오기
+    * @param {string} serverId 서버 ID
+    * @returns {Object} 서버 설정
+    */
+   getServerSettings(serverId) {
+       const serverSettings = this.getStore('server-settings');
+       
+       // 서버 설정이 없으면 초기화
+       if (!serverSettings[serverId]) {
+           serverSettings[serverId] = {
+               serverId,
+               createdAt: new Date().toISOString(),
+               modules: {},
+               settings: {}
+           };
+       }
+       
+       return serverSettings[serverId];
+   }
+   
+   /**
+    * 서버 설정 저장
+    * @param {string} serverId 서버 ID
+    * @param {Object} settings 서버 설정
+    * @returns {Promise<boolean>} 저장 성공 여부
+    */
+   async saveServerSettings(serverId, settings) {
+       // 설정 유효성 검사
+       if (!settings || typeof settings !== 'object') {
+           throw new Error('설정은 객체여야 합니다.');
+       }
+       
+       // 서버 ID 검증
+       if (!serverId) {
+           throw new Error('서버 ID는 필수입니다.');
+       }
+       
+       // 서버 설정 가져오기
+       const serverSettings = this.getStore('server-settings');
+       
+       // 기존 설정 백업
+       const previousSettings = serverSettings[serverId] ? { ...serverSettings[serverId] } : null;
+       
+       // 설정 업데이트
+       serverSettings[serverId] = {
+           ...(previousSettings || { serverId, createdAt: new Date().toISOString() }),
+           ...settings,
+           updatedAt: new Date().toISOString()
+       };
+       
+       // 저장
+       await this.save('server-settings');
+       
+       this.log('INFO', `서버 설정 저장: ${serverId}`);
+       
+       return true;
+   }
+   
+   /**
+    * 사용자 이름으로 사용자 찾기
+    * @param {string} username 사용자명
+    * @returns {Object|null} 사용자 정보
+    */
+   findUserByUsername(username) {
+       const users = this.getStore('users');
+       
+       if (!users[username]) {
+           return null;
+       }
+       
+       // 민감 정보 제외한 사용자 정보 반환
+       const user = users[username];
+       return {
+           username: user.username,
+           role: user.role || 'user',
+           created: user.created,
+           lastLogin: user.lastLogin,
+           assignedChannels: user.assignedChannels || [],
+           assignedServers: user.assignedServers || []
+       };
+   }
+   
+   /**
+    * 역할별 사용자 목록 가져오기
+    * @param {string} [role] 특정 역할 (미지정 시 모든 사용자)
+    * @returns {Array} 사용자 목록
+    */
+   getUsersByRole(role = null) {
+       const users = this.getStore('users');
+       
+       return Object.values(users)
+           .filter(user => !role || user.role === role)
+           .map(user => ({
+               username: user.username,
+               role: user.role || 'user',
+               created: user.created,
+               lastLogin: user.lastLogin
+           }));
+   }
 }
 
 // 인스턴스 생성
