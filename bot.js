@@ -1,4 +1,4 @@
-// bot.js - 디스코드 봇 로직
+// bot.js - 디스코드 봇 로직 (개선된 모듈 로딩 및 의존성 처리)
 
 const { Client, GatewayIntentBits, Collection, Routes, REST } = require('discord.js');
 const fs = require('fs').promises;
@@ -46,6 +46,14 @@ class DiscordBot {
         // 이벤트 리스너 등록
         this._registerEventListeners();
         
+        // 모듈 로딩 상태 추적
+        this.moduleLoadingState = {
+            loadedModules: new Set(),
+            failedModules: new Set(),
+            pendingDependencies: new Map(), // 의존성 대기 중인 모듈 추적
+            retryCount: new Map()           // 모듈별 재시도 횟수
+        };
+        
         instance = this;
     }
     
@@ -55,7 +63,14 @@ class DiscordBot {
         this.client.once('ready', async () => {
             this.status.isRunning = true;
             this.log('INFO', `${this.client.user.tag} 봇이 준비되었습니다.`);
+            
+            // 스토리지 초기화 확인
+            await this._ensureStorageInitialized();
+            
+            // 모듈 로딩
             await this.loadModules();
+            
+            // 슬래시 명령어 등록
             await this.registerSlashCommands();
         });
         
@@ -71,7 +86,7 @@ class DiscordBot {
             this._updateBotStatus();
         });
         
-        // 음성 상태 업데이트 이벤트 (추가됨)
+        // 음성 상태 업데이트 이벤트
         this.client.on('voiceStateUpdate', (oldState, newState) => {
             // 유저가 음성 채널에 참가한 경우
             if (!oldState.channelId && newState.channelId) {
@@ -98,6 +113,15 @@ class DiscordBot {
                 if (!slashCommand) return;
                 
                 const { module } = slashCommand;
+                
+                // 모듈이 비활성화되어 있으면 명령어 처리 안함
+                if (module.enabled === false) {
+                    await interaction.reply({ 
+                        content: '이 명령어는 현재 비활성화되어 있습니다.', 
+                        ephemeral: true 
+                    });
+                    return;
+                }
                 
                 if (typeof module.executeSlashCommand === 'function') {
                     await module.executeSlashCommand(interaction, this.client, this.log.bind(this));
@@ -153,6 +177,19 @@ class DiscordBot {
         });
     }
     
+    // 스토리지 초기화 확인
+    async _ensureStorageInitialized() {
+        if (!storage.initialized) {
+            try {
+                await storage.init(this.log.bind(this));
+            } catch (error) {
+                this.log('ERROR', `스토리지 초기화 실패: ${error.message}`);
+                // 스토리지 초기화 실패해도 계속 진행
+                this.log('WARN', '스토리지 초기화 실패, 일부 모듈이 동작하지 않을 수 있습니다.');
+            }
+        }
+    }
+    
     // 로그 함수
     log(type, message) {
         const logEntry = {
@@ -203,7 +240,7 @@ class DiscordBot {
         this.status.moduleStatus = moduleStatus;
     }
     
-    // 모듈 로딩 함수 - 저장소 오류 처리 개선
+    // 모듈 로딩 - 의존성 처리 개선
     async loadModules() {
         try {
             // 모듈 디렉토리 확인
@@ -217,97 +254,225 @@ class DiscordBot {
             const files = await fs.readdir(config.dirs.modules);
             const moduleFiles = files.filter(file => file.endsWith('.js'));
             
-            // 모듈 로딩 순서 조정 - 스토리지 의존성이 낮은 모듈 먼저 로드
-            const sortedModuleFiles = [...moduleFiles].sort((a, b) => {
-                const dependsOnStorage = file => 
-                    file.includes('vacation') || 
+            // 모듈 로딩 순서 조정 - 스토리지 의존성에 따른 우선순위
+            const moduleGroups = {
+                lowDependency: [],    // 낮은 의존성 모듈 (첫번째 로드)
+                mediumDependency: [], // 중간 의존성 모듈 (두번째 로드)
+                highDependency: []    // 높은 의존성 모듈 (마지막 로드)
+            };
+            
+            // 모듈 분류
+            moduleFiles.forEach(file => {
+                // 스토리지 의존성이 높은 모듈 구분
+                if (file.includes('vacation') || 
                     file.includes('raid') || 
                     file.includes('ticket') || 
-                    file.includes('welcome') || 
-                    file.includes('voice');
-                
-                // 스토리지 의존성이 있는 모듈은 나중에 로드
-                return dependsOnStorage(a) ? 1 : dependsOnStorage(b) ? -1 : 0;
+                    file.includes('welcome')) {
+                    moduleGroups.highDependency.push(file);
+                } 
+                // 중간 의존성 모듈 (음성 채널 모듈 등)
+                else if (file.includes('voice') || 
+                         file.includes('channel') || 
+                         file.includes('chat')) {
+                    moduleGroups.mediumDependency.push(file);
+                } 
+                // 낮은 의존성 모듈
+                else {
+                    moduleGroups.lowDependency.push(file);
+                }
             });
             
-            // 각 모듈 로드
-            for (const file of sortedModuleFiles) {
-                try {
-                    const modulePath = path.join(__dirname, config.dirs.modules, file);
-                    
-                    // 캐시 삭제 (개발 중 모듈 변경 사항 반영)
-                    delete require.cache[require.resolve(modulePath)];
-                    
-                    // 모듈 로드 시도
-                    const module = require(modulePath);
-                    
-                    // 모듈 초기화 확인
-                    if (typeof module.init !== 'function') {
-                        this.log('ERROR', `모듈 ${file}에 init 함수가 없습니다.`);
-                        continue;
-                    }
-                    
-                    try {
-                        // 모듈 초기화 시도
-                        await module.init(this.client, this.log.bind(this));
-                        
-                        // 모듈 명령어 추가
-                        if (module.commands) {
-                            for (const [name, command] of Object.entries(module.commands)) {
-                                this.client.commands.set(name, command);
-                            }
-                        }
-                        
-                        // 모듈 컬렉션에 추가
-                        this.client.modules.set(file, module);
-                        this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
-                    } catch (initError) {
-                        // 초기화 오류는 모듈별로 처리하고 다음 모듈로 진행
-                        this.log('ERROR', `모듈 ${file} 초기화 중 오류 발생: ${initError.message}`);
-                        
-                        // 스토리지 오류가 있는 경우 특별 처리
-                        if (initError.message.includes('저장소') || initError.message.includes('storage')) {
-                            this.log('INFO', `모듈 ${file}에 필요한 저장소를 생성 중...`);
-                            
-                            // 필요한 저장소 키 추출 시도
-                            const storageKeyMatch = initError.message.match(/저장소 파일 ([a-zA-Z0-9-_]+)이\(가\) 존재하지 않습니다/);
-                            if (storageKeyMatch && storageKeyMatch[1]) {
-                                const storageKey = storageKeyMatch[1];
-                                try {
-                                    // 빈 저장소 생성
-                                    await storage.setAll(storageKey, {});
-                                    await storage.save(storageKey);
-                                    this.log('INFO', `모듈 ${file}를 위한 저장소 ${storageKey}를 생성했습니다.`);
-                                    
-                                    // 모듈 다시 초기화 시도
-                                    await module.init(this.client, this.log.bind(this));
-                                    this.client.modules.set(file, module);
-                                    this.log('MODULE', `모듈 ${file}을(를) 다시 로드했습니다.`);
-                                } catch (storageError) {
-                                    this.log('ERROR', `모듈 ${file}의 저장소 생성 중 오류: ${storageError.message}`);
-                                }
-                            }
-                        }
-                    }
-                } catch (error) {
-                    this.log('ERROR', `모듈 ${file} 로드 중 오류 발생: ${error.message}`);
-                }
+            // 의존성 수준별 로딩 순서 (낮은 의존성 → 높은 의존성)
+            const orderedModules = [
+                ...moduleGroups.lowDependency,
+                ...moduleGroups.mediumDependency,
+                ...moduleGroups.highDependency
+            ];
+            
+            // 각 모듈 로드 시도
+            for (const file of orderedModules) {
+                await this._loadModule(file);
             }
             
-            this.log('INFO', `총 ${this.client.modules.size}개의 모듈이 로드되었습니다.`);
+            // 의존성 문제로 실패한 모듈 재시도
+            await this._retryFailedModules();
+            
+            this.log('INFO', `총 ${this.client.modules.size}개의 모듈이 로드되었습니다. ` +
+                           `실패한 모듈: ${this.moduleLoadingState.failedModules.size}개`);
+            
+            // 최종적으로 실패한 모듈 목록 로깅
+            if (this.moduleLoadingState.failedModules.size > 0) {
+                this.log('WARN', `로드에 실패한 모듈: ${Array.from(this.moduleLoadingState.failedModules).join(', ')}`);
+            }
         } catch (error) {
             this.log('ERROR', `모듈 로드 중 오류 발생: ${error.message}`);
+        }
+    }
+    
+    // 단일 모듈 로드 함수
+    async _loadModule(file) {
+        try {
+            const modulePath = path.join(__dirname, config.dirs.modules, file);
+            
+            // 캐시 삭제 (개발 중 모듈 변경 사항 반영)
+            delete require.cache[require.resolve(modulePath)];
+            
+            // 모듈 로드 시도
+            const module = require(modulePath);
+            
+            // 모듈 초기화 함수 확인
+            if (typeof module.init !== 'function') {
+                this.log('ERROR', `모듈 ${file}에 init 함수가 없습니다.`);
+                this.moduleLoadingState.failedModules.add(file);
+                return false;
+            }
+            
+            try {
+                // 모듈 초기화 시도
+                await module.init(this.client, this.log.bind(this));
+                
+                // 모듈 명령어 추가
+                if (module.commands) {
+                    for (const [name, command] of Object.entries(module.commands)) {
+                        this.client.commands.set(name, command);
+                    }
+                }
+                
+                // 모듈 컬렉션에 추가
+                this.client.modules.set(file, module);
+                this.moduleLoadingState.loadedModules.add(file);
+                this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
+                return true;
+            } catch (initError) {
+                // 스토리지 관련 오류 처리 
+                if (this._isStorageDependencyError(initError)) {
+                    return await this._handleStorageDependency(file, module, initError);
+                }
+                
+                // 기타 오류는 실패 처리
+                this.log('ERROR', `모듈 ${file} 초기화 중 오류 발생: ${initError.message}`);
+                this.moduleLoadingState.failedModules.add(file);
+                return false;
+            }
+        } catch (error) {
+            this.log('ERROR', `모듈 ${file} 로드 중 오류 발생: ${error.message}`);
+            this.moduleLoadingState.failedModules.add(file);
+            return false;
+        }
+    }
+    
+    // 스토리지 의존성 오류 확인
+    _isStorageDependencyError(error) {
+        const errorMessage = error.message.toLowerCase();
+        return errorMessage.includes('storage') || 
+               errorMessage.includes('저장소') || 
+               errorMessage.includes('undefined') || 
+               errorMessage.includes('not found') ||
+               errorMessage.includes('not initialized');
+    }
+    
+    // 스토리지 의존성 문제 처리
+    async _handleStorageDependency(file, module, error) {
+        // 스토리지 키 추출 시도
+        const storageKeyMatch = error.message.match(/저장소 파일 ([a-zA-Z0-9-_]+)이\(가\) 존재하지 않습니다/) || 
+                               error.message.match(/([a-zA-Z0-9-_]+)-config not found/);
+        
+        let storageKey = null;
+        
+        if (storageKeyMatch && storageKeyMatch[1]) {
+            storageKey = storageKeyMatch[1];
+        } else if (file.includes('-')) {
+            // 파일 이름에서 키 추측 (예: vacation-system.js -> vacation-system-config)
+            storageKey = file.replace('.js', '-config');
+        }
+        
+        if (storageKey) {
+            try {
+                // 빈 저장소 생성
+                await storage.setAll(storageKey, {});
+                await storage.save(storageKey);
+                this.log('INFO', `모듈 ${file}를 위한 저장소 ${storageKey}를 생성했습니다.`);
+                
+                // 모듈 다시 초기화 시도
+                await module.init(this.client, this.log.bind(this));
+                this.client.modules.set(file, module);
+                this.moduleLoadingState.loadedModules.add(file);
+                this.log('MODULE', `모듈 ${file}을(를) 다시 로드했습니다.`);
+                return true;
+            } catch (storageError) {
+                this.log('ERROR', `모듈 ${file}의 저장소 생성 중 오류: ${storageError.message}`);
+                this.moduleLoadingState.failedModules.add(file);
+                return false;
+            }
+        } else {
+            // 의존성 문제로 보류
+            const retryCount = this.moduleLoadingState.retryCount.get(file) || 0;
+            if (retryCount < 3) { // 최대 3번까지 재시도
+                this.moduleLoadingState.retryCount.set(file, retryCount + 1);
+                this.moduleLoadingState.pendingDependencies.set(file, module);
+                this.log('WARN', `모듈 ${file} 로딩이 의존성 문제로 보류됩니다. 나중에 재시도합니다.`);
+                return false;
+            } else {
+                this.log('ERROR', `모듈 ${file} 로딩 실패 (최대 재시도 횟수 초과): ${error.message}`);
+                this.moduleLoadingState.failedModules.add(file);
+                return false;
+            }
+        }
+    }
+    
+    // 실패한 모듈 재시도
+    async _retryFailedModules() {
+        if (this.moduleLoadingState.pendingDependencies.size === 0) {
+            return; // 재시도할 모듈 없음
+        }
+        
+        this.log('INFO', `의존성 문제로 지연된 모듈 ${this.moduleLoadingState.pendingDependencies.size}개를 재시도합니다.`);
+        
+        // 모든 보류 중인 모듈 재시도
+        for (const [file, module] of this.moduleLoadingState.pendingDependencies.entries()) {
+            try {
+                await module.init(this.client, this.log.bind(this));
+                
+                // 모듈 명령어 추가
+                if (module.commands) {
+                    for (const [name, command] of Object.entries(module.commands)) {
+                        this.client.commands.set(name, command);
+                    }
+                }
+                
+                // 모듈 컬렉션에 추가
+                this.client.modules.set(file, module);
+                this.moduleLoadingState.loadedModules.add(file);
+                this.moduleLoadingState.pendingDependencies.delete(file);
+                this.log('MODULE', `지연 로드된 모듈 ${file}을(를) 성공적으로 로드했습니다.`);
+            } catch (error) {
+                this.log('ERROR', `모듈 ${file} 재시도 중 오류 발생: ${error.message}`);
+                this.moduleLoadingState.failedModules.add(file);
+                this.moduleLoadingState.pendingDependencies.delete(file);
+            }
         }
     }
     
     // 슬래시 커맨드 등록 함수
     async registerSlashCommands() {
         try {
+            // 봇이 준비되지 않았으면 취소
+            if (!this.client.user) {
+                this.log('WARN', '봇이 준비되지 않아 슬래시 커맨드를 등록할 수 없습니다.');
+                return;
+            }
+            
             const rest = new REST({ version: '10' }).setToken(config.token);
             const commands = [];
             
             // 각 모듈의 슬래시 커맨드 수집
             for (const [moduleName, module] of this.client.modules.entries()) {
+                // 비활성화된 모듈의 명령어는 건너뜀
+                if (module.enabled === false) {
+                    this.log('INFO', `모듈 ${moduleName}이(가) 비활성화되어 있어 슬래시 커맨드를 등록하지 않습니다.`);
+                    continue;
+                }
+                
                 if (module.slashCommands && Array.isArray(module.slashCommands)) {
                     commands.push(...module.slashCommands.map(cmd => cmd.toJSON()));
                     
@@ -339,7 +504,7 @@ class DiscordBot {
         }
     }
     
-    // 모듈 상태 가져오기 함수 - 상세 정보 플래그 추가
+    // 모듈 상태 가져오기 함수
     getModuleStatus(detailed = true) {
         if (!detailed) {
             // 가벼운 버전 반환
@@ -373,44 +538,72 @@ class DiscordBot {
     
     // 모듈 활성화/비활성화/리로드
     async moduleAction(action, moduleName) {
-        try {
-            if (!this.client.modules.has(moduleName)) {
-                throw new Error(`모듈 ${moduleName}을(를) 찾을 수 없습니다.`);
-            }
-            
-            const module = this.client.modules.get(moduleName);
-            
-            switch (action) {
-                case 'enable':
-                    module.enabled = true;
-                    this.log('MODULE', `모듈 ${moduleName}이(가) 활성화되었습니다.`);
-                    return true;
-                    
-                case 'disable':
-                    module.enabled = false;
-                    this.log('MODULE', `모듈 ${moduleName}이(가) 비활성화되었습니다.`);
-                    return true;
-                    
-                case 'reload':
-                    // 모듈 다시 로드
-                    const modulePath = path.join(__dirname, config.dirs.modules, moduleName);
-                    delete require.cache[require.resolve(modulePath)];
-                    
-                    // 기존 모듈 명령어 제거
-                    if (module.commands) {
-                        for (const name of Object.keys(module.commands)) {
-                            this.client.commands.delete(name);
-                        }
+        if (!this.client.modules.has(moduleName)) {
+            throw new Error(`모듈 ${moduleName}을(를) 찾을 수 없습니다.`);
+        }
+        
+        const module = this.client.modules.get(moduleName);
+        
+        switch (action) {
+            case 'enable':
+                module.enabled = true;
+                this.log('MODULE', `모듈 ${moduleName}이(가) 활성화되었습니다.`);
+                
+                // 활성화된 모듈의 슬래시 커맨드 등록
+                if (module.slashCommands && Array.isArray(module.slashCommands)) {
+                    module.slashCommands.forEach(cmd => {
+                        this.client.slashCommands.set(cmd.name, { module, command: cmd });
+                    });
+                }
+                
+                // 슬래시 커맨드 재등록
+                await this.registerSlashCommands();
+                
+                // 상태 업데이트
+                this._updateBotStatus();
+                
+                return true;
+                
+            case 'disable':
+                module.enabled = false;
+                this.log('MODULE', `모듈 ${moduleName}이(가) 비활성화되었습니다.`);
+                
+                // 비활성화된 모듈의 슬래시 커맨드 제거
+                if (module.slashCommands) {
+                    module.slashCommands.forEach(cmd => {
+                        this.client.slashCommands.delete(cmd.name);
+                    });
+                }
+                
+                // 슬래시 커맨드 재등록
+                await this.registerSlashCommands();
+                
+                // 상태 업데이트
+                this._updateBotStatus();
+                
+                return true;
+                
+            case 'reload':
+                // 모듈 다시 로드
+                const modulePath = path.join(__dirname, config.dirs.modules, moduleName);
+                delete require.cache[require.resolve(modulePath)];
+                
+                // 기존 모듈 명령어 제거
+                if (module.commands) {
+                    for (const name of Object.keys(module.commands)) {
+                        this.client.commands.delete(name);
                     }
-                    
-                    // 기존 모듈 슬래시 명령어 제거
-                    if (module.slashCommands) {
-                        module.slashCommands.forEach(cmd => {
-                            this.client.slashCommands.delete(cmd.name);
-                        });
-                    }
-                    
-                    // 모듈 다시 로드
+                }
+                
+                // 기존 모듈 슬래시 명령어 제거
+                if (module.slashCommands) {
+                    module.slashCommands.forEach(cmd => {
+                        this.client.slashCommands.delete(cmd.name);
+                    });
+                }
+                
+                // 모듈 다시 로드
+                try {
                     const newModule = require(modulePath);
                     await newModule.init(this.client, this.log.bind(this));
                     
@@ -421,6 +614,9 @@ class DiscordBot {
                         }
                     }
                     
+                    // 활성화 상태 유지
+                    newModule.enabled = module.enabled;
+                    
                     // 모듈 업데이트
                     this.client.modules.set(moduleName, newModule);
                     this.log('MODULE', `모듈 ${moduleName}이(가) 다시 로드되었습니다.`);
@@ -428,14 +624,38 @@ class DiscordBot {
                     // 슬래시 명령어 재등록
                     await this.registerSlashCommands();
                     
-                    return true;
+                    // 상태 업데이트
+                    this._updateBotStatus();
                     
-                default:
-                    throw new Error(`알 수 없는 모듈 작업: ${action}`);
-            }
-        } catch (error) {
-            this.log('ERROR', `모듈 ${moduleName} ${action} 작업 중 오류 발생: ${error.message}`);
-            return false;
+                    return true;
+                } catch (error) {
+                    // 모듈 재로드 실패 시 기존 모듈 유지
+                    this.log('ERROR', `모듈 ${moduleName} 재로드 실패: ${error.message}`);
+                    
+                    // 이전 모듈 복원
+                    this.client.modules.set(moduleName, module);
+                    
+                    // 이전 명령어 다시 등록
+                    if (module.commands) {
+                        for (const [name, command] of Object.entries(module.commands)) {
+                            this.client.commands.set(name, command);
+                        }
+                    }
+                    
+                    // 이전 슬래시 명령어 다시 등록
+                    if (module.slashCommands) {
+                        module.slashCommands.forEach(cmd => {
+                            this.client.slashCommands.set(cmd.name, { module, command: cmd });
+                        });
+                    }
+                    
+                    throw error; // 오류 전파
+                }
+                
+                break;
+                
+            default:
+                throw new Error(`알 수 없는 모듈 작업: ${action}`);
         }
     }
     
@@ -462,14 +682,7 @@ class DiscordBot {
         }
         
         // 저장소 초기화
-        if (!storage.initialized) {
-            try {
-                await storage.init(this.log.bind(this));
-            } catch (storageError) {
-                this.log('ERROR', `저장소 초기화 중 오류 발생: ${storageError.message}`);
-                // 저장소 오류가 있어도 봇은 시작 시도
-            }
-        }
+        await this._ensureStorageInitialized();
         
         this.status.startTime = new Date();
         
@@ -482,6 +695,7 @@ class DiscordBot {
             return true;
         } catch (error) {
             this.status.isRunning = false;
+            this.status.startTime = null;
             this.log('ERROR', `로그인 중 오류 발생: ${error.message}`);
             throw error;
         }
@@ -501,6 +715,7 @@ class DiscordBot {
             if (storage.initialized) {
                 try {
                     await storage.saveAll();
+                    this.log('INFO', '모든 모듈 데이터가 저장되었습니다.');
                 } catch (storageError) {
                     this.log('ERROR', `종료 전 데이터 저장 중 오류 발생: ${storageError.message}`);
                     // 저장 오류가 있어도 봇은 종료 진행
@@ -519,6 +734,7 @@ class DiscordBot {
         } catch (error) {
             // 종료 중 오류가 발생했지만 상태는 비활성화로 설정
             this.status.isRunning = false;
+            this.status.startTime = null;
             this.log('ERROR', `봇 종료 중 오류 발생: ${error.message}`);
             throw error;
         }
@@ -538,12 +754,14 @@ class DiscordBot {
             await this.stop();
             
             // 재시작 대기
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
             
             // 봇 시작 시도
             return await this.start();
         } catch (error) {
             this.log('ERROR', `봇 재시작 중 오류 발생: ${error.message}`);
+            this.status.isRunning = false;
+            this.status.startTime = null;
             return false;
         }
     }
@@ -556,7 +774,12 @@ class DiscordBot {
             servers: this.status.guilds,
             modules: this.status.modules,
             logs: this.status.logs,
-            moduleStatus: this.getModuleStatus(false) // 기본은 간단한 버전
+            moduleStatus: this.getModuleStatus(false), // 기본은 간단한 버전
+            moduleLoadState: {
+                loaded: this.moduleLoadingState.loadedModules.size,
+                failed: this.moduleLoadingState.failedModules.size,
+                pending: this.moduleLoadingState.pendingDependencies.size
+            }
         };
     }
     
@@ -597,6 +820,6 @@ class DiscordBot {
     }
 }
 
-// 싱글톤 인스턴스 생성 및 내보내기
+// 인스턴스 생성
 const botInstance = new DiscordBot();
 module.exports = botInstance;
