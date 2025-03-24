@@ -178,75 +178,126 @@ class DiscordBot {
     }
     
     // 봇 상태 정보 업데이트 함수
-    // _updateBotStatus 함수 내에서 모듈 상태 업데이트 최적화
-_updateBotStatus() {
-    if (!this.client || !this.client.guilds) return;
-    
-    // 서버 목록 정보 
-    this.status.guilds = Array.from(this.client.guilds.cache).map(([id, guild]) => ({
-        id,
-        name: guild.name,
-        memberCount: guild.memberCount
-    }));
-    
-    // 모듈 목록 - 간소화된 정보만 포함
-    this.status.modules = Array.from(this.client.modules.keys());
-    
-    // 모듈 상태 정보는 가볍게 유지 (필요할 때만 전체 정보 제공)
-    const moduleStatus = {};
-    for (const [fileName, module] of this.client.modules.entries()) {
-        moduleStatus[fileName] = {
-            name: module.name || fileName,
-            enabled: module.enabled !== false
-        };
-    }
-    
-    this.status.moduleStatus = moduleStatus;
-}
-
-// getModuleStatus 함수에 상세 정보 플래그 추가
-getModuleStatus(detailed = true) {
-    if (!detailed) {
-        // 가벼운 버전 반환
-        const lightModuleStatus = {};
+    _updateBotStatus() {
+        if (!this.client || !this.client.guilds) return;
+        
+        // 서버 목록 정보 
+        this.status.guilds = Array.from(this.client.guilds.cache).map(([id, guild]) => ({
+            id,
+            name: guild.name,
+            memberCount: guild.memberCount
+        }));
+        
+        // 모듈 목록 - 간소화된 정보만 포함
+        this.status.modules = Array.from(this.client.modules.keys());
+        
+        // 모듈 상태 정보는 가볍게 유지 (필요할 때만 전체 정보 제공)
+        const moduleStatus = {};
         for (const [fileName, module] of this.client.modules.entries()) {
-            lightModuleStatus[fileName] = {
+            moduleStatus[fileName] = {
                 name: module.name || fileName,
                 enabled: module.enabled !== false
             };
         }
-        return lightModuleStatus;
+        
+        this.status.moduleStatus = moduleStatus;
     }
     
-    // 상세 정보 버전 반환
-    const moduleStatus = {};
-    
-    for (const [fileName, module] of this.client.modules.entries()) {
-        moduleStatus[fileName] = {
-            name: module.name || fileName,
-            description: module.description || '설명 없음',
-            version: module.version || '1.0.0',
-            enabled: module.enabled !== false,
-            commands: module.commands ? Object.keys(module.commands) : []
-        };
-    }
-    
-    return moduleStatus;
-}
-    
-    // 가동 시간 계산 함수
-    getUptime() {
-        if (!this.status.startTime) return '봇이 실행 중이 아닙니다';
-        
-        const now = new Date();
-        const diff = now - this.status.startTime;
-        
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        
-        return `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
+    // 모듈 로딩 함수 - 저장소 오류 처리 개선
+    async loadModules() {
+        try {
+            // 모듈 디렉토리 확인
+            try {
+                await fs.access(config.dirs.modules);
+            } catch (error) {
+                await fs.mkdir(config.dirs.modules, { recursive: true });
+            }
+            
+            // 모듈 파일 읽기
+            const files = await fs.readdir(config.dirs.modules);
+            const moduleFiles = files.filter(file => file.endsWith('.js'));
+            
+            // 모듈 로딩 순서 조정 - 스토리지 의존성이 낮은 모듈 먼저 로드
+            const sortedModuleFiles = [...moduleFiles].sort((a, b) => {
+                const dependsOnStorage = file => 
+                    file.includes('vacation') || 
+                    file.includes('raid') || 
+                    file.includes('ticket') || 
+                    file.includes('welcome') || 
+                    file.includes('voice');
+                
+                // 스토리지 의존성이 있는 모듈은 나중에 로드
+                return dependsOnStorage(a) ? 1 : dependsOnStorage(b) ? -1 : 0;
+            });
+            
+            // 각 모듈 로드
+            for (const file of sortedModuleFiles) {
+                try {
+                    const modulePath = path.join(__dirname, config.dirs.modules, file);
+                    
+                    // 캐시 삭제 (개발 중 모듈 변경 사항 반영)
+                    delete require.cache[require.resolve(modulePath)];
+                    
+                    // 모듈 로드 시도
+                    const module = require(modulePath);
+                    
+                    // 모듈 초기화 확인
+                    if (typeof module.init !== 'function') {
+                        this.log('ERROR', `모듈 ${file}에 init 함수가 없습니다.`);
+                        continue;
+                    }
+                    
+                    try {
+                        // 모듈 초기화 시도
+                        await module.init(this.client, this.log.bind(this));
+                        
+                        // 모듈 명령어 추가
+                        if (module.commands) {
+                            for (const [name, command] of Object.entries(module.commands)) {
+                                this.client.commands.set(name, command);
+                            }
+                        }
+                        
+                        // 모듈 컬렉션에 추가
+                        this.client.modules.set(file, module);
+                        this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
+                    } catch (initError) {
+                        // 초기화 오류는 모듈별로 처리하고 다음 모듈로 진행
+                        this.log('ERROR', `모듈 ${file} 초기화 중 오류 발생: ${initError.message}`);
+                        
+                        // 스토리지 오류가 있는 경우 특별 처리
+                        if (initError.message.includes('저장소') || initError.message.includes('storage')) {
+                            this.log('INFO', `모듈 ${file}에 필요한 저장소를 생성 중...`);
+                            
+                            // 필요한 저장소 키 추출 시도
+                            const storageKeyMatch = initError.message.match(/저장소 파일 ([a-zA-Z0-9-_]+)이\(가\) 존재하지 않습니다/);
+                            if (storageKeyMatch && storageKeyMatch[1]) {
+                                const storageKey = storageKeyMatch[1];
+                                try {
+                                    // 빈 저장소 생성
+                                    await storage.setAll(storageKey, {});
+                                    await storage.save(storageKey);
+                                    this.log('INFO', `모듈 ${file}를 위한 저장소 ${storageKey}를 생성했습니다.`);
+                                    
+                                    // 모듈 다시 초기화 시도
+                                    await module.init(this.client, this.log.bind(this));
+                                    this.client.modules.set(file, module);
+                                    this.log('MODULE', `모듈 ${file}을(를) 다시 로드했습니다.`);
+                                } catch (storageError) {
+                                    this.log('ERROR', `모듈 ${file}의 저장소 생성 중 오류: ${storageError.message}`);
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    this.log('ERROR', `모듈 ${file} 로드 중 오류 발생: ${error.message}`);
+                }
+            }
+            
+            this.log('INFO', `총 ${this.client.modules.size}개의 모듈이 로드되었습니다.`);
+        } catch (error) {
+            this.log('ERROR', `모듈 로드 중 오류 발생: ${error.message}`);
+        }
     }
     
     // 슬래시 커맨드 등록 함수
@@ -288,78 +339,21 @@ getModuleStatus(detailed = true) {
         }
     }
     
-    // bot.js 파일의 loadModules 함수 수정
-// 기존 함수를 아래 코드로 교체하세요
-
-// 모듈 로딩 함수
-async loadModules() {
-    try {
-        // 모듈 디렉토리 확인
-        try {
-            await fs.access(config.dirs.modules);
-        } catch (error) {
-            await fs.mkdir(config.dirs.modules, { recursive: true });
-        }
-        
-        // 모듈 파일 읽기
-        const files = await fs.readdir(config.dirs.modules);
-        const moduleFiles = files.filter(file => file.endsWith('.js'));
-        
-        // 모듈 로딩 순서 조정 - 스토리지 의존성이 낮은 모듈 먼저 로드
-        const sortedModuleFiles = [...moduleFiles].sort((a, b) => {
-            const dependsOnStorage = file => 
-                file.includes('vacation') || 
-                file.includes('raid') || 
-                file.includes('ticket') || 
-                file.includes('welcome') || 
-                file.includes('voice');
-            
-            // 스토리지 의존성이 있는 모듈은 나중에 로드
-            return dependsOnStorage(a) ? 1 : dependsOnStorage(b) ? -1 : 0;
-        });
-        
-        // 각 모듈 로드
-        for (const file of sortedModuleFiles) {
-            try {
-                const modulePath = path.join(__dirname, config.dirs.modules, file);
-                
-                // 캐시 삭제 (개발 중 모듈 변경 사항 반영)
-                delete require.cache[require.resolve(modulePath)];
-                
-                const module = require(modulePath);
-                
-                // 모듈 초기화 확인
-                if (typeof module.init !== 'function') {
-                    this.log('ERROR', `모듈 ${file}에 init 함수가 없습니다.`);
-                    continue;
-                }
-                
-                // 모듈 초기화
-                await module.init(this.client, this.log.bind(this));
-                
-                // 모듈 명령어 추가
-                if (module.commands) {
-                    for (const [name, command] of Object.entries(module.commands)) {
-                        this.client.commands.set(name, command);
-                    }
-                }
-                
-                // 모듈 컬렉션에 추가
-                this.client.modules.set(file, module);
-                this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
-            } catch (error) {
-                this.log('ERROR', `모듈 ${file} 로드 중 오류 발생: ${error.message}`);
+    // 모듈 상태 가져오기 함수 - 상세 정보 플래그 추가
+    getModuleStatus(detailed = true) {
+        if (!detailed) {
+            // 가벼운 버전 반환
+            const lightModuleStatus = {};
+            for (const [fileName, module] of this.client.modules.entries()) {
+                lightModuleStatus[fileName] = {
+                    name: module.name || fileName,
+                    enabled: module.enabled !== false
+                };
             }
+            return lightModuleStatus;
         }
         
-        this.log('INFO', `총 ${this.client.modules.size}개의 모듈이 로드되었습니다.`);
-    } catch (error) {
-        this.log('ERROR', `모듈 로드 중 오류 발생: ${error.message}`);
-    }
-}
-    
-    // 모듈 상태 가져오기
-    getModuleStatus() {
+        // 상세 정보 버전 반환
         const moduleStatus = {};
         
         for (const [fileName, module] of this.client.modules.entries()) {
@@ -368,7 +362,9 @@ async loadModules() {
                 description: module.description || '설명 없음',
                 version: module.version || '1.0.0',
                 enabled: module.enabled !== false,
-                commands: module.commands ? Object.keys(module.commands) : []
+                commands: module.commands ? Array.isArray(module.commands) 
+                    ? module.commands 
+                    : Object.keys(module.commands) : []
             };
         }
         
@@ -443,25 +439,45 @@ async loadModules() {
         }
     }
     
-    // 봇 시작 함수
+    // 가동 시간 계산 함수
+    getUptime() {
+        if (!this.status.startTime) return '봇이 실행 중이 아닙니다';
+        
+        const now = new Date();
+        const diff = now - this.status.startTime;
+        
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        
+        return `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
+    }
+    
+    // 봇 시작 함수 - 중복 시작 방지 및 에러 처리 개선
     async start() {
         if (this.status.isRunning) {
             console.log('봇이 이미 실행 중입니다.');
-            return false;
+            return true; // 이미 실행 중인 경우 성공으로 간주
         }
         
         // 저장소 초기화
         if (!storage.initialized) {
-            await storage.init(this.log.bind(this));
+            try {
+                await storage.init(this.log.bind(this));
+            } catch (storageError) {
+                this.log('ERROR', `저장소 초기화 중 오류 발생: ${storageError.message}`);
+                // 저장소 오류가 있어도 봇은 시작 시도
+            }
         }
         
         this.status.startTime = new Date();
-        this.status.isRunning = true;
         
         this.log('INFO', '봇을 시작합니다...');
         
         try {
             await this.client.login(config.token);
+            this.status.isRunning = true;
             this.log('INFO', '디스코드에 로그인했습니다.');
             return true;
         } catch (error) {
@@ -471,11 +487,11 @@ async loadModules() {
         }
     }
     
-    // 봇 종료 함수
+    // 봇 종료 함수 - 중복 종료 방지 및 에러 처리 개선
     async stop() {
         if (!this.status.isRunning) {
             console.log('봇이 실행 중이 아닙니다.');
-            return false;
+            return true; // 이미 종료된 경우 성공으로 간주
         }
         
         this.log('INFO', '봇을 종료합니다...');
@@ -483,35 +499,56 @@ async loadModules() {
         try {
             // 데이터 저장
             if (storage.initialized) {
-                await storage.saveAll();
+                try {
+                    await storage.saveAll();
+                } catch (storageError) {
+                    this.log('ERROR', `종료 전 데이터 저장 중 오류 발생: ${storageError.message}`);
+                    // 저장 오류가 있어도 봇은 종료 진행
+                }
             }
             
-            // 클라이언트 종료
-            this.client.destroy();
+            // 봇 종료 설정
             this.status.isRunning = false;
+            this.status.startTime = null;
+            
+            // 클라이언트 종료
+            await this.client.destroy();
+            
             this.log('INFO', '봇이 종료되었습니다.');
             return true;
         } catch (error) {
+            // 종료 중 오류가 발생했지만 상태는 비활성화로 설정
+            this.status.isRunning = false;
             this.log('ERROR', `봇 종료 중 오류 발생: ${error.message}`);
             throw error;
         }
     }
     
-    // 봇 재시작 함수
+    // 봇 재시작 함수 - 에러 처리 개선
     async restart() {
         this.log('INFO', '봇을 재시작합니다...');
         
         try {
+            // 봇이 실행 중이 아니면 바로 시작
+            if (!this.status.isRunning) {
+                return await this.start();
+            }
+            
+            // 봇 종료 시도
             await this.stop();
-            await this.start();
-            return true;
+            
+            // 재시작 대기
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // 봇 시작 시도
+            return await this.start();
         } catch (error) {
             this.log('ERROR', `봇 재시작 중 오류 발생: ${error.message}`);
             return false;
         }
     }
     
-    // 상태 가져오기 함수
+    // 상태 가져오기 함수 - 개선된 버전
     getStatus() {
         return {
             isRunning: this.status.isRunning,
@@ -519,7 +556,7 @@ async loadModules() {
             servers: this.status.guilds,
             modules: this.status.modules,
             logs: this.status.logs,
-            moduleStatus: this.getModuleStatus()
+            moduleStatus: this.getModuleStatus(false) // 기본은 간단한 버전
         };
     }
     

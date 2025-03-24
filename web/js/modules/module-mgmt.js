@@ -1,31 +1,30 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 모듈 관리 기능
+ * 모듈 관리 기능 개선 버전
  */
 
 // 현재 선택된 모듈
 let currentModule = null;
 let isLoadingModules = false; // 모듈 로딩 상태 추적
+let modulesCache = null; // 모듈 목록 캐시
 
-// 모듈 관리 초기화
+// 모듈 관리 초기화 - 더 빠른 로딩
 function initModuleMgmtModule() {
     console.log('모듈 관리 페이지 초기화');
     
     // 이벤트 리스너 등록
     registerModuleMgmtEvents();
     
-    // 모듈 목록 로드 - 지연 실행으로 변경
-    setTimeout(() => {
-        loadModuleStatus();
-    }, 300);
+    // 모듈 목록 로드 - 즉시 실행
+    loadModuleStatus();
     
-    // 사용자 설정 로드 - 지연 실행으로 변경
+    // 사용자 설정 로드 - 모듈 로드 후 실행
     setTimeout(() => {
         WebSocketManager.sendMessage({ command: 'getUserSettings' });
-    }, 600);
+    }, 500);
 }
 
-// 모듈 상태 로드 함수 - 새로 추가
+// 모듈 상태 로드 함수 - 개선 버전
 function loadModuleStatus() {
     if (isLoadingModules) return; // 이미 로딩 중이면 중복 요청 방지
     
@@ -42,9 +41,17 @@ function loadModuleStatus() {
         `;
     }
     
-    // 모듈 목록 요청
-    WebSocketManager.sendMessage({ command: 'getModuleStatus' }, () => {
-        isLoadingModules = false;
+    // 캐시된 모듈 정보가 있으면 빠르게 표시
+    if (modulesCache) {
+        setTimeout(() => {
+            updateModulesList(modulesCache);
+            isLoadingModules = false;
+        }, 100);
+    }
+    
+    // 모듈 목록 요청 - 캐시 여부와 상관없이 항상 요청해서 최신 정보 유지
+    WebSocketManager.sendMessage({ 
+        command: 'getModuleStatus',
     });
 }
 
@@ -54,7 +61,8 @@ function registerModuleMgmtEvents() {
     const refreshBtn = document.getElementById('refresh-modules-btn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
-            loadModuleStatus(); // 수정된 함수 호출
+            modulesCache = null; // 캐시 초기화
+            loadModuleStatus(); // 모듈 목록 다시 로드
             Utilities.showNotification('모듈 목록을 새로고침 중입니다...', 'info');
         });
     }
@@ -90,7 +98,7 @@ function registerModuleMgmtEvents() {
     setupModuleButtons();
 }
 
-// 모듈 버튼 이벤트 설정
+// 모듈 버튼 이벤트 설정 - 개선된 버전
 function setupModuleButtons() {
     // 활성화 버튼
     const enableBtn = document.getElementById('modal-enable-btn');
@@ -101,16 +109,25 @@ function setupModuleButtons() {
             // 버튼 비활성화 (중복 클릭 방지)
             enableBtn.disabled = true;
             
+            // 로딩 표시
+            const originalText = enableBtn.innerHTML;
+            enableBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 활성화 중...';
+            
             WebSocketManager.sendMessage({
                 command: 'moduleAction',
                 action: 'enable',
                 moduleName: currentModule
             });
             
-            // 2초 후 버튼 다시 활성화
+            // 1초 후 버튼 다시 활성화
             setTimeout(() => {
                 enableBtn.disabled = false;
-            }, 2000);
+                enableBtn.innerHTML = originalText;
+                closeModuleModal(); // 모달 닫기
+                
+                // 모듈 목록 새로고침
+                loadModuleStatus();
+            }, 1000);
         });
     }
     
@@ -124,16 +141,25 @@ function setupModuleButtons() {
                 // 버튼 비활성화 (중복 클릭 방지)
                 disableBtn.disabled = true;
                 
+                // 로딩 표시
+                const originalText = disableBtn.innerHTML;
+                disableBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 비활성화 중...';
+                
                 WebSocketManager.sendMessage({
                     command: 'moduleAction',
                     action: 'disable',
                     moduleName: currentModule
                 });
                 
-                // 2초 후 버튼 다시 활성화
+                // 1초 후 버튼 다시 활성화
                 setTimeout(() => {
                     disableBtn.disabled = false;
-                }, 2000);
+                    disableBtn.innerHTML = originalText;
+                    closeModuleModal(); // 모달 닫기
+                    
+                    // 모듈 목록 새로고침
+                    loadModuleStatus();
+                }, 1000);
             }
         });
     }
@@ -148,23 +174,35 @@ function setupModuleButtons() {
                 // 버튼 비활성화 (중복 클릭 방지)
                 reloadBtn.disabled = true;
                 
+                // 로딩 표시
+                const originalText = reloadBtn.innerHTML;
+                reloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 재로드 중...';
+                
                 WebSocketManager.sendMessage({
                     command: 'moduleAction',
                     action: 'reload',
                     moduleName: currentModule
                 });
                 
-                // 3초 후 버튼 다시 활성화 (재로드는 좀 더 시간이 필요)
+                // 2초 후 버튼 다시 활성화
                 setTimeout(() => {
                     reloadBtn.disabled = false;
-                }, 3000);
+                    reloadBtn.innerHTML = originalText;
+                    closeModuleModal(); // 모달 닫기
+                    
+                    // 모듈 목록 새로고침
+                    loadModuleStatus();
+                }, 2000);
             }
         });
     }
 }
 
-// 모듈 목록 업데이트
+// 모듈 목록 업데이트 - 개선된 버전
 function updateModulesList(moduleStatus) {
+    // 모듈 목록 캐시 업데이트
+    modulesCache = moduleStatus;
+    
     const modulesContainer = document.getElementById('modules-container');
     if (!modulesContainer) return;
     
@@ -177,6 +215,7 @@ function updateModulesList(moduleStatus) {
         emptyState.className = 'empty-state';
         emptyState.innerHTML = '<i class="fas fa-puzzle-piece"></i><p>등록된 모듈이 없습니다.</p>';
         modulesContainer.appendChild(emptyState);
+        isLoadingModules = false;
         return;
     }
     
@@ -186,6 +225,9 @@ function updateModulesList(moduleStatus) {
         const nameB = (b[1].name || b[0]).toLowerCase();
         return nameA.localeCompare(nameB);
     });
+    
+    // 모듈 목록을 빠르게 생성하기 위해 문서 프래그먼트 사용
+    const fragment = document.createDocumentFragment();
     
     sortedModules.forEach(([fileName, module]) => {
         const moduleItem = document.createElement('div');
@@ -222,8 +264,11 @@ function updateModulesList(moduleStatus) {
             showModuleModal(fileName, module);
         });
         
-        modulesContainer.appendChild(moduleItem);
+        fragment.appendChild(moduleItem);
     });
+    
+    // 한 번에 DOM 추가
+    modulesContainer.appendChild(fragment);
     
     // 로딩 상태 종료
     isLoadingModules = false;
@@ -291,17 +336,46 @@ function updateUserSettings(settings) {
 
 // 사용자 설정 저장
 function saveUserSettings() {
+    const prefix = document.getElementById('setting-prefix').value;
+    
+    // 접두사 비었는지 검사
+    if (!prefix) {
+        Utilities.showNotification('명령어 접두사는 비워둘 수 없습니다.', 'error');
+        return;
+    }
+    
     const settings = {
-        prefix: document.getElementById('setting-prefix').value,
+        prefix: prefix,
         notifyErrors: document.getElementById('setting-notify-errors').checked,
         notifyJoins: document.getElementById('setting-notify-joins').checked,
         notifyCommands: document.getElementById('setting-notify-commands').checked
     };
     
-    WebSocketManager.sendMessage({
-        command: 'saveUserSettings',
-        settings: settings
-    });
+    // 설정 저장 전 버튼 비활성화
+    const saveBtn = document.querySelector('#user-settings-form button[type="submit"]');
+    if (saveBtn) {
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 저장 중...';
+        
+        // 설정 저장 요청
+        WebSocketManager.sendMessage({
+            command: 'saveUserSettings',
+            settings: settings
+        });
+        
+        // 1초 후 버튼 복원
+        setTimeout(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        }, 1000);
+    } else {
+        // 버튼이 없어도 설정 저장 요청은 보냄
+        WebSocketManager.sendMessage({
+            command: 'saveUserSettings',
+            settings: settings
+        });
+    }
     
     Utilities.showNotification('설정을 저장 중입니다...', 'info');
 }

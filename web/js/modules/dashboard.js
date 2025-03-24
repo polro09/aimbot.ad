@@ -3,6 +3,9 @@
  * 대시보드 기능 개선 - 수정 버전
  */
 
+// 버튼 상태를 추적하기 위한 변수
+let botControlsDisabled = false;
+
 // 대시보드 업데이트 함수
 function updateDashboardStatus(data) {
     // 봇 상태 표시 업데이트
@@ -23,17 +26,7 @@ function updateDashboardStatus(data) {
         }
         
         // 버튼 활성화/비활성화
-        const startBtn = document.getElementById('start-bot-btn');
-        const stopBtn = document.getElementById('stop-bot-btn');
-        const restartBtn = document.getElementById('restart-bot-btn');
-        
-        if (startBtn && stopBtn) {
-            startBtn.disabled = isRunning;
-            stopBtn.disabled = !isRunning;
-            if (restartBtn) {
-                restartBtn.disabled = !isRunning;
-            }
-        }
+        updateControlButtons(isRunning);
     }
     
     // 시스템 정보 업데이트
@@ -47,6 +40,22 @@ function updateDashboardStatus(data) {
     // 로그 업데이트
     if (data.logs) {
         updateBotLogs(data.logs);
+    }
+}
+
+// 제어 버튼 상태 업데이트 - 수정된 함수
+function updateControlButtons(isRunning) {
+    const startBtn = document.getElementById('start-bot-btn');
+    const stopBtn = document.getElementById('stop-bot-btn');
+    const restartBtn = document.getElementById('restart-bot-btn');
+    
+    // 버튼이 비활성화 상태인 경우 변경하지 않음
+    if (botControlsDisabled) return;
+    
+    if (startBtn && stopBtn && restartBtn) {
+        startBtn.disabled = isRunning;
+        stopBtn.disabled = !isRunning;
+        restartBtn.disabled = !isRunning;
     }
 }
 
@@ -236,10 +245,10 @@ function initDashboardModule() {
     // 최초 업데이트 요청
     setTimeout(() => {
         WebSocketManager.sendMessage({ command: 'getBotStatus' });
-    }, 500);
+    }, 300);
 }
 
-// 이벤트 리스너 등록 함수
+// 이벤트 리스너 등록 함수 - 수정된 버전
 function registerDashboardEventListeners() {
     // 봇 제어 버튼 이벤트
     const startBtn = document.getElementById('start-bot-btn');
@@ -249,28 +258,50 @@ function registerDashboardEventListeners() {
     
     if (startBtn) {
         startBtn.addEventListener('click', () => {
-            startBtn.disabled = true; // 중복 클릭 방지
-            WebSocketManager.sendMessage({ command: 'start' });
-            Utilities.showNotification('봇 시작 요청 중...', 'info');
+            // 모든 제어 버튼 비활성화
+            startBtn.disabled = true;
+            stopBtn.disabled = true;
+            restartBtn.disabled = true;
+            botControlsDisabled = true;
             
-            // 3초 후 상태 업데이트 요청
+            // 버튼 텍스트 변경
+            const originalText = startBtn.innerHTML;
+            startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 시작 중...';
+            
+            // 웹소켓 요청 전송
+            WebSocketManager.sendMessage({ command: 'start' });
+            
+            // 1초 후 상태 업데이트 요청 및 버튼 원상복구
             setTimeout(() => {
                 WebSocketManager.sendMessage({ command: 'getBotStatus' });
-            }, 3000);
+                startBtn.innerHTML = originalText;
+                botControlsDisabled = false;
+            }, 1000);
         });
     }
     
     if (stopBtn) {
         stopBtn.addEventListener('click', () => {
             if (confirm('정말 봇을 종료하시겠습니까?')) {
-                stopBtn.disabled = true; // 중복 클릭 방지
-                WebSocketManager.sendMessage({ command: 'stop' });
-                Utilities.showNotification('봇 종료 요청 중...', 'info');
+                // 모든 제어 버튼 비활성화
+                startBtn.disabled = true;
+                stopBtn.disabled = true;
+                restartBtn.disabled = true;
+                botControlsDisabled = true;
                 
-                // 3초 후 상태 업데이트 요청
+                // 버튼 텍스트 변경
+                const originalText = stopBtn.innerHTML;
+                stopBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 정지 중...';
+                
+                // 웹소켓 요청 전송
+                WebSocketManager.sendMessage({ command: 'stop' });
+                
+                // 1초 후 상태 업데이트 요청 및 버튼 원상복구
                 setTimeout(() => {
                     WebSocketManager.sendMessage({ command: 'getBotStatus' });
-                }, 3000);
+                    stopBtn.innerHTML = originalText;
+                    botControlsDisabled = false;
+                }, 1000);
             }
         });
     }
@@ -278,15 +309,25 @@ function registerDashboardEventListeners() {
     if (restartBtn) {
         restartBtn.addEventListener('click', () => {
             if (confirm('봇을 재시작하시겠습니까?')) {
-                restartBtn.disabled = true; // 중복 클릭 방지
-                WebSocketManager.sendMessage({ command: 'restart' });
-                Utilities.showNotification('봇 재시작 요청 중...', 'info');
+                // 모든 제어 버튼 비활성화
+                startBtn.disabled = true;
+                stopBtn.disabled = true;
+                restartBtn.disabled = true;
+                botControlsDisabled = true;
                 
-                // 5초 후 버튼 다시 활성화 및 상태 업데이트
+                // 버튼 텍스트 변경
+                const originalText = restartBtn.innerHTML;
+                restartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 재시작 중...';
+                
+                // 웹소켓 요청 전송
+                WebSocketManager.sendMessage({ command: 'restart' });
+                
+                // 3초 후 상태 업데이트 요청 및 버튼 원상복구
                 setTimeout(() => {
-                    restartBtn.disabled = false;
                     WebSocketManager.sendMessage({ command: 'getBotStatus' });
-                }, 5000);
+                    restartBtn.innerHTML = originalText;
+                    botControlsDisabled = false;
+                }, 3000);
             }
         });
     }
@@ -455,7 +496,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.location.hash === '#embed') {
             fixEmbedServerSelection();
         }
-    }, 6500); // 로딩 애니메이션 완료 시간 기준
+    }, 2000); // 로딩 시간 단축
 });
 
 // 모듈 로드 이벤트 리스너
@@ -463,6 +504,6 @@ document.addEventListener('module_loaded', function(e) {
     if (e.detail === 'embed') {
         setTimeout(() => {
             fixEmbedServerSelection();
-        }, 500);
+        }, 300);
     }
 });
