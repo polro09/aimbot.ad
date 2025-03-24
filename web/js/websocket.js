@@ -6,13 +6,15 @@
 const WebSocketManager = {
     socket: null,
     reconnectAttempts: 0,
-    maxReconnectAttempts: 5,
+    maxReconnectAttempts: 10, // 최대 재연결 시도 횟수 증가
     reconnectTimeout: null,
     requestCallbacks: {}, // 요청에 대한 콜백 함수 저장
     messageHandlers: {}, // 메시지 타입별 핸들러
     isInitialized: false, // 초기화 상태 추적
     pendingCommands: {}, // 중복 요청 방지를 위한 커맨드 추적
     commandThrottles: {}, // 명령어 쓰로틀링
+    isReconnecting: false, // 재연결 진행 상태
+    baseReconnectDelay: 1000, // 기본 재연결 지연 시간 (1초)
     
     init: function() {
         if (this.isInitialized) return; // 중복 초기화 방지
@@ -34,10 +36,42 @@ const WebSocketManager = {
         // 기본 메시지 핸들러 등록
         this.registerMessageHandlers();
         
+        // 페이지 가시성 변경 이벤트 리스너 (탭 전환 감지)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                // 페이지가 다시 보일 때 연결 확인
+                this.checkConnection();
+            }
+        });
+        
+        // 네트워크 연결 상태 변경 이벤트 리스너
+        window.addEventListener('online', () => {
+            console.log('네트워크 연결 감지됨');
+            this.checkConnection();
+        });
+        
         console.log('WebSocketManager 초기화 완료');
     },
     
+    // 연결 상태 확인 함수
+    checkConnection: function() {
+        // 연결이 끊어진 상태에서 네트워크가 복구되면 재연결 시도
+        if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+            console.log('연결이 끊어진 상태에서 페이지 활성화 감지. 재연결 시도...');
+            this.reconnect();
+        } else {
+            // 연결 상태이면 상태 요청으로 활성 상태 유지
+            this.sendMessage({ command: 'getBotStatus' });
+        }
+    },
+    
     connect: function() {
+        // 이미 재연결 중이면 중복 연결 방지
+        if (this.isReconnecting) {
+            console.log('이미 재연결 진행 중입니다.');
+            return;
+        }
+        
         // 웹소켓 프로토콜 결정 (HTTPS인 경우 WSS 사용)
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}`;
@@ -56,8 +90,16 @@ const WebSocketManager = {
         }
     },
     
-    // 웹소켓 재연결
+    // 웹소켓 재연결 - 지수 백오프 적용
     reconnect: function() {
+        // 이미 재연결 중이면 중복 처리 방지
+        if (this.isReconnecting) {
+            console.log('이미 재연결 진행 중입니다.');
+            return;
+        }
+        
+        this.isReconnecting = true;
+        
         if (this.socket) {
             try {
                 this.socket.close();
@@ -66,35 +108,52 @@ const WebSocketManager = {
             }
         }
         
-        // 더 안정적인 지수 백오프 방식 적용
-        const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 30000);
+        // 지수 백오프 방식으로 재연결 지연 시간 계산
+        // 1초, 2초, 4초, 8초, 16초... 최대 2분까지
+        const delay = Math.min(
+            this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts),
+            120000 // 최대 2분
+        );
+        
+        console.log(`재연결 대기 중... ${delay/1000}초 후 시도 (시도 ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`);
+        
+        // 사용자에게 재연결 시도 중임을 알림 (첫 시도에만)
+        if (this.reconnectAttempts === 0 && typeof Utilities !== 'undefined' && Utilities.showNotification) {
+            Utilities.showNotification('서버 연결이 끊어졌습니다. 재연결을 시도합니다...', 'warning');
+        }
         
         clearTimeout(this.reconnectTimeout);
         this.reconnectTimeout = setTimeout(() => {
             if (this.reconnectAttempts < this.maxReconnectAttempts) {
                 this.reconnectAttempts++;
-                console.log(`웹소켓 재연결 시도 ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
                 this.connect();
+                this.isReconnecting = false; // 재연결 시도 플래그 초기화
             } else {
                 console.error('최대 재연결 시도 횟수 초과');
                 // 사용자에게 새로고침 요청
                 if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
                     Utilities.showNotification('서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.', 'error');
                 }
-                // 5초 후 재시도 로직 초기화
+                // 1분 후 재시도 로직 초기화 (완전 포기하지 않음)
                 setTimeout(() => {
                     this.reconnectAttempts = 0;
+                    this.isReconnecting = false;
                     this.connect();
-                }, 5000);
+                }, 60000);
             }
         }, delay);
     },
     
     scheduleReconnect: function() {
+        if (this.isReconnecting) return;
+        
+        this.isReconnecting = true;
         clearTimeout(this.reconnectTimeout);
         this.reconnectTimeout = setTimeout(() => {
+            this.reconnectAttempts = 0; // 처음부터 시작
             this.reconnect();
-        }, 3000);
+            this.isReconnecting = false;
+        }, 1000); // 첫 시도는 1초 후
     },
     
     handleOpen: function() {
@@ -102,6 +161,12 @@ const WebSocketManager = {
         this.reconnectAttempts = 0; // 재연결 성공 시 카운터 초기화
         this.pendingCommands = {}; // 명령 추적 초기화
         this.commandThrottles = {}; // 쓰로틀 초기화
+        this.isReconnecting = false; // 재연결 상태 초기화
+        
+        // 연결 성공 알림 (재연결인 경우에만)
+        if (this.reconnectAttempts > 0 && typeof Utilities !== 'undefined' && Utilities.showNotification) {
+            Utilities.showNotification('서버에 다시 연결되었습니다.', 'success');
+        }
         
         // 초기 상태 요청 - 필요한 기본 정보만 요청
         this.requestInitialStatus();
@@ -193,7 +258,7 @@ const WebSocketManager = {
             console.error('웹소켓이 연결되지 않았습니다. 연결 상태:', this.socket ? this.socket.readyState : '소켓 없음');
             
             // 재연결 시도
-            if (!this.reconnectTimeout) {
+            if (!this.isReconnecting) {
                 this.scheduleReconnect();
             }
             
@@ -245,7 +310,7 @@ const WebSocketManager = {
         if (callback) {
             this.requestCallbacks[requestId] = callback;
         }
-        
+
         // 명령 추적 설정
         if (commandKey) {
             this.trackCommand(commandKey, requestId, message);
@@ -265,6 +330,11 @@ const WebSocketManager = {
             // 명령 추적에서 제거
             if (commandKey) {
                 this.untrackCommand(commandKey, requestId);
+            }
+            
+            // 연결 오류인 경우 재연결 시도
+            if (error.name === 'NetworkError' || error.message.includes('network')) {
+                this.scheduleReconnect();
             }
             
             return false;
@@ -379,6 +449,14 @@ const WebSocketManager = {
             
             // 상태 정보를 로컬 스토리지에 저장 (다른 곳에서 사용할 수 있도록)
             localStorage.setItem('botStatus', JSON.stringify(message));
+            
+            // 재연결 시도 후 성공한 경우 성공 메시지 표시
+            if (this.reconnectAttempts > 0) {
+                this.reconnectAttempts = 0; // 재연결 성공 시 카운터 초기화
+                if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+                    Utilities.showNotification('서버 연결이 복원되었습니다', 'success');
+                }
+            }
         };
         
         // 에러 메시지 - 중복 메시지 방지 개선
@@ -468,6 +546,22 @@ const WebSocketManager = {
             const event = new CustomEvent('channels_loaded', { detail: message.channels });
             document.dispatchEvent(event);
         };
+        
+        // 사용자 서버 목록
+        this.messageHandlers['userServers'] = (message) => {
+            // 사용자 서버 목록 이벤트 발생
+            if (typeof updateServersList === 'function' && message.username && message.servers) {
+                updateServersList(message.username, message.servers);
+            }
+        };
+        
+        // 연결 전환 감지
+        this.messageHandlers['pong'] = (message) => {
+            // 서버로부터 pong 응답 받음 - 연결 활성 상태 확인
+            console.log('서버 연결 확인됨 (pong 응답)');
+            // 연결 상태 정상화 시 재연결 시도 카운터 초기화
+            this.reconnectAttempts = 0;
+        };
     },
 
     // 초기 상태 요청 - 최적화
@@ -479,6 +573,24 @@ const WebSocketManager = {
         setTimeout(() => {
             this.sendMessage({ command: 'getBotStatus' });
         }, 200);
+        
+        // 주기적 연결 상태 확인 설정 (ping/pong)
+        this.setupHeartbeat();
+    },
+    
+    // 서버 연결 상태 확인을 위한 하트비트 설정
+    setupHeartbeat: function() {
+        // 기존 인터벌 제거
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+        }
+        
+        // 매 30초마다 서버에 상태 요청 (간단한 ping/pong)
+        this.heartbeatInterval = setInterval(() => {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                this.sendMessage({ command: 'ping' });
+            }
+        }, 30000);
     },
 
     // 대시보드 데이터 요청 (최적화)
@@ -514,6 +626,18 @@ const WebSocketManager = {
                 setTimeout(() => {
                     this.sendMessage({ command: 'getBotStatus' });
                 }, 200);
+                break;
+                
+            case 'admin':
+                // 사용자 목록 요청
+                setTimeout(() => {
+                    this.sendMessage({ command: 'getUsers' });
+                }, 200);
+                
+                // 초대 코드 목록 요청
+                setTimeout(() => {
+                    this.sendMessage({ command: 'getInviteCodes' });
+                }, 400);
                 break;
                 
             default:
