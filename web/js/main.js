@@ -268,9 +268,86 @@ const Router = {
     }
 };
 
-// 전역 유틸리티 함수들
 const Utilities = {
-    // 날짜 포맷팅
+    // 다른 유틸리티 함수들...
+    
+    // 알림 대기열 및 상태
+    notificationQueue: [],
+    isNotificationDisplaying: false,
+    
+    // 대기열 관리 기능이 있는 알림 표시 함수
+    showNotification: function(message, type = 'info') {
+        // 대기열에 알림 추가
+        this.notificationQueue.push({ message, type });
+        
+        // 현재 표시 중인 알림이 없으면 대기열 처리
+        if (!this.isNotificationDisplaying) {
+            this.processNotificationQueue();
+        }
+    },
+    
+    // 알림 대기열 처리 함수
+    processNotificationQueue: function() {
+        // 대기열이 비어있거나 이미 알림이 표시 중이면 종료
+        if (this.notificationQueue.length === 0 || this.isNotificationDisplaying) {
+            return;
+        }
+        
+        // 알림이 표시 중임을 나타내는 플래그 설정
+        this.isNotificationDisplaying = true;
+        
+        // 대기열에서 다음 알림 가져오기
+        const { message, type } = this.notificationQueue.shift();
+        
+        // 알림 요소 생성
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // 기존 알림을 기준으로 상단 위치 계산
+        const existingNotifications = document.querySelectorAll('.notification');
+        let topPosition = 20; // 초기 상단 위치 (픽셀)
+        
+        if (existingNotifications.length > 1) {
+            // 이 알림 이전의 마지막 알림 가져오기
+            const previousNotifications = Array.from(existingNotifications).slice(0, -1);
+            for (const prevNotif of previousNotifications) {
+                // 각 이전 알림의 높이 + 여백(10px) 추가
+                if (prevNotif.offsetHeight) {
+                    topPosition += prevNotif.offsetHeight + 10;
+                }
+            }
+        }
+        
+        // 계산된 위치 적용
+        notification.style.top = `${topPosition}px`;
+        
+        // 애니메이션 효과
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // 일정 시간 후 자동 제거
+        setTimeout(() => {
+            notification.classList.remove('show');
+            
+            // 애니메이션 완료 후 DOM에서 제거하고 다음 대기열 처리
+            setTimeout(() => {
+                // DOM에 아직 존재하면 제거
+                if (notification.parentNode) {
+                    document.body.removeChild(notification);
+                }
+                
+                // 플래그 초기화 및 다음 알림 처리
+                this.isNotificationDisplaying = false;
+                this.processNotificationQueue();
+            }, 300);
+        }, 3000);
+    },
+    
+    // 날짜 포맷팅 (기존 함수 유지)
     formatDate: function(dateString) {
         const date = new Date(dateString);
         return date.toLocaleString('ko-KR', {
@@ -280,28 +357,6 @@ const Utilities = {
             hour: '2-digit',
             minute: '2-digit'
         });
-    },
-    
-    // 알림 표시
-    showNotification: function(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // 애니메이션 효과
-        setTimeout(() => {
-            notification.classList.add('show');
-        }, 10);
-        
-        // 자동 제거
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 300);
-        }, 3000);
     }
 };
 
