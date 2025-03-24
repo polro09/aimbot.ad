@@ -12,6 +12,7 @@ const WebSocketManager = {
     messageHandlers: {}, // 메시지 타입별 핸들러
     isInitialized: false, // 초기화 상태 추적
     pendingCommands: {}, // 중복 요청 방지를 위한 커맨드 추적
+    commandThrottles: {}, // 명령어 쓰로틀링
     
     init: function() {
         if (this.isInitialized) return; // 중복 초기화 방지
@@ -55,39 +56,39 @@ const WebSocketManager = {
         }
     },
     
-    // websocket.js 파일의 WebSocketManager 객체 내 reconnect 함수 교체
-reconnect: function() {
-    if (this.socket) {
-        try {
-            this.socket.close();
-        } catch (e) {
-            console.error('소켓 닫기 오류:', e);
-        }
-    }
-    
-    // 더 안정적인 지수 백오프 방식 적용
-    const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 30000);
-    
-    clearTimeout(this.reconnectTimeout);
-    this.reconnectTimeout = setTimeout(() => {
-        if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.reconnectAttempts++;
-            console.log(`웹소켓 재연결 시도 ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
-            this.connect();
-        } else {
-            console.error('최대 재연결 시도 횟수 초과');
-            // 사용자에게 새로고침 요청
-            if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
-                Utilities.showNotification('서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.', 'error');
+    // 웹소켓 재연결
+    reconnect: function() {
+        if (this.socket) {
+            try {
+                this.socket.close();
+            } catch (e) {
+                console.error('소켓 닫기 오류:', e);
             }
-            // 5초 후 재시도 로직 초기화
-            setTimeout(() => {
-                this.reconnectAttempts = 0;
-                this.connect();
-            }, 5000);
         }
-    }, delay);
-},
+        
+        // 더 안정적인 지수 백오프 방식 적용
+        const delay = Math.min(1000 * Math.pow(1.5, this.reconnectAttempts), 30000);
+        
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = setTimeout(() => {
+            if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                this.reconnectAttempts++;
+                console.log(`웹소켓 재연결 시도 ${this.reconnectAttempts}/${this.maxReconnectAttempts}...`);
+                this.connect();
+            } else {
+                console.error('최대 재연결 시도 횟수 초과');
+                // 사용자에게 새로고침 요청
+                if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+                    Utilities.showNotification('서버 연결에 실패했습니다. 페이지를 새로고침 해주세요.', 'error');
+                }
+                // 5초 후 재시도 로직 초기화
+                setTimeout(() => {
+                    this.reconnectAttempts = 0;
+                    this.connect();
+                }, 5000);
+            }
+        }, delay);
+    },
     
     scheduleReconnect: function() {
         clearTimeout(this.reconnectTimeout);
@@ -100,8 +101,9 @@ reconnect: function() {
         console.log('웹소켓 연결 성공');
         this.reconnectAttempts = 0; // 재연결 성공 시 카운터 초기화
         this.pendingCommands = {}; // 명령 추적 초기화
+        this.commandThrottles = {}; // 쓰로틀 초기화
         
-        // 초기 상태 요청
+        // 초기 상태 요청 - 필요한 기본 정보만 요청
         this.requestInitialStatus();
     },
     
@@ -110,7 +112,9 @@ reconnect: function() {
             const message = JSON.parse(event.data);
             
             // 로깅 (디버깅용 - 메시지 타입만 로그)
-            console.log('웹소켓 메시지 수신:', message.type || 'serverStatus');
+            if (message.type && message.type !== 'serverStatus') {
+                console.log('웹소켓 메시지 수신:', message.type);
+            }
             
             // 요청 ID가 있는 경우 해당 명령 완료 표시
             if (message.requestId && this.pendingCommands[message.requestId]) {
@@ -153,6 +157,35 @@ reconnect: function() {
         this.scheduleReconnect();
     },
     
+    // 명령어 쓰로틀 체크
+    isThrottled: function(command) {
+        const now = Date.now();
+        const throttleTime = {
+            'start': 5000,         // 봇 시작 명령 (5초)
+            'stop': 5000,          // 봇 정지 명령 (5초) 
+            'restart': 5000,       // 봇 재시작 명령 (5초)
+            'getBotStatus': 3000,  // 상태 요청 (3초)
+            'getModuleStatus': 3000, // 모듈 상태 요청 (3초)
+            'moduleAction': 3000,  // 모듈 작업 (3초)
+            'sendEmbed': 3000      // 임베드 전송 (3초)
+        };
+        
+        // 명령어에 대한 쓰로틀 시간 설정
+        const throttleMs = throttleTime[command] || 1000; // 기본 1초
+        
+        // 이전 요청 시간 확인
+        const lastTime = this.commandThrottles[command] || 0;
+        
+        // 쓰로틀 검사
+        if (now - lastTime < throttleMs) {
+            return true; // 쓰로틀링 필요
+        }
+        
+        // 시간 갱신
+        this.commandThrottles[command] = now;
+        return false; // 쓰로틀링 필요 없음
+    },
+    
     sendMessage: function(message, callback) {
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
             console.error('웹소켓이 연결되지 않았습니다. 연결 상태:', this.socket ? this.socket.readyState : '소켓 없음');
@@ -178,6 +211,24 @@ reconnect: function() {
             return false;
         }
         
+        // 명령어 쓰로틀 검사 (시간 기반)
+        if (this.isThrottled(message.command)) {
+            console.log(`명령어 쓰로틀링 적용: ${message.command}`);
+            
+            // 콜백 강제 호출 (가짜 응답)
+            if (callback && ['getBotStatus', 'getModuleStatus'].includes(message.command)) {
+                // 로컬 스토리지에서 최근 상태 가져오기
+                const cachedStatus = localStorage.getItem('botStatus');
+                if (cachedStatus) {
+                    setTimeout(() => {
+                        callback(JSON.parse(cachedStatus));
+                    }, 100);
+                }
+            }
+            
+            return false;
+        }
+        
         // 중복 요청 방지
         const commandKey = message.command;
         if (commandKey && this.isCommandPending(commandKey, message)) {
@@ -199,7 +250,9 @@ reconnect: function() {
         }
         
         try {
-            console.log('웹소켓으로 메시지 전송:', message.command || 'unknown');
+            if (commandKey !== 'start' && commandKey !== 'getBotStatus') {
+                console.log('웹소켓으로 메시지 전송:', message.command || 'unknown');
+            }
             this.socket.send(JSON.stringify(message));
             return true;
         } catch (error) {
@@ -309,124 +362,157 @@ reconnect: function() {
         };
         
         // 서버 상태 메시지 핸들러
-this.messageHandlers['serverStatus'] = (message) => {
-    // 대시보드 페이지에 정보 업데이트
-    if (typeof updateDashboardStatus === 'function') {
-        updateDashboardStatus(message);
-    }
-    
-    // 관리자 페이지에서도 봇 정보 업데이트를 위해 사용
-    if (typeof updateBotInfo === 'function') {
-        updateBotInfo(message);
-    }
-    
-    // 상태 정보를 로컬 스토리지에 저장 (다른 곳에서 사용할 수 있도록)
-    localStorage.setItem('botStatus', JSON.stringify(message));
-    
-    // 서버 목록 로드 함수가 있으면 호출
-    if (typeof loadServersList === 'function') {
-        loadServersList();
-    }
-};
+        this.messageHandlers['serverStatus'] = (message) => {
+            // 대시보드 페이지에 정보 업데이트
+            if (typeof updateDashboardStatus === 'function') {
+                updateDashboardStatus(message);
+            }
+            
+            // 관리자 페이지에서도 봇 정보 업데이트를 위해 사용
+            if (typeof updateBotInfo === 'function') {
+                updateBotInfo(message);
+            }
+            
+            // 상태 정보를 로컬 스토리지에 저장 (다른 곳에서 사용할 수 있도록)
+            localStorage.setItem('botStatus', JSON.stringify(message));
+            
+            // 서버 목록 로드 함수가 있으면 호출
+            if (typeof loadServersList === 'function') {
+                loadServersList();
+            }
+        };
         
         // 에러 메시지 - 중복 메시지 방지 추가
-        this.messageHandlers['error'] = (message) => {
-            // 특정 오류 메시지 체크를 위한 변수
-            const errorMsg = message.message || '';
+       this.messageHandlers['error'] = (message) => {
+        // 특정 오류 메시지 체크를 위한 변수
+        const errorMsg = message.message || '';
+        
+        // 무시할 오류 메시지 패턴
+        const ignorePatterns = [
+            '봇 시작에 실패했습니다',
+            '봇이 이미 실행 중입니다',
+            '이미 할당된 채널입니다',
+            '모듈 재로드 중'
+        ];
+        
+        // 해당 패턴이 있으면 무시
+        if (ignorePatterns.some(pattern => errorMsg.includes(pattern))) {
+            console.log('무시된 오류 메시지:', errorMsg);
+            return;
+        }
+        
+        Utilities.showNotification(errorMsg, 'error');
+    };
+    
+    // 기본 정보 메시지 - 중복 처리 방지
+    this.messageHandlers['info'] = (message) => {
+        if (message.message) {
+            // 최근 표시된 알림과 동일한 경우 무시
+            const lastNotification = localStorage.getItem('lastNotification');
+            const currentTime = Date.now();
+            const lastTime = parseInt(localStorage.getItem('lastNotificationTime') || '0');
             
-            // 무시할 오류 메시지 패턴
-            const ignorePatterns = [
-                '봇 시작에 실패했습니다',
-                '이미 할당된 채널입니다'
-            ];
-            
-            // 해당 패턴이 있으면 무시
-            if (ignorePatterns.some(pattern => errorMsg.includes(pattern))) {
-                console.log('무시된 오류 메시지:', errorMsg);
+            // 3초 이내에 동일한 메시지가 표시된 경우 무시
+            if (lastNotification === message.message && (currentTime - lastTime) < 3000) {
+                console.log('중복 알림 무시:', message.message);
                 return;
             }
             
-            Utilities.showNotification(errorMsg, 'error');
-        };
-        
-        // 기본 정보 메시지 - 중복 처리 방지
-        this.messageHandlers['info'] = (message) => {
-            if (message.message) {
-                // 최근 표시된 알림과 동일한 경우 무시
-                const lastNotification = localStorage.getItem('lastNotification');
-                const currentTime = Date.now();
-                const lastTime = parseInt(localStorage.getItem('lastNotificationTime') || '0');
-                
-                // 3초 이내에 동일한 메시지가 표시된 경우 무시
-                if (lastNotification === message.message && (currentTime - lastTime) < 3000) {
-                    console.log('중복 알림 무시:', message.message);
-                    return;
-                }
-                
-                // 알림 표시 및 저장
-                Utilities.showNotification(message.message, 'info');
-                localStorage.setItem('lastNotification', message.message);
-                localStorage.setItem('lastNotificationTime', currentTime.toString());
-            }
-        };
-        
-        // 모듈 상태 정보
-        this.messageHandlers['moduleStatus'] = (message) => {
-            if (message.moduleStatus && typeof updateModulesList === 'function') {
-                updateModulesList(message.moduleStatus);
-            }
-        };
-        
-        // 사용자 설정 정보
-        this.messageHandlers['userSettings'] = (message) => {
-            if (message.settings && typeof updateUserSettings === 'function') {
-                updateUserSettings(message.settings);
-            }
-        };
-        
-        // 채널 정보
-        this.messageHandlers['channels'] = (message) => {
-            // 채널 목록 로드 이벤트 발생
-            const event = new CustomEvent('channels_loaded', { detail: message.channels });
-            document.dispatchEvent(event);
-        };
-    },
+            // 알림 표시 및 저장
+            Utilities.showNotification(message.message, 'info');
+            localStorage.setItem('lastNotification', message.message);
+            localStorage.setItem('lastNotificationTime', currentTime.toString());
+        }
+    };
     
-    // 초기 상태 요청
-    requestInitialStatus: function() {
-        // 온라인 관리자 요청
-        this.sendMessage({ command: 'getOnlineAdmins' });
-    },
+    // 모듈 상태 정보
+    this.messageHandlers['moduleStatus'] = (message) => {
+        if (message.moduleStatus && typeof updateModulesList === 'function') {
+            updateModulesList(message.moduleStatus);
+        }
+    };
     
-    // 대시보드 데이터 요청
-    requestDashboardData: function() {
-        if (typeof AuthManager !== 'undefined' && !AuthManager.isLoggedIn()) return;
-        
-        // 모듈 상태 요청 (1초 간격으로 순차 요청하여 서버 부하 방지)
+    // 사용자 설정 정보
+    this.messageHandlers['userSettings'] = (message) => {
+        if (message.settings && typeof updateUserSettings === 'function') {
+            updateUserSettings(message.settings);
+        }
+    };
+    
+    // 채널 정보
+    this.messageHandlers['channels'] = (message) => {
+        // 채널 목록 로드 이벤트 발생
+        const event = new CustomEvent('channels_loaded', { detail: message.channels });
+        document.dispatchEvent(event);
+    };
+},
+
+// 초기 상태 요청
+requestInitialStatus: function() {
+    // 온라인 관리자 요청
+    this.sendMessage({ command: 'getOnlineAdmins' });
+    
+    // 현재 페이지에 필요한 데이터만 요청
+    if (window.location.hash === '#dashboard') {
+        this.sendMessage({ command: 'getBotStatus' });
+    }
+    
+    // 모듈 관리 페이지인 경우
+    if (window.location.hash === '#module-mgmt') {
         setTimeout(() => {
             this.sendMessage({ command: 'getModuleStatus' });
         }, 500);
-        
-        // 사용자 설정 요청
-        setTimeout(() => {
-            this.sendMessage({ command: 'getUserSettings' });
-        }, 1000);
-        
-        // 서버 상태 요청
-        setTimeout(() => {
-            this.sendMessage({ command: 'getBotStatus' });
-        }, 1500);
-        
-        // 온라인 관리자 요청
-        setTimeout(() => {
-            this.sendMessage({ command: 'getOnlineAdmins' });
-        }, 2000);
     }
+},
+
+// 대시보드 데이터 요청 (최적화)
+requestDashboardData: function() {
+    if (typeof AuthManager !== 'undefined' && !AuthManager.isLoggedIn()) return;
+    
+    // 현재 활성 페이지 확인
+    const currentPage = window.location.hash.substring(1) || 'main';
+    
+    // 페이지별 필요한 데이터만 요청
+    switch (currentPage) {
+        case 'dashboard':
+            // 서버 상태 요청
+            setTimeout(() => {
+                this.sendMessage({ command: 'getBotStatus' });
+            }, 300);
+            break;
+            
+        case 'module-mgmt':
+            // 모듈 상태 요청
+            setTimeout(() => {
+                this.sendMessage({ command: 'getModuleStatus' });
+            }, 300);
+            
+            // 사용자 설정 요청
+            setTimeout(() => {
+                this.sendMessage({ command: 'getUserSettings' });
+            }, 800);
+            break;
+            
+        case 'embed':
+            // 서버 상태 요청 (서버 목록 용도)
+            setTimeout(() => {
+                this.sendMessage({ command: 'getBotStatus' });
+            }, 300);
+            break;
+            
+        default:
+            // 기본 정보만 요청
+            setTimeout(() => {
+                this.sendMessage({ command: 'getOnlineAdmins' });
+            }, 300);
+            break;
+    }
+}
 };
 
 // 페이지 로드 시 웹소켓 관리자 초기화
 document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        WebSocketManager.init();
-    }, 3000); // 로딩 애니메이션보다 일찍 초기화
+setTimeout(() => {
+    WebSocketManager.init();
+}, 3000); // 로딩 애니메이션보다 일찍 초기화
 });

@@ -5,6 +5,7 @@
 
 // 현재 선택된 모듈
 let currentModule = null;
+let isLoadingModules = false; // 모듈 로딩 상태 추적
 
 // 모듈 관리 초기화
 function initModuleMgmtModule() {
@@ -13,11 +14,38 @@ function initModuleMgmtModule() {
     // 이벤트 리스너 등록
     registerModuleMgmtEvents();
     
-    // 모듈 목록 로드
-    WebSocketManager.sendMessage({ command: 'getModuleStatus' });
+    // 모듈 목록 로드 - 지연 실행으로 변경
+    setTimeout(() => {
+        loadModuleStatus();
+    }, 300);
     
-    // 사용자 설정 로드
-    WebSocketManager.sendMessage({ command: 'getUserSettings' });
+    // 사용자 설정 로드 - 지연 실행으로 변경
+    setTimeout(() => {
+        WebSocketManager.sendMessage({ command: 'getUserSettings' });
+    }, 600);
+}
+
+// 모듈 상태 로드 함수 - 새로 추가
+function loadModuleStatus() {
+    if (isLoadingModules) return; // 이미 로딩 중이면 중복 요청 방지
+    
+    isLoadingModules = true;
+    
+    // 로딩 상태 표시
+    const modulesContainer = document.getElementById('modules-container');
+    if (modulesContainer) {
+        modulesContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>모듈 정보를 불러오는 중입니다...</p>
+            </div>
+        `;
+    }
+    
+    // 모듈 목록 요청
+    WebSocketManager.sendMessage({ command: 'getModuleStatus' }, () => {
+        isLoadingModules = false;
+    });
 }
 
 // 모듈 관리 이벤트 리스너 등록
@@ -26,7 +54,7 @@ function registerModuleMgmtEvents() {
     const refreshBtn = document.getElementById('refresh-modules-btn');
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
-            WebSocketManager.sendMessage({ command: 'getModuleStatus' });
+            loadModuleStatus(); // 수정된 함수 호출
             Utilities.showNotification('모듈 목록을 새로고침 중입니다...', 'info');
         });
     }
@@ -70,11 +98,19 @@ function setupModuleButtons() {
         enableBtn.addEventListener('click', () => {
             if (!currentModule) return;
             
+            // 버튼 비활성화 (중복 클릭 방지)
+            enableBtn.disabled = true;
+            
             WebSocketManager.sendMessage({
                 command: 'moduleAction',
                 action: 'enable',
                 moduleName: currentModule
             });
+            
+            // 2초 후 버튼 다시 활성화
+            setTimeout(() => {
+                enableBtn.disabled = false;
+            }, 2000);
         });
     }
     
@@ -85,11 +121,19 @@ function setupModuleButtons() {
             if (!currentModule) return;
             
             if (confirm(`${currentModule} 모듈을 비활성화하시겠습니까?`)) {
+                // 버튼 비활성화 (중복 클릭 방지)
+                disableBtn.disabled = true;
+                
                 WebSocketManager.sendMessage({
                     command: 'moduleAction',
                     action: 'disable',
                     moduleName: currentModule
                 });
+                
+                // 2초 후 버튼 다시 활성화
+                setTimeout(() => {
+                    disableBtn.disabled = false;
+                }, 2000);
             }
         });
     }
@@ -101,11 +145,19 @@ function setupModuleButtons() {
             if (!currentModule) return;
             
             if (confirm(`${currentModule} 모듈을 재로드하시겠습니까?`)) {
+                // 버튼 비활성화 (중복 클릭 방지)
+                reloadBtn.disabled = true;
+                
                 WebSocketManager.sendMessage({
                     command: 'moduleAction',
                     action: 'reload',
                     moduleName: currentModule
                 });
+                
+                // 3초 후 버튼 다시 활성화 (재로드는 좀 더 시간이 필요)
+                setTimeout(() => {
+                    reloadBtn.disabled = false;
+                }, 3000);
             }
         });
     }
@@ -128,8 +180,14 @@ function updateModulesList(moduleStatus) {
         return;
     }
     
-    // 모듈 목록 생성
-    Object.entries(moduleStatus).forEach(([fileName, module]) => {
+    // 모듈 목록 생성 - 알파벳 순으로 정렬
+    const sortedModules = Object.entries(moduleStatus).sort((a, b) => {
+        const nameA = (a[1].name || a[0]).toLowerCase();
+        const nameB = (b[1].name || b[0]).toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+    
+    sortedModules.forEach(([fileName, module]) => {
         const moduleItem = document.createElement('div');
         moduleItem.className = `module-item ${module.enabled ? 'enabled' : 'disabled'}`;
         moduleItem.dataset.module = fileName;
@@ -166,6 +224,9 @@ function updateModulesList(moduleStatus) {
         
         modulesContainer.appendChild(moduleItem);
     });
+    
+    // 로딩 상태 종료
+    isLoadingModules = false;
 }
 
 // 모듈 모달 표시

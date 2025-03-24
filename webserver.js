@@ -175,11 +175,7 @@ class WebServer {
         console.log(`클라이언트로부터 받은 웹소켓 명령:`, command);
         
         // 관리자 권한이 필요한 명령어 목록
-        const adminCommands = [
-            'start', 'stop', 'restart', 'moduleAction', 
-            'addUser', 'updateUser', 'deleteUser', 
-            'generateInviteCode', 'deleteInviteCode'
-        ];
+        const adminCommands = ['start', 'stop', 'restart', 'moduleAction', 'assignServer', 'unassignServer'];
         
         // 관리자 권한 확인 (단일 지점에서 모든 권한 검증)
         if (adminCommands.includes(command) && !ws.userSession.isAdmin) {
@@ -788,20 +784,22 @@ case 'getUserServers':
             
             // 모듈 상태 요청 처리
             case 'getModuleStatus':
-                try {
-                    const moduleStatus = bot.getModuleStatus();
-                    
-                    this._sendMessage(ws, {
-                        type: 'moduleStatus',
-                        moduleStatus
-                    });
-                } catch (error) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: `모듈 상태 조회 중 오류 발생: ${error.message}`
-                    });
-                }
-                break;
+    try {
+        // 상세 정보 여부 결정 (기본값: 상세)
+        const detailed = message.detailed !== false;
+        const moduleStatus = bot.getModuleStatus(detailed);
+        
+        this._sendMessage(ws, {
+            type: 'moduleStatus',
+            moduleStatus: moduleStatus
+        });
+    } catch (error) {
+        this._sendMessage(ws, {
+            type: 'error',
+            message: `모듈 상태 조회 중 오류 발생: ${error.message}`
+        });
+    }
+    break;
             
             // 사용자 설정 요청 처리
             case 'getUserSettings':
@@ -914,36 +912,48 @@ case 'getUserServers':
                 }
                 break;
             
-            // 봇 시작 처리
-            case 'start':
-                try {
-                    const success = await bot.start();
-                    
-                    if (success) {
-                        this._sendMessage(ws, {
-                            type: 'info',
-                            message: '봇이 시작되었습니다.'
-                        });
+                case 'start':
+                    try {
+                        // 봇이 이미 실행 중인지 확인
+                        if (bot.status.isRunning) {
+                            // 조용히 무시하거나 성공 메시지 전송
+                            this._sendMessage(ws, {
+                                type: 'info',
+                                message: '봇이 실행 중입니다.'
+                            });
+                            
+                            // 상태 업데이트 전송
+                            this._sendStatus(ws);
+                            return;
+                        }
                         
-                        // 모든 클라이언트에 상태 업데이트
-                        this.wss.clients.forEach(client => {
-                            if (client.readyState === WebSocket.OPEN) {
-                                this._sendStatus(client);
-                            }
-                        });
-                    } else {
+                        const success = await bot.start();
+                        
+                        if (success) {
+                            this._sendMessage(ws, {
+                                type: 'info',
+                                message: '봇이 시작되었습니다.'
+                            });
+                            
+                            // 모든 클라이언트에 상태 업데이트
+                            this.wss.clients.forEach(client => {
+                                if (client.readyState === WebSocket.OPEN) {
+                                    this._sendStatus(client);
+                                }
+                            });
+                        } else {
+                            this._sendMessage(ws, {
+                                type: 'error',
+                                message: '봇 시작에 실패했습니다.'
+                            });
+                        }
+                    } catch (error) {
                         this._sendMessage(ws, {
                             type: 'error',
-                            message: '봇 시작에 실패했습니다.'
+                            message: `봇 시작 중 오류 발생: ${error.message}`
                         });
                     }
-                } catch (error) {
-                    this._sendMessage(ws, {
-                        type: 'error',
-                        message: `봇 시작 중 오류 발생: ${error.message}`
-                    });
-                }
-                break;
+                    break;
             
             // 봇 정지 처리
             case 'stop':

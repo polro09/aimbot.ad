@@ -178,17 +178,61 @@ class DiscordBot {
     }
     
     // 봇 상태 정보 업데이트 함수
-    _updateBotStatus() {
-        if (!this.client || !this.client.guilds) return;
-        
-        this.status.guilds = Array.from(this.client.guilds.cache).map(([id, guild]) => ({
-            id,
-            name: guild.name,
-            memberCount: guild.memberCount
-        }));
-        
-        this.status.modules = Array.from(this.client.modules.keys());
+    // _updateBotStatus 함수 내에서 모듈 상태 업데이트 최적화
+_updateBotStatus() {
+    if (!this.client || !this.client.guilds) return;
+    
+    // 서버 목록 정보 
+    this.status.guilds = Array.from(this.client.guilds.cache).map(([id, guild]) => ({
+        id,
+        name: guild.name,
+        memberCount: guild.memberCount
+    }));
+    
+    // 모듈 목록 - 간소화된 정보만 포함
+    this.status.modules = Array.from(this.client.modules.keys());
+    
+    // 모듈 상태 정보는 가볍게 유지 (필요할 때만 전체 정보 제공)
+    const moduleStatus = {};
+    for (const [fileName, module] of this.client.modules.entries()) {
+        moduleStatus[fileName] = {
+            name: module.name || fileName,
+            enabled: module.enabled !== false
+        };
     }
+    
+    this.status.moduleStatus = moduleStatus;
+}
+
+// getModuleStatus 함수에 상세 정보 플래그 추가
+getModuleStatus(detailed = true) {
+    if (!detailed) {
+        // 가벼운 버전 반환
+        const lightModuleStatus = {};
+        for (const [fileName, module] of this.client.modules.entries()) {
+            lightModuleStatus[fileName] = {
+                name: module.name || fileName,
+                enabled: module.enabled !== false
+            };
+        }
+        return lightModuleStatus;
+    }
+    
+    // 상세 정보 버전 반환
+    const moduleStatus = {};
+    
+    for (const [fileName, module] of this.client.modules.entries()) {
+        moduleStatus[fileName] = {
+            name: module.name || fileName,
+            description: module.description || '설명 없음',
+            version: module.version || '1.0.0',
+            enabled: module.enabled !== false,
+            commands: module.commands ? Object.keys(module.commands) : []
+        };
+    }
+    
+    return moduleStatus;
+}
     
     // 가동 시간 계산 함수
     getUptime() {
