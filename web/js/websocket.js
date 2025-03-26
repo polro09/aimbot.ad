@@ -1,6 +1,6 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 웹소켓 통신 관리 - 수정 버전
+ * 개선된 웹소켓 통신 관리 시스템
  */
 
 const WebSocketManager = {
@@ -15,7 +15,9 @@ const WebSocketManager = {
     commandThrottles: {}, // 명령어 쓰로틀링
     isReconnecting: false, // 재연결 진행 상태
     baseReconnectDelay: 1000, // 기본 재연결 지연 시간 (1초)
+    heartbeatInterval: null, // 하트비트 인터벌
     
+    // 초기화
     init: function() {
         if (this.isInitialized) return; // 중복 초기화 방지
         
@@ -50,6 +52,22 @@ const WebSocketManager = {
             this.checkConnection();
         });
         
+        // 로딩 화면이 종료된 후 연결 상태 확인
+        document.addEventListener('loadingComplete', () => {
+            // 약간의 지연 후 연결 상태 확인 (로딩 애니메이션과 충돌 방지)
+            setTimeout(() => {
+                this.checkConnection();
+            }, 500);
+        });
+        
+        // 페이지 변경 이벤트 리스너
+        document.addEventListener('page_changed', (e) => {
+            // 페이지가 변경되면 새 페이지에 필요한 데이터 요청
+            setTimeout(() => {
+                this.requestDashboardData();
+            }, 300);
+        });
+        
         console.log('WebSocketManager 초기화 완료');
     },
     
@@ -57,11 +75,16 @@ const WebSocketManager = {
     checkConnection: function() {
         // 연결이 끊어진 상태에서 네트워크가 복구되면 재연결 시도
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-            console.log('연결이 끊어진 상태에서 페이지 활성화 감지. 재연결 시도...');
+            console.log('연결이 끊어진 상태 감지. 재연결 시도...');
             this.reconnect();
         } else {
             // 연결 상태이면 상태 요청으로 활성 상태 유지
-            this.sendMessage({ command: 'getBotStatus' });
+            this.sendMessage({ command: 'ping' });
+            
+            // 대시보드 데이터도 요청
+            if (window.location.hash === '#dashboard') {
+                this.sendMessage({ command: 'getBotStatus' });
+            }
         }
     },
     
@@ -150,7 +173,6 @@ const WebSocketManager = {
         this.isReconnecting = true;
         clearTimeout(this.reconnectTimeout);
         this.reconnectTimeout = setTimeout(() => {
-            this.reconnectAttempts = 0; // 처음부터 시작
             this.reconnect();
             this.isReconnecting = false;
         }, 1000); // 첫 시도는 1초 후
@@ -170,6 +192,73 @@ const WebSocketManager = {
         
         // 초기 상태 요청 - 필요한 기본 정보만 요청
         this.requestInitialStatus();
+        
+        // 실패했던 펜딩 명령 재시도
+        this.retryPendingCommands();
+    },
+    
+    // 실패했던 명령 재시도
+    retryPendingCommands: function() {
+        // 로컬 스토리지에서 저장된 실패 명령 가져오기
+        const pendingCommandsStr = localStorage.getItem('pendingCommands');
+        if (!pendingCommandsStr) return;
+        
+        try {
+            const pendingCommands = JSON.parse(pendingCommandsStr);
+            console.log(`재연결 후 ${pendingCommands.length}개의 실패 명령 재시도`);
+            
+            // 명령 재전송 (간격을 두고)
+            pendingCommands.forEach((cmd, index) => {
+                setTimeout(() => {
+                    this.sendMessage(cmd);
+                }, index * 300); // 300ms 간격으로 재시도
+            });
+            
+            // 실패 명령 목록 초기화
+            localStorage.removeItem('pendingCommands');
+        } catch (error) {
+            console.error('실패 명령 재시도 중 오류:', error);
+            localStorage.removeItem('pendingCommands');
+        }
+    },
+    
+    // 중요 명령 저장 (연결 끊김 시 재시도용)
+    savePendingCommand: function(command) {
+        // 중요 명령만 저장 (예: 설정 저장, 모듈 활성화/비활성화)
+        const importantCommands = [
+            'saveUserSettings', 'moduleAction', 'start', 'stop', 
+            'restart', 'assignServer', 'unassignServer', 'sendEmbed'
+        ];
+        
+        if (!importantCommands.includes(command.command)) return;
+        
+        try {
+            let pendingCommands = [];
+            const pendingCommandsStr = localStorage.getItem('pendingCommands');
+            
+            if (pendingCommandsStr) {
+                pendingCommands = JSON.parse(pendingCommandsStr);
+            }
+            
+            // 같은 명령이 있으면 제거 (중복 방지)
+            pendingCommands = pendingCommands.filter(cmd => 
+                cmd.command !== command.command || 
+                JSON.stringify(cmd) !== JSON.stringify(command)
+            );
+            
+            // 명령 추가
+            pendingCommands.push(command);
+            
+            // 최대 10개까지만 저장
+            if (pendingCommands.length > 10) {
+                pendingCommands = pendingCommands.slice(-10);
+            }
+            
+            // 로컬 스토리지에 저장
+            localStorage.setItem('pendingCommands', JSON.stringify(pendingCommands));
+        } catch (error) {
+            console.error('명령 저장 중 오류:', error);
+        }
     },
     
     handleMessage: function(event) {
@@ -257,6 +346,9 @@ const WebSocketManager = {
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
             console.error('웹소켓이 연결되지 않았습니다. 연결 상태:', this.socket ? this.socket.readyState : '소켓 없음');
             
+            // 중요 명령어 저장 (재연결 후 재시도)
+            this.savePendingCommand(message);
+            
             // 재연결 시도
             if (!this.isReconnecting) {
                 this.scheduleReconnect();
@@ -326,6 +418,9 @@ const WebSocketManager = {
             return true;
         } catch (error) {
             console.error('메시지 전송 오류:', error);
+            
+            // 중요 명령어 저장
+            this.savePendingCommand(message);
             
             // 명령 추적에서 제거
             if (commandKey) {
@@ -589,6 +684,9 @@ const WebSocketManager = {
         this.heartbeatInterval = setInterval(() => {
             if (this.socket && this.socket.readyState === WebSocket.OPEN) {
                 this.sendMessage({ command: 'ping' });
+            } else {
+                // 연결이 끊어진 경우 재연결 시도
+                this.checkConnection();
             }
         }, 30000);
     },
@@ -650,9 +748,22 @@ const WebSocketManager = {
     }
 };
 
-// 페이지 로드 시 웹소켓 관리자 초기화
+// 페이지 로드 시 WebSocketManager 초기화
 document.addEventListener('DOMContentLoaded', function() {
+    // 로딩 화면이 종료된 후 초기화하도록 타이밍 조정
     setTimeout(() => {
         WebSocketManager.init();
-    }, 2000); // 로딩 시간 단축
+        
+        // 로딩 화면 종료 이벤트 발생 설정
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                const loadingContainer = document.getElementById('loading-container');
+                if (loadingContainer && loadingContainer.style.display === 'none') {
+                    // 로딩 화면이 사라진 후 이벤트 발생
+                    const event = new CustomEvent('loadingComplete');
+                    document.dispatchEvent(event);
+                }
+            }, 500);
+        });
+    }, 2000); // 로딩 화면보다 빠르게 초기화 (2초 후)
 });

@@ -1,5 +1,6 @@
 /**
- * 디스코드 봇 대시보드 문제 해결 스크립트
+ * Sea Dogs Tavern Discord Bot WebUI
+ * 문제 해결 스크립트
  * 
  * 이 스크립트는 다음 문제들을 해결합니다:
  * 1. GIF 애니메이션이 작동하지 않는 문제
@@ -23,39 +24,62 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // 관리자 페이지 요소들의 색상 수정
         fixAdminPageColors();
-    }, 6500); // 로딩 애니메이션 완료 시간 기준
+    }, 3000); // 로딩 애니메이션 완료 시간 기준
 });
 
 /**
- * GIF 애니메이션 문제 해결
- * - 로컬 GIF 파일을 사용하도록 변경
- * - GIF가 제대로 로드되도록 강제 새로고침
+ * GIF 애니메이션 문제 해결 - 개선된 버전
+ * - 로컬 GIF 파일 사용을 명확히 함
+ * - 캐시 방지와 강제 새로고침 적용
+ * - 더 정교한 오류 처리 추가
  */
 function fixGifAnimations() {
-    // 메인 로고 GIF 수정
-    const mainLogo = document.querySelector('.main-logo');
-    if (mainLogo) {
-        // 로컬 파일로 경로 변경
-        mainLogo.src = 'Animation1.gif';
+    try {
+        // 메인 로고 GIF 수정
+        const mainLogo = document.querySelector('.main-logo');
+        if (mainLogo) {
+            console.log('메인 로고 GIF 수정 중...');
+            
+            // 로컬 파일로 경로 변경
+            mainLogo.src = 'Animation1.gif';
+            
+            // 캐시 방지를 위한 타임스탬프 추가
+            const timestamp = new Date().getTime();
+            setTimeout(() => {
+                mainLogo.src = `Animation1.gif?t=${timestamp}`;
+            }, 100);
+            
+            // 이벤트 리스너 추가 - 로드 문제 감지
+            mainLogo.onerror = () => {
+                console.error('메인 로고 GIF 로드 실패');
+                mainLogo.src = 'Animation1.gif'; // 다시 시도
+            };
+        }
         
-        // 캐시 방지를 위한 타임스탬프 추가
-        const timestamp = new Date().getTime();
-        setTimeout(() => {
-            mainLogo.src = `Animation1.gif?t=${timestamp}`;
-        }, 100);
-    }
-    
-    // 로딩 로고 GIF 수정
-    const loadingLogo = document.querySelector('.loading-logo img');
-    if (loadingLogo) {
-        // 로컬 파일로 경로 변경
-        loadingLogo.src = 'Animation1.gif';
+        // 로딩 로고 GIF 수정
+        const loadingLogo = document.querySelector('.loading-logo img');
+        if (loadingLogo) {
+            console.log('로딩 로고 GIF 수정 중...');
+            
+            // 로컬 파일로 경로 변경
+            loadingLogo.src = 'Animation1.gif';
+            
+            // 캐시 방지를 위한 타임스탬프 추가
+            const timestamp = new Date().getTime();
+            setTimeout(() => {
+                loadingLogo.src = `Animation1.gif?t=${timestamp}`;
+            }, 100);
+            
+            // 이벤트 리스너 추가 - 로드 문제 감지
+            loadingLogo.onerror = () => {
+                console.error('로딩 로고 GIF 로드 실패');
+                loadingLogo.src = 'Animation1.gif'; // 다시 시도
+            };
+        }
         
-        // 캐시 방지를 위한 타임스탬프 추가
-        const timestamp = new Date().getTime();
-        setTimeout(() => {
-            loadingLogo.src = `Animation1.gif?t=${timestamp}`;
-        }, 100);
+        console.log('GIF 애니메이션 수정 완료');
+    } catch (error) {
+        console.error('GIF 애니메이션 수정 중 오류 발생:', error);
     }
 }
 
@@ -307,6 +331,18 @@ function fixAdminPageColors() {
         };
     }
 })();
+
+// 페이지 변경 시 애니메이션 새로고침
+window.addEventListener('hashchange', function() {
+    setTimeout(fixGifAnimations, 500);
+});
+
+// 페이지 가시성 변경 감지 (탭 전환 등)
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        fixGifAnimations();
+    }
+});
 
 // 일정 시간마다 GIF 체크 및 새로고침 (GIF가 멈췄을 경우를 대비)
 setInterval(function() {
