@@ -82,16 +82,18 @@ async function createTicketEmbed(interaction, client, log) {
         // 티켓 임베드 생성
         const ticketEmbed = new EmbedBuilder()
             .setColor('#5865F2')  // Discord 브랜드 색상
-            .setTitle('🎫 티켓 시스템')
+            .setTitle('🎫 티켓')
             .setDescription('아래 버튼을 클릭하여 새 티켓을 생성하세요.\n문의사항, 클랜 가입 신청 등을 위해 티켓을 생성할 수 있습니다.')
+            .setThumbnail('https://imgur.com/5SH3rZy.png')
+            .setImage('https://imgur.com/PKwWSvx.png') // 환영 이미지 추가
             .addFields(
                 { 
                     name: '📋 티켓 사용 방법', 
-                    value: '1️⃣ 아래 버튼을 클릭하여 새 티켓을 생성합니다.\n2️⃣ 생성된 채널에서 필요한 정보를 입력합니다.\n3️⃣ 관리자가 확인 후 처리해드립니다.', 
+                    value: '1️⃣ 아래 버튼을 클릭하여 새 티켓을 생성합니다.\n2️⃣ 생성된 채널에서 필요한 정보를 입력합니다.\n3️⃣ 관리자가 확인 후 처리해드립니다.\u200b', 
                     inline: false 
                 },
                 { 
-                    name: '✅ 티켓 생성 가능 사유', 
+                    name: '\u200b✅ 티켓 생성 가능 사유', 
                     value: '• 💬 클랜 가입 신청\n• ❓ 문의사항\n• 💡 건의사항\n• 🚨 신고', 
                     inline: false 
                 }
@@ -111,7 +113,7 @@ async function createTicketEmbed(interaction, client, log) {
         
         // 채널에 임베드와 버튼 전송
         const message = await channel.send({ 
-            content: '@everyone 티켓 시스템이 설정되었습니다!', 
+            content: '■', 
             embeds: [ticketEmbed], 
             components: [row] 
         });
@@ -280,15 +282,31 @@ async function createTicket(interaction, client, log) {
         await interaction.editReply({ embeds: [successEmbed], ephemeral: true });
         
         // 티켓 채널에 초기 메시지 전송
-        const ticketInfoEmbed = new EmbedBuilder()
+        const ticketInfoEmbed = new EmbedBuilder() 
             .setColor('#5865F2')
             .setTitle('🎫 새 티켓이 생성되었습니다')
-            .setDescription(`${user}님의 티켓입니다.\n아래 선택 메뉴에서 원하는 작업을 선택하세요.`)
+            .setDescription(`👤${user}님의 티켓입니다.\n🔏디스코드 id: ${user.id}.`)
+            .setImage('https://imgur.com/i1i2ONL.png') // 환영 이미지 추가
             .addFields(
                 { 
                     name: '📌 중요 안내', 
-                    value: '선택 메뉴를 사용하여 원하는 작업을 진행하세요.\n작업이 완료되면 티켓 닫기를 선택하세요.', 
+                    value: '선택 메뉴를 사용하여 원하는 작업을 진행하세요.\n문의가 완료되면 티켓 닫기를 선택해주세요.', 
                     inline: false 
+                },
+                { 
+                    name: '📜 클랜 규칙', 
+                    value: '클랜 규칙을 확인하시고.\n규칙을 동의해주세요.', 
+                    inline: true 
+                },
+                { 
+                    name: '📝 클랜 가입 신청', 
+                    value: '신청서를 작성한 뒤.\n관리자를 기다려주세요.', 
+                    inline: true 
+                },
+                { 
+                    name: '🔔 관리자 호출', 
+                    value: '관리자가 부재일시.\n호출을 사용해주세요.', 
+                    inline: true 
                 }
             )
             .setFooter({ text: guild.name, iconURL: guild.iconURL({ dynamic: true }) })
@@ -330,7 +348,7 @@ async function createTicket(interaction, client, log) {
         
         // 티켓 채널에 메시지 전송
         await ticketChannel.send({
-            content: `${user}님, 티켓이 생성되었습니다!`,
+            content: `${user}`,
             embeds: [ticketInfoEmbed],
             components: [row]
         });

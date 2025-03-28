@@ -186,8 +186,8 @@ module.exports = {
                     .setColor('#57F287') // 녹색
                     .setTitle(`${member.guild.name}에 오신 것을 환영합니다!`)
                     .setDescription(`<@${member.id}>님이 서버에 참가했습니다. 🎉`)
-                    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-                    .setImage('https://i.imgur.com/qwJpfaZ.gif') // 환영 이미지 추가
+                    .setThumbnail('https://cdn3.emoji.gg/emojis/2594-switch-enabled.png')
+                    .setImage('https://imgur.com/PKwWSvx.png') // 환영 이미지 추가
                     .addFields(
                         { name: '👤 유저 정보', value: '```\n' +
                             `유저 ID: ${member.id}\n` +
@@ -232,8 +232,8 @@ module.exports = {
                     .setColor('#ED4245') // 빨간색
                     .setTitle(`${member.guild.name}에서 퇴장했습니다`)
                     .setDescription(`<@${member.id}>님이 서버에서 나갔습니다. 👋`)
-                    .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-                    .setImage('https://i.imgur.com/NQinKJB.gif') // 퇴장 이미지 추가
+                    .setThumbnail('https://cdn3.emoji.gg/emojis/72295-switch-disabled.png')
+                    .setImage('https://imgur.com/PKwWSvx.png') // 퇴장 이미지 추가
                     .addFields(
                         { name: '👤 유저 정보', value: '```\n' +
                             `유저 ID: ${member.id}\n` +
