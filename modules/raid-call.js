@@ -16,29 +16,45 @@ let activeRaidCalls = new Map();
 // 저장된 설정 불러오기
 async function loadSettings(log) {
     try {
-        await storage.load(CONFIG_STORAGE_KEY);
-        const configData = storage.getAll(CONFIG_STORAGE_KEY);
-        
-        if (configData) {
-            // Map으로 변환
-            guildSettings = new Map(Object.entries(configData));
+        // CONFIG_STORAGE_KEY 로드
+        try {
+            await storage.load(CONFIG_STORAGE_KEY);
+            const configData = storage.getAll(CONFIG_STORAGE_KEY);
+            
+            if (configData) {
+                // Map으로 변환
+                guildSettings = new Map(Object.entries(configData));
+            }
+        } catch (error) {
+            if (log) log('WARN', `${CONFIG_STORAGE_KEY} 설정 로드 중 오류, 초기화합니다: ${error.message}`);
+            storage.setAll(CONFIG_STORAGE_KEY, {});
+            await storage.save(CONFIG_STORAGE_KEY);
+            guildSettings = new Map();
         }
         
-        await storage.load(RAIDS_STORAGE_KEY);
-        const raidsData = storage.getAll(RAIDS_STORAGE_KEY);
-        
-        if (raidsData) {
-            // Map으로 변환
-            activeRaidCalls = new Map();
+        // RAIDS_STORAGE_KEY 로드
+        try {
+            await storage.load(RAIDS_STORAGE_KEY);
+            const raidsData = storage.getAll(RAIDS_STORAGE_KEY);
             
-            // 데이터 구조 복원 (중첩된 Map)
-            for (const [guildId, raids] of Object.entries(raidsData)) {
-                const guildRaids = new Map();
-                for (const [raidId, raidData] of Object.entries(raids)) {
-                    guildRaids.set(raidId, raidData);
+            if (raidsData) {
+                // Map으로 변환
+                activeRaidCalls = new Map();
+                
+                // 데이터 구조 복원 (중첩된 Map)
+                for (const [guildId, raids] of Object.entries(raidsData)) {
+                    const guildRaids = new Map();
+                    for (const [raidId, raidData] of Object.entries(raids)) {
+                        guildRaids.set(raidId, raidData);
+                    }
+                    activeRaidCalls.set(guildId, guildRaids);
                 }
-                activeRaidCalls.set(guildId, guildRaids);
             }
+        } catch (error) {
+            if (log) log('WARN', `${RAIDS_STORAGE_KEY} 설정 로드 중 오류, 초기화합니다: ${error.message}`);
+            storage.setAll(RAIDS_STORAGE_KEY, {});
+            await storage.save(RAIDS_STORAGE_KEY);
+            activeRaidCalls = new Map();
         }
         
         if (log) log('INFO', '레이드 콜 시스템 설정을 로드했습니다.');
@@ -344,37 +360,37 @@ async function showClassSelectionMenu(interaction, raidId, client, log) {
         const classOptions = [
             {
                 label: '엘레멘탈 나이트',
-                description: '원소의 힘을 다루는 전사',
+                description: '-',
                 value: `class_elemental_knight:${raidId}`,
                 emoji: '⚔️'
             },
             {
                 label: '세인트 바드',
-                description: '신성한 노래로 아군을 지원하는 음유시인',
+                description: '-',
                 value: `class_saint_bard:${raidId}`,
                 emoji: '🎵'
             },
             {
                 label: '알케믹 스팅어',
-                description: '독과 연금술을 다루는 암살자',
+                description: '-',
                 value: `class_alchemic_stinger:${raidId}`,
                 emoji: '🧪'
             },
             {
                 label: '다크 메이지',
-                description: '어둠의 마법을 다루는 마법사',
+                description: '-',
                 value: `class_dark_mage:${raidId}`,
                 emoji: '🔮'
             },
             {
                 label: '세이크리드 가드',
-                description: '신성한 방패로 아군을 보호하는 수호자',
+                description: '-',
                 value: `class_sacred_guard:${raidId}`,
                 emoji: '🛡️'
             },
             {
                 label: '블래스트 랜서',
-                description: '화약과 창을 다루는 원거리 공격수',
+                description: '-',
                 value: `class_blast_lancer:${raidId}`,
                 emoji: '🏹'
             }

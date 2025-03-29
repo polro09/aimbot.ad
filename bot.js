@@ -309,57 +309,94 @@ class DiscordBot {
         }
     }
     
-    // 단일 모듈 로드 함수
-    async _loadModule(file) {
-        try {
-            const modulePath = path.join(__dirname, config.dirs.modules, file);
-            
-            // 캐시 삭제 (개발 중 모듈 변경 사항 반영)
-            delete require.cache[require.resolve(modulePath)];
-            
-            // 모듈 로드 시도
-            const module = require(modulePath);
-            
-            // 모듈 초기화 함수 확인
-            if (typeof module.init !== 'function') {
-                this.log('ERROR', `모듈 ${file}에 init 함수가 없습니다.`);
-                this.moduleLoadingState.failedModules.add(file);
-                return false;
-            }
-            
-            try {
-                // 모듈 초기화 시도
-                await module.init(this.client, this.log.bind(this));
-                
-                // 모듈 명령어 추가
-                if (module.commands) {
-                    for (const [name, command] of Object.entries(module.commands)) {
-                        this.client.commands.set(name, command);
-                    }
-                }
-                
-                // 모듈 컬렉션에 추가
-                this.client.modules.set(file, module);
-                this.moduleLoadingState.loadedModules.add(file);
-                this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
-                return true;
-            } catch (initError) {
-                // 스토리지 관련 오류 처리 
-                if (this._isStorageDependencyError(initError)) {
-                    return await this._handleStorageDependency(file, module, initError);
-                }
-                
-                // 기타 오류는 실패 처리
-                this.log('ERROR', `모듈 ${file} 초기화 중 오류 발생: ${initError.message}`);
-                this.moduleLoadingState.failedModules.add(file);
-                return false;
-            }
-        } catch (error) {
-            this.log('ERROR', `모듈 ${file} 로드 중 오류 발생: ${error.message}`);
+    // bot.js 파일의 _loadModule 함수
+
+// 단일 모듈 로드 함수
+async _loadModule(file) {
+    try {
+        const modulePath = path.join(__dirname, config.dirs.modules, file);
+        
+        // 캐시 삭제 (개발 중 모듈 변경 사항 반영)
+        delete require.cache[require.resolve(modulePath)];
+        
+        // 모듈 로드 시도
+        const module = require(modulePath);
+        
+        // 모듈 초기화 함수 확인
+        if (typeof module.init !== 'function') {
+            this.log('ERROR', `모듈 ${file}에 init 함수가 없습니다.`);
             this.moduleLoadingState.failedModules.add(file);
             return false;
         }
+        
+        try {
+            // 모듈 초기화 시도
+            await module.init(this.client, this.log.bind(this));
+            
+            // 모듈 명령어 추가
+            if (module.commands) {
+                for (const [name, command] of Object.entries(module.commands)) {
+                    this.client.commands.set(name, command);
+                }
+            }
+            
+            // 모듈 컬렉션에 추가
+            this.client.modules.set(file, module);
+            this.moduleLoadingState.loadedModules.add(file);
+            this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
+            return true;
+        } catch (initError) {
+            // 추가: 저장소 파일 자동 생성 처리
+            if (initError.message.includes('저장소 파일') && initError.message.includes('존재하지 않습니다')) {
+                const missingStoreMatch = initError.message.match(/저장소 파일 ([a-zA-Z0-9-_]+)이\(가\) 존재하지 않습니다/);
+                if (missingStoreMatch && missingStoreMatch[1]) {
+                    const missingStore = missingStoreMatch[1];
+                    this.log('INFO', `모듈 ${file}에 필요한 저장소 ${missingStore}가 없어 생성합니다.`);
+                    
+                    // 저장소에 빈 객체 저장
+                    await storage.setAll(missingStore, {});
+                    await storage.save(missingStore);
+                    
+                    // 모듈 다시 초기화 시도
+                    try {
+                        await module.init(this.client, this.log.bind(this));
+                        
+                        // 모듈 명령어 추가
+                        if (module.commands) {
+                            for (const [name, command] of Object.entries(module.commands)) {
+                                this.client.commands.set(name, command);
+                            }
+                        }
+                        
+                        // 모듈 컬렉션에 추가
+                        this.client.modules.set(file, module);
+                        this.moduleLoadingState.loadedModules.add(file);
+                        this.log('MODULE', `모듈 ${file}을(를) 성공적으로 로드했습니다.`);
+                        return true;
+                    } catch (retryError) {
+                        this.log('ERROR', `저장소 생성 후에도 모듈 ${file} 초기화 실패: ${retryError.message}`);
+                        this.moduleLoadingState.failedModules.add(file);
+                        return false;
+                    }
+                }
+            }
+            
+            // 스토리지 관련 오류 처리 
+            if (this._isStorageDependencyError(initError)) {
+                return await this._handleStorageDependency(file, module, initError);
+            }
+            
+            // 기타 오류는 실패 처리
+            this.log('ERROR', `모듈 ${file} 초기화 중 오류 발생: ${initError.message}`);
+            this.moduleLoadingState.failedModules.add(file);
+            return false;
+        }
+    } catch (error) {
+        this.log('ERROR', `모듈 ${file} 로드 중 오류 발생: ${error.message}`);
+        this.moduleLoadingState.failedModules.add(file);
+        return false;
     }
+}
     
     // 스토리지 의존성 오류 확인
     _isStorageDependencyError(error) {

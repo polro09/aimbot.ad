@@ -5,9 +5,13 @@ const storage = require('../storage');
 
 // 스토리지 키
 const STORAGE_KEY = 'ticket-system-config';
+const APPLICATIONS_KEY = 'clan-applications';
 
 // 서버별 설정 저장
 let guildSettings = new Map();
+
+// 가입 신청서 저장
+let clanApplications = new Map();
 
 // 저장된 설정 불러오기
 async function loadSettings(log) {
@@ -18,6 +22,25 @@ async function loadSettings(log) {
         if (data) {
             // Map으로 변환
             guildSettings = new Map(Object.entries(data));
+        }
+        
+        // 가입 신청서 불러오기
+        try {
+            await storage.load(APPLICATIONS_KEY);
+            const applicationsData = storage.getAll(APPLICATIONS_KEY);
+            
+            if (applicationsData) {
+                // Map으로 변환
+                clanApplications = new Map(Object.entries(applicationsData));
+            }
+        } catch (error) {
+            // 가입 신청서 데이터가 없으면 빈 맵 생성
+            log('WARN', `가입 신청서 데이터를 불러올 수 없습니다: ${error.message}`);
+            clanApplications = new Map();
+            
+            // 빈 데이터 저장
+            storage.setAll(APPLICATIONS_KEY, {});
+            await storage.save(APPLICATIONS_KEY);
         }
         
         if (log) log('INFO', '티켓 시스템 설정을 로드했습니다.');
@@ -46,10 +69,65 @@ async function saveSettings(log) {
     }
 }
 
+// 가입 신청서 저장
+async function saveApplications(log) {
+    try {
+        // Map을 객체로 변환
+        const data = Object.fromEntries(clanApplications);
+        
+        // 스토리지에 저장
+        storage.setAll(APPLICATIONS_KEY, data);
+        await storage.save(APPLICATIONS_KEY);
+        
+        if (log) log('INFO', '가입 신청서를 저장했습니다.');
+        return true;
+    } catch (error) {
+        if (log) log('ERROR', `가입 신청서 저장 중 오류: ${error.message}`);
+        return false;
+    }
+}
+
 // 서버 설정 업데이트
 function updateGuildSettings(guildId, settings, log) {
     guildSettings.set(guildId, settings);
     saveSettings(log);
+}
+
+// 가입 신청서 추가
+function addApplication(guildId, userId, application, log) {
+    // 서버별 컬렉션 생성
+    if (!clanApplications.has(guildId)) {
+        clanApplications.set(guildId, new Map());
+    }
+    
+    // 사용자별 신청서 저장
+    const guildApps = clanApplications.get(guildId);
+    guildApps.set(userId, application);
+    
+    // 저장
+    saveApplications(log);
+}
+
+// 가입 신청서 가져오기
+function getApplications(guildId) {
+    const guildApps = clanApplications.get(guildId);
+    if (!guildApps) return [];
+    
+    // Map을 배열로 변환
+    return Array.from(guildApps.entries()).map(([userId, application]) => {
+        return {
+            userId,
+            ...application
+        };
+    });
+}
+
+// 특정 사용자의 가입 신청서 가져오기
+function getUserApplication(guildId, userId) {
+    const guildApps = clanApplications.get(guildId);
+    if (!guildApps) return null;
+    
+    return guildApps.get(userId);
 }
 
 // 티켓 임베드 생성
@@ -113,7 +191,6 @@ async function createTicketEmbed(interaction, client, log) {
         
         // 채널에 임베드와 버튼 전송
         const message = await channel.send({ 
-            content: '■', 
             embeds: [ticketEmbed], 
             components: [row] 
         });
@@ -375,30 +452,20 @@ async function createTicket(interaction, client, log) {
 // 클랜 규칙 표시
 async function showClanRules(interaction, client, log) {
     try {
-        // 클랜 규칙 임베드
+        // 블루스 클랜 규칙 임베드
         const clanRulesEmbed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle('📜 클랜 규칙')
-            .setDescription('우리 클랜의 규칙입니다. 가입하기 전에 반드시 읽어주세요.')
+            .setTitle('📜 블루스 클랜규칙')
+            .setDescription('블루스 클랜의 규칙입니다. 가입 전에 자세히 읽어주시고 숙지해주세요!')
             .addFields(
                 { 
-                    name: '1️⃣ 기본 규칙', 
-                    value: '• 👋 클랜원간 예의를 지켜주세요.\n• 🤝 타인을 존중하고 비하 발언을 삼가해주세요.\n• 🗣️ 과도한 욕설 사용은 자제해주세요.', 
+                    name: '(1) 길드 운영 지침', 
+                    value: '• 블루스는 만 19세 이상 성인길드입니다.\n• 길드 디스코드 가입은 필수입니다. 단, 길드 단톡 가입은 선택사항입니다.\n• 미접속 14일(2주)일 경우 탈퇴처리가 기본 원칙입니다.\n  단, 미접속게시판에 사유를 남겨주시면 정상참작해서 탈퇴처리를 보류합니다.\n• 길드 생활 중 불화가 있을 경우, 사안의 경중에 따라 경고 또는 탈퇴처리를 할 수 있습니다.(자세한 사항은 공지사항에 있는 블루스 내규를 확인해주세요.)\n• 이중길드는 원칙적으로 금지합니다.', 
                     inline: false 
                 },
                 { 
-                    name: '2️⃣ 활동 요구사항', 
-                    value: '• 📅 주간 활동 최소 3회 이상 필요합니다.\n• 🏆 클랜전 참여는 필수입니다.\n• 📝 장기간 활동이 어려운 경우 미리 공지해주세요.', 
-                    inline: false 
-                },
-                { 
-                    name: '3️⃣ 클랜전 규칙', 
-                    value: '• ⚔️ 클랜전 신청 후 불참은 경고 대상입니다.\n• ⏱️ 클랜전 공격은 정해진 시간 내에 완료해주세요.\n• 📋 클랜전 전략은 클랜 공지를 따릅니다.', 
-                    inline: false 
-                },
-                { 
-                    name: '4️⃣ 처벌 규정', 
-                    value: '• ⚠️ 규칙 위반 시 경고가 부여됩니다.\n• 🚫 경고 3회 누적 시 클랜에서 제명됩니다.\n• ⛔ 심각한 규칙 위반은 즉시 제명될 수 있습니다.', 
+                    name: '(2) 길드 생활 지침', 
+                    value: '• 길드원간 기본적인 매너와 예의를 지켜주세요.\n• 각 길드원의 플레이스타일과, 취향, 성향을 존중해주세요.\n• 험담, 욕설 등을 자제해주세요.\n• 남미새, 여미새, 핑프족, 논란있는 커뮤 사용자는 길드원으로 거부합니다.\n• 사사게 이력이 있으신 분은 길드원으로 거부합니다.\n• 길드 생활 중 문제나 어려움이 생겼을 시에 임원에게 먼저 상담해주세요.\n• 길드 공지사항에 있는 내용들을 잘 확인해주세요.', 
                     inline: false 
                 }
             )
@@ -453,14 +520,10 @@ async function handleRulesAgreement(interaction, client, log) {
         });
         
         // 사용자에게 응답
-        const responseEmbed = new EmbedBuilder()
-            .setColor('#57F287')
-            .setTitle('✅ 동의 완료')
-            .setDescription('클랜 규칙 동의가 완료되었습니다.')
-            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-            .setTimestamp();
-            
-        await interaction.reply({ embeds: [responseEmbed], ephemeral: true });
+        await interaction.reply({
+            content: '클랜 규칙 동의가 완료되었습니다.',
+            ephemeral: true
+        });
         
         log('INFO', `${interaction.user.tag}님이 클랜 규칙에 동의했습니다.`);
         
@@ -487,47 +550,46 @@ async function showClanApplicationModal(interaction, client, log) {
             .setTitle('클랜 가입 신청서');
         
         // 텍스트 입력 필드 추가
-        const gameNameInput = new TextInputBuilder()
-            .setCustomId('game_name')
-            .setLabel('게임 내 닉네임')
+        const sourceInput = new TextInputBuilder()
+            .setCustomId('source')
+            .setLabel('블루스를 알게 되신 경로를 알려주세요')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('게임에서 사용하는 닉네임을 입력하세요')
+            .setPlaceholder('거뿔/마도카/공홈/지인추천 등')
             .setRequired(true);
         
-        const gameIdInput = new TextInputBuilder()
-            .setCustomId('game_id')
-            .setLabel('게임 ID')
+        const characterNameInput = new TextInputBuilder()
+            .setCustomId('character_name')
+            .setLabel('캐릭터명을 알려주세요')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('게임 ID 또는 고유 번호를 입력하세요')
             .setRequired(true);
         
-        const levelInput = new TextInputBuilder()
-            .setCustomId('level')
-            .setLabel('현재 레벨/티어')
+        const genderAgeInput = new TextInputBuilder()
+            .setCustomId('gender_age')
+            .setLabel('성별과 나이대를 알려주세요')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('현재 게임 레벨 또는 티어를 입력하세요')
+            .setPlaceholder('해당 정보는 임원들에게만 알립니다')
             .setRequired(true);
         
-        const activityInput = new TextInputBuilder()
-            .setCustomId('activity')
-            .setLabel('주로 활동 가능한 시간')
+        const playtimeInput = new TextInputBuilder()
+            .setCustomId('playtime')
+            .setLabel('마비노기를 플레이한지 얼마 정도 되셨나요?')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('평일/주말 활동 가능 시간을 입력하세요')
+            .setPlaceholder('플레이 기간을 입력하세요')
             .setRequired(true);
         
-        const motivationInput = new TextInputBuilder()
-            .setCustomId('motivation')
-            .setLabel('가입 동기')
+        const additionalInfoInput = new TextInputBuilder()
+            .setCustomId('additional_info')
+            .setLabel('추가 정보')
             .setStyle(TextInputStyle.Paragraph)
-            .setPlaceholder('우리 클랜에 가입하려는 이유를 간략히 적어주세요')
+            .setPlaceholder('현재 누렙/주아르카나/블로니 추억담/메인스트림/주 컨텐츠/활동시간 등')
             .setRequired(true);
         
         // 액션 로우에 텍스트 입력 필드 추가
-        const firstActionRow = new ActionRowBuilder().addComponents(gameNameInput);
-        const secondActionRow = new ActionRowBuilder().addComponents(gameIdInput);
-        const thirdActionRow = new ActionRowBuilder().addComponents(levelInput);
-        const fourthActionRow = new ActionRowBuilder().addComponents(activityInput);
-        const fifthActionRow = new ActionRowBuilder().addComponents(motivationInput);
+        const firstActionRow = new ActionRowBuilder().addComponents(sourceInput);
+        const secondActionRow = new ActionRowBuilder().addComponents(characterNameInput);
+        const thirdActionRow = new ActionRowBuilder().addComponents(genderAgeInput);
+        const fourthActionRow = new ActionRowBuilder().addComponents(playtimeInput);
+        const fifthActionRow = new ActionRowBuilder().addComponents(additionalInfoInput);
         
         // 모달에 액션 로우 추가
         modal.addComponents(firstActionRow, secondActionRow, thirdActionRow, fourthActionRow, fifthActionRow);
@@ -553,11 +615,27 @@ async function showClanApplicationModal(interaction, client, log) {
 async function handleClanApplication(interaction, client, log) {
     try {
         // 폼 데이터 가져오기
-        const gameName = interaction.fields.getTextInputValue('game_name');
-        const gameId = interaction.fields.getTextInputValue('game_id');
-        const level = interaction.fields.getTextInputValue('level');
-        const activity = interaction.fields.getTextInputValue('activity');
-        const motivation = interaction.fields.getTextInputValue('motivation');
+        const source = interaction.fields.getTextInputValue('source');
+        const characterName = interaction.fields.getTextInputValue('character_name');
+        const genderAge = interaction.fields.getTextInputValue('gender_age');
+        const playtime = interaction.fields.getTextInputValue('playtime');
+        const additionalInfo = interaction.fields.getTextInputValue('additional_info');
+        
+        // 신청서 데이터 구성
+        const applicationData = {
+            userId: interaction.user.id,
+            userTag: interaction.user.tag,
+            source,
+            characterName,
+            genderAge,
+            playtime,
+            additionalInfo,
+            timestamp: new Date().toISOString(),
+            status: 'pending' // 대기중
+        };
+        
+        // 신청서 저장
+        addApplication(interaction.guild.id, interaction.user.id, applicationData, log);
         
         // 신청서 임베드 생성
         const applicationEmbed = new EmbedBuilder()
@@ -566,11 +644,11 @@ async function handleClanApplication(interaction, client, log) {
             .setDescription(`${interaction.user}님의 클랜 가입 신청서입니다.`)
             .addFields(
                 { name: '👤 디스코드 태그', value: interaction.user.tag, inline: true },
-                { name: '🎮 게임 닉네임', value: gameName, inline: true },
-                { name: '🆔 게임 ID', value: gameId, inline: true },
-                { name: '⭐ 레벨/티어', value: level, inline: true },
-                { name: '⏰ 활동 가능 시간', value: activity, inline: true },
-                { name: '📋 가입 동기', value: motivation, inline: false }
+                { name: '🎮 가입 경로', value: source, inline: true },
+                { name: '🎲 캐릭터명', value: characterName, inline: true },
+                { name: '👫 성별/나이대', value: genderAge, inline: true },
+                { name: '⏱️ 플레이 기간', value: playtime, inline: true },
+                { name: '📋 추가 정보', value: additionalInfo, inline: false }
             )
             .setFooter({ text: '관리자가 검토 후 연락드리겠습니다.', iconURL: interaction.guild.iconURL({ dynamic: true }) })
             .setTimestamp();
@@ -628,6 +706,23 @@ async function approveApplication(interaction, client, log) {
     try {
         // 사용자 ID 가져오기
         const userId = interaction.customId.split(':')[1];
+        
+        // 가입 신청서 데이터 가져오기
+        const applicationData = getUserApplication(interaction.guild.id, userId);
+        if (!applicationData) {
+            return await interaction.reply({
+                content: '가입 신청 데이터를 찾을 수 없습니다.',
+                ephemeral: true
+            });
+        }
+        
+        // 신청서 상태 업데이트
+        applicationData.status = 'approved';
+        applicationData.approvedBy = interaction.user.id;
+        applicationData.approvedAt = new Date().toISOString();
+        
+        // 저장
+        addApplication(interaction.guild.id, userId, applicationData, log);
         
         // 승인 임베드
         const approveEmbed = new EmbedBuilder()
@@ -713,6 +808,19 @@ async function handleRejectReason(interaction, client, log) {
     try {
         const userId = interaction.customId.split(':')[1];
         const reason = interaction.fields.getTextInputValue('reject_reason');
+        
+        // 가입 신청서 데이터 가져오기
+        const applicationData = getUserApplication(interaction.guild.id, userId);
+        if (applicationData) {
+            // 신청서 상태 업데이트
+            applicationData.status = 'rejected';
+            applicationData.rejectedBy = interaction.user.id;
+            applicationData.rejectedAt = new Date().toISOString();
+            applicationData.rejectReason = reason;
+            
+            // 저장
+            addApplication(interaction.guild.id, userId, applicationData, log);
+        }
         
         // 거부 임베드
         const rejectEmbed = new EmbedBuilder()
@@ -978,11 +1086,167 @@ async function handleSelectMenu(interaction, client, log) {
     }
 }
 
+// 가입 신청서 목록 조회
+async function showApplicationList(interaction, client, log) {
+    try {
+        const applications = getApplications(interaction.guild.id);
+        
+        if (applications.length === 0) {
+            return await interaction.reply({
+                content: '현재 제출된 가입 신청서가 없습니다.',
+                ephemeral: true
+            });
+        }
+        
+        // 가입 신청서 목록 임베드
+        const listEmbed = new EmbedBuilder()
+            .setColor('#5865F2')
+            .setTitle('📋 클랜 가입 신청서 목록')
+            .setDescription(`총 ${applications.length}개의 가입 신청서가 있습니다.`)
+            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+        
+        // 최대 10개 표시
+        const recentApps = applications.slice(0, 10);
+        
+        // 필드 추가
+        recentApps.forEach((app, index) => {
+            // 상태별 이모지
+            let statusEmoji = '⏳';
+            if (app.status === 'approved') statusEmoji = '✅';
+            if (app.status === 'rejected') statusEmoji = '❌';
+            
+            // 날짜 포맷팅
+            const date = new Date(app.timestamp).toLocaleDateString('ko-KR');
+            
+            listEmbed.addFields({
+                name: `${index + 1}. ${app.characterName} (${statusEmoji})`,
+                value: `👤 <@${app.userId}>\n📅 ${date}\n🔍 캐릭터명: ${app.characterName}\n🎮 플레이 기간: ${app.playtime}`,
+                inline: false
+            });
+        });
+        
+        await interaction.reply({
+            embeds: [listEmbed],
+            ephemeral: true
+        });
+        
+    } catch (error) {
+        log('ERROR', `가입 신청서 목록 조회 중 오류 발생: ${error.message}`);
+        
+        const errorEmbed = new EmbedBuilder()
+            .setColor('#ED4245')
+            .setTitle('❌ 오류 발생')
+            .setDescription('가입 신청서 목록 조회 중 오류가 발생했습니다.')
+            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+            
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+    }
+}
+
+// 가입 신청서 조회 - 특정 사용자
+async function showUserApplication(interaction, client, log) {
+    try {
+        const targetUser = interaction.options.getUser('유저');
+        const userId = targetUser ? targetUser.id : interaction.user.id;
+        
+        // 가입 신청서 가져오기
+        const application = getUserApplication(interaction.guild.id, userId);
+        
+        if (!application) {
+            return await interaction.reply({
+                content: targetUser ? `${targetUser.username}님의 가입 신청서가 없습니다.` : '제출한 가입 신청서가 없습니다.',
+                ephemeral: true
+            });
+        }
+        
+        // 상태별 이모지 및 색상
+        let statusEmoji = '⏳';
+        let statusText = '대기중';
+        let statusColor = '#FEE75C';
+        
+        if (application.status === 'approved') {
+            statusEmoji = '✅';
+            statusText = '승인됨';
+            statusColor = '#57F287';
+        } else if (application.status === 'rejected') {
+            statusEmoji = '❌';
+            statusText = '거부됨';
+            statusColor = '#ED4245';
+        }
+        
+        // 신청서 임베드
+        const applicationEmbed = new EmbedBuilder()
+            .setColor(statusColor)
+            .setTitle(`📝 클랜 가입 신청서 ${statusEmoji}`)
+            .setDescription(`${targetUser ? targetUser.username : interaction.user.username}님의 클랜 가입 신청서`)
+            .addFields(
+                { name: '👤 디스코드 정보', value: `${application.userTag}\n<@${application.userId}>`, inline: false },
+                { name: '📝 신청 내용', value: 
+                    `🎮 **가입 경로**: ${application.source}\n` +
+                    `🎲 **캐릭터명**: ${application.characterName}\n` +
+                    `👫 **성별/나이대**: ${application.genderAge}\n` +
+                    `⏱️ **플레이 기간**: ${application.playtime}\n` +
+                    `📋 **추가 정보**:\n${application.additionalInfo}`, 
+                    inline: false },
+                { name: '📊 상태', value: `${statusEmoji} ${statusText}`, inline: true },
+                { name: '📅 제출일', value: new Date(application.timestamp).toLocaleDateString('ko-KR'), inline: true }
+            )
+            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+        
+        // 승인/거부 정보 추가
+        if (application.status === 'approved') {
+            applicationEmbed.addFields({
+                name: '✅ 승인 정보',
+                value: `👑 승인자: <@${application.approvedBy}>\n📅 승인일: ${new Date(application.approvedAt).toLocaleDateString('ko-KR')}`,
+                inline: false
+            });
+        } else if (application.status === 'rejected') {
+            applicationEmbed.addFields({
+                name: '❌ 거부 정보',
+                value: `👑 거부자: <@${application.rejectedBy}>\n📅 거부일: ${new Date(application.rejectedAt).toLocaleDateString('ko-KR')}\n📝 거부 사유: ${application.rejectReason}`,
+                inline: false
+            });
+        }
+        
+        await interaction.reply({
+            embeds: [applicationEmbed],
+            ephemeral: true
+        });
+        
+    } catch (error) {
+        log('ERROR', `가입 신청서 조회 중 오류 발생: ${error.message}`);
+        
+        const errorEmbed = new EmbedBuilder()
+            .setColor('#ED4245')
+            .setTitle('❌ 오류 발생')
+            .setDescription('가입 신청서 조회 중 오류가 발생했습니다.')
+            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+            
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+    }
+}
+
 // 모듈 초기화 함수
 async function init(client, log) {
     // 스토리지 초기화 확인
     if (!storage.initialized) {
         await storage.init(log);
+    }
+    
+    // 다음 코드를 추가합니다 (여기서부터)
+    // clan-applications 저장소가 없으면 생성
+    try {
+        await storage.load('clan-applications');
+        log('INFO', 'clan-applications 저장소를 로드했습니다.');
+    } catch (error) {
+        // 새 저장소 파일 생성
+        log('INFO', 'clan-applications 저장소 파일이 없어 새로 생성합니다.');
+        storage.setAll('clan-applications', {});
+        await storage.save('clan-applications');
     }
     
     // 저장된 설정 불러오기
@@ -1187,26 +1451,69 @@ const slashCommands = [
                 .addRoleOption(option =>
                     option.setName('역할')
                         .setDescription('티켓 관리자 역할')
-                        .setRequired(true)))
+                        .setRequired(true))),
+    new SlashCommandBuilder()
+        .setName('티켓')
+        .setDescription('티켓 관련 명령어')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('가입신청서')
+                .setDescription('클랜 가입 신청서를 조회합니다')
+                .addUserOption(option =>
+                    option.setName('유저')
+                        .setDescription('조회할 사용자 (관리자만 다른 사용자 조회 가능)')
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('목록')
+                .setDescription('클랜 가입 신청서 목록을 조회합니다'))
 ];
 
 // 슬래시 커맨드 실행 함수
 async function executeSlashCommand(interaction, client, log) {
-    const subcommand = interaction.options.getSubcommand();
+    const { commandName, options } = interaction;
     
-    if (subcommand === '임베드생성') {
-        await createTicketEmbed(interaction, client, log);
-    }
-    else if (subcommand === '관리자역할설정') {
-        await setAdminRole(interaction, client, log);
+    if (commandName === '티켓설정') {
+        const subcommand = options.getSubcommand();
+        
+        if (subcommand === '임베드생성') {
+            await createTicketEmbed(interaction, client, log);
+        } else if (subcommand === '관리자역할설정') {
+            await setAdminRole(interaction, client, log);
+        }
+    } else if (commandName === '티켓') {
+        const subcommand = options.getSubcommand();
+        
+        if (subcommand === '가입신청서') {
+            // 다른 사용자의 신청서를 조회하려는 경우 관리자 권한 체크
+            const targetUser = options.getUser('유저');
+            
+            if (targetUser && targetUser.id !== interaction.user.id) {
+                // 서버 설정에서 관리자 역할 확인
+                const settings = guildSettings.get(interaction.guild.id);
+                const isAdmin = settings && settings.adminRole && 
+                    interaction.member.roles.cache.has(settings.adminRole);
+                
+                if (!isAdmin && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                    return interaction.reply({
+                        content: '다른 사용자의 가입 신청서를 조회할 권한이 없습니다.',
+                        ephemeral: true
+                    });
+                }
+            }
+            
+            await showUserApplication(interaction, client, log);
+        } else if (subcommand === '목록') {
+            await showApplicationList(interaction, client, log);
+        }
     }
 }
 
 module.exports = {
     name: 'ticket-system',
     description: '티켓 시스템 모듈',
-    version: '1.0.0',
-    commands: ['티켓설정'],
+    version: '1.1.0',
+    commands: ['티켓설정', '티켓'],
     enabled: true,
     init,
     executeSlashCommand,

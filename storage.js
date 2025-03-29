@@ -508,100 +508,112 @@ class Storage {
         }
     }
     
-    /**
-     * 저장소 파일이 암호화되었는지 확인
-     * @param {string} data 파일 데이터
-     * @returns {boolean} 암호화 여부
-     * @private
-     */
-    _isEncrypted(data) {
-        // 암호화된 데이터는 IV:암호화데이터 형식
-        return typeof data === 'string' && 
-               data.includes(':') && 
-               /^[0-9a-f]{32}:[0-9a-f]+$/.test(data);
+    // storage.js 파일에 다음 함수를 추가합니다
+
+/**
+ * 저장소 존재 확인 및 없으면 생성
+ * @param {string} storeKey 저장소 키
+ * @param {Object} defaultData 기본 데이터
+ * @returns {Promise<boolean>} 성공 여부
+ */
+async ensureStorage(storeKey, defaultData = {}) {
+    try {
+        await this.load(storeKey);
+        return true;
+    } catch (error) {
+        this.log('INFO', `저장소 ${storeKey}이(가) 없어 새로 생성합니다.`);
+        this.setAll(storeKey, defaultData);
+        await this.save(storeKey);
+        return true;
     }
+}
 
     /**
      * 저장소 파일 불러오기 - 복구 메커니즘 개선
      * @param {string} storeName 저장소 이름
      * @returns {Promise<boolean>} 로드 성공 여부
      */
-    async load(storeName) {
-        try {
-            // 파일 경로 확인
-            const filePath = this.storeFiles[storeName];
-            if (!filePath) {
-                throw new Error(`저장소 파일 ${storeName}이(가) 존재하지 않습니다.`);
-            }
+    // storage.js 파일의 load 함수 수정
+
+async load(storeName) {
+    try {
+        // 파일 경로 확인
+        const filePath = this.storeFiles[storeName];
+        if (!filePath) {
+            // 이 부분 추가: 저장소가 등록되지 않은 경우 자동 등록
+            this.storeFiles[storeName] = path.join(config.dirs.data, `${storeName}.json`);
+            this.stores[storeName] = {};
             
-            // 파일 존재 여부 확인
-            try {
-                await fs.access(filePath);
-                
-                // 파일 읽기
-                const data = await fs.readFile(filePath, 'utf8');
-                
-                // 비어있는 파일 처리
-                if (!data || data.trim() === '') {
-                    this.stores[storeName] = {};
-                    this.log('WARN', `저장소 ${storeName}이(가) 비어 있습니다. 빈 객체로 초기화합니다.`);
-                    return true;
-                }
-                
-                try {
-                    // 암호화 여부 확인 및 처리
-                    if (this._isEncrypted(data)) {
-                        this.stores[storeName] = this._decrypt(data);
-                    } else {
-                        // JSON 파싱 전 데이터 유효성 검사
-                        if (!this._isValidJSON(data)) {
-                            throw new Error('유효하지 않은 JSON 형식');
-                        }
-                        
-                        this.stores[storeName] = JSON.parse(data);
-                    }
-                    
-                    // 캐시 타임스탬프 갱신
-                    this.cacheTimestamps[storeName] = Date.now();
-                    this.log('INFO', `저장소 ${storeName}을(를) 로드했습니다.`);
-                    
-                    // 복구 시도 횟수 초기화
-                    this.recoveryAttempts.delete(storeName);
-                    
-                    return true;
-                } catch (parseError) {
-                    // 파싱 오류 - 손상된 파일로 취급
-                    this.log('ERROR', `저장소 ${storeName} 파싱 오류: ${parseError.message}`);
-                    this.corruptionStats.detectedCount++;
-                    
-                    // 손상된 파일 백업 (나중에 분석용)
-                    const recoveryDir = path.join(config.dirs.data, 'recovery');
-                    const backupPath = path.join(recoveryDir, `${storeName}_corrupted_${Date.now()}.json`);
-                    await fs.copyFile(filePath, backupPath);
-                    this.log('WARN', `손상된 저장소 파일 백업: ${backupPath}`);
-                    
-                    // 복구 시도
-                    return await this._attemptRecovery(storeName);
-                }
-            } catch (accessError) {
-                // 파일이 없으면 빈 객체로 초기화
+            // 파일 생성
+            await fs.writeFile(this.storeFiles[storeName], '{}', 'utf8');
+            this.log('INFO', `저장소 ${storeName} 파일이 새로 생성되었습니다.`);
+            return true;
+        }
+        
+        // 파일 존재 여부 확인
+        try {
+            await fs.access(filePath);
+            
+            // 파일 읽기
+            const data = await fs.readFile(filePath, 'utf8');
+            
+            // 비어있는 파일 처리
+            if (!data || data.trim() === '') {
                 this.stores[storeName] = {};
-                
-                // 파일 생성
-                await fs.writeFile(filePath, '{}', 'utf8');
-                this.log('INFO', `저장소 ${storeName} 파일이 새로 생성되었습니다.`);
+                this.log('WARN', `저장소 ${storeName}이(가) 비어 있습니다. 빈 객체로 초기화합니다.`);
                 return true;
             }
-        } catch (error) {
-            this.log('ERROR', `저장소 ${storeName} 로드 중 오류 발생: ${error.message}`);
             
-            // 다른 오류가 발생하면 빈 객체로 초기화
+            try {
+                // 암호화 여부 확인 및 처리
+                if (this._isEncrypted(data)) {
+                    // 암호화된 데이터는 IV:암호화데이터 형식
+                    return typeof data === 'string' && 
+                           data.includes(':') && 
+                           /^[0-9a-f]{32}:[0-9a-f]+$/.test(data);
+                }
+                
+                // 캐시 타임스탬프 갱신
+                this.cacheTimestamps[storeName] = Date.now();
+                this.log('INFO', `저장소 ${storeName}을(를) 로드했습니다.`);
+                
+                // 복구 시도 횟수 초기화
+                this.recoveryAttempts.delete(storeName);
+                
+                return true;
+            } catch (parseError) {
+                // 파싱 오류 - 손상된 파일로 취급
+                this.log('ERROR', `저장소 ${storeName} 파싱 오류: ${parseError.message}`);
+                this.corruptionStats.detectedCount++;
+                
+                // 손상된 파일 백업 (나중에 분석용)
+                const recoveryDir = path.join(config.dirs.data, 'recovery');
+                const backupPath = path.join(recoveryDir, `${storeName}_corrupted_${Date.now()}.json`);
+                await fs.copyFile(filePath, backupPath);
+                this.log('WARN', `손상된 저장소 파일 백업: ${backupPath}`);
+                
+                // 복구 시도
+                return await this._attemptRecovery(storeName);
+            }
+        } catch (accessError) {
+            // 파일이 없으면 빈 객체로 초기화
             this.stores[storeName] = {};
-            this.log('WARN', `저장소 ${storeName}을(를) 빈 객체로 초기화합니다.`);
             
-            throw error;
+            // 파일 생성
+            await fs.writeFile(filePath, '{}', 'utf8');
+            this.log('INFO', `저장소 ${storeName} 파일이 새로 생성되었습니다.`);
+            return true;
         }
+    } catch (error) {
+        this.log('ERROR', `저장소 ${storeName} 로드 중 오류 발생: ${error.message}`);
+        
+        // 다른 오류가 발생하면 빈 객체로 초기화
+        this.stores[storeName] = {};
+        this.log('WARN', `저장소 ${storeName}을(를) 빈 객체로 초기화합니다.`);
+        
+        throw error;
     }
+}
     
     /**
      * 유효한 JSON 문자열인지 확인
