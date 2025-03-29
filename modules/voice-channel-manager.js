@@ -1,4 +1,5 @@
 // modules/voice-channel-manager.js - 음성 채널 자동 생성 및 관리 모듈
+// 버전 1.2.0 - 개선된 통화방 유형 및 AFK 자동 감지 기능 추가
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, SlashCommandBuilder, StringSelectMenuBuilder } = require('discord.js');
 const storage = require('../storage');
@@ -24,6 +25,52 @@ const transferRequests = new Map();
 
 // 권한 변경 작업 진행 중인 채널 트래킹
 const pendingPermissionUpdates = new Set();
+
+// AFK 채널 추적 맵
+// Map<guildId, channelId>
+const afkChannels = new Map();
+
+// 사용자 활동 시간 추적
+// Map<userId, timestamp>
+const userActivityTimestamps = new Map();
+
+// 비활성 감지 간격 (10분)
+const INACTIVITY_CHECK_INTERVAL = 10 * 60 * 1000;
+
+// 비활성 판단 기준 (30분)
+const INACTIVITY_THRESHOLD = 30 * 60 * 1000;
+
+// 통화방 유형 및 이름 포맷
+const ROOM_TYPES = {
+    'default': {
+        emoji: '🔊',
+        format: name => `🔊 ${name}님의 보이스룸`
+    },
+    'freetalk': {
+        emoji: '🔋',
+        format: name => `🔋ㅣ${name}님의 freetalk`
+    },
+    'hunting': {
+        emoji: '🏹', 
+        format: name => `🏹ㅣ${name}님의 사냥파티`
+    },
+    'trading': {
+        emoji: '🪙',
+        format: name => `🪙ㅣ${name}님의 교역파티`
+    },
+    'study': {
+        emoji: '🎓',
+        format: name => `🎓ㅣ${name}님의 스터디룸`
+    },
+    'music': {
+        emoji: '🎶',
+        format: name => `🎶ㅣ${name}님의 뮤직룸`
+    },
+    'afk': {
+        emoji: '🪫',
+        format: () => `🪫ㅣAFK`
+    }
+};
 
 // 설정 저장
 async function saveConfig(log) {
@@ -86,6 +133,9 @@ async function init(client, log) {
             
             // 1. 사용자가 음성 채널에 입장한 경우
             if (newState.channelId && (!oldState.channelId || oldState.channelId !== newState.channelId)) {
+                // 사용자 활동 시간 업데이트
+                userActivityTimestamps.set(newState.member.id, Date.now());
+                
                 // 입장한 채널이 부모 채널인지 확인
                 if (autoCreateChannels.includes(newState.channelId)) {
                     await handleUserJoinParentChannel(newState, client, log);
@@ -102,13 +152,29 @@ async function init(client, log) {
                 
                 // 소유자가 퇴장했는지 확인하고 필요 시 소유권 이전
                 await handleOwnerLeftChannel(oldState, client, log);
+                
+                // 사용자 활동 추적에서 제거 (퇴장했으므로)
+                if (!newState.channelId) {
+                    userActivityTimestamps.delete(oldState.member.id);
+                }
+            }
+            
+            // 3. 사용자가 여전히 채널에 있는 경우 - 활동 시간 업데이트
+            if (newState.channelId) {
+                // 사용자가 음성 채널 내에서 마이크나 헤드셋 상태를 변경하면 활동 중으로 간주
+                if (oldState.mute !== newState.mute || 
+                    oldState.deaf !== newState.deaf || 
+                    oldState.streaming !== newState.streaming ||
+                    oldState.selfVideo !== newState.selfVideo) {
+                    userActivityTimestamps.set(newState.member.id, Date.now());
+                }
             }
         } catch (error) {
             log('ERROR', `음성 채널 자동 생성 처리 중 오류 발생: ${error.message}`);
         }
     });
     
-    // 버튼 상호작용 처리
+    // 버튼 및 선택 메뉴 상호작용 처리
     client.on('interactionCreate', async (interaction) => {
         // 버튼, 모달 제출, 또는 문자열 선택 메뉴만 처리
         if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isStringSelectMenu()) return;
@@ -121,22 +187,42 @@ async function init(client, log) {
                     case 'rename_channel':
                         await showRenameModal(interaction, channelId);
                         break;
-                    case 'transfer_ownership':
-                        await showTransferOwnershipMenu(interaction, channelId, client);
-                        break;
                     case 'request_ownership':
                         await handleOwnershipRequest(interaction, channelId, client);
                         break;
-                    case 'channel_info':
-                        await showChannelInfo(interaction, channelId, client);
+                    case 'confirm_close_channel':
+                        await handleChannelClose(interaction, channelId, client, log);
+                        break;
+                    case 'cancel_close_channel':
+                        await handleCancelClose(interaction, channelId, log);
                         break;
                 }
             } else if (interaction.isModalSubmit() && interaction.customId.startsWith('rename_modal:')) {
                 const channelId = interaction.customId.split(':')[1];
                 await renameChannel(interaction, channelId, client, log);
-            } else if (interaction.isStringSelectMenu() && interaction.customId.startsWith('transfer_owner:')) {
-                const channelId = interaction.customId.split(':')[1];
-                await transferOwnership(interaction, channelId, client, log);
+            } else if (interaction.isStringSelectMenu()) {
+                const customId = interaction.customId;
+                
+                if (customId.startsWith('voice_room_actions:')) {
+                    const channelId = customId.split(':')[1];
+                    const selectedAction = interaction.values[0];
+                    
+                    if (selectedAction.startsWith('rename_channel')) {
+                        await showRenameModal(interaction, channelId);
+                    } else if (selectedAction.startsWith('transfer_ownership')) {
+                        await showTransferOwnershipMenu(interaction, channelId, client);
+                    } else if (selectedAction.startsWith('view_info')) {
+                        await showChannelInfo(interaction, channelId, client);
+                    } else if (selectedAction.startsWith('room_type:')) {
+                        const roomType = selectedAction.split(':')[1];
+                        await handleRoomTypeSelection(interaction, channelId, roomType, client, log);
+                    } else if (selectedAction === 'close_channel') {
+                        await confirmCloseChannel(interaction, channelId, log);
+                    }
+                } else if (customId.startsWith('transfer_owner:')) {
+                    const channelId = customId.split(':')[1];
+                    await transferOwnership(interaction, channelId, client, log);
+                }
             }
         } catch (error) {
             log('ERROR', `버튼 상호작용 처리 중 오류 발생: ${error.message}`);
@@ -181,7 +267,138 @@ async function init(client, log) {
         }
     }
     
+    // AFK 채널 자동 감지 설정
+    setupInactivityDetection(client, log);
+    
     log('MODULE', '음성 채널 관리 모듈이 초기화되었습니다.');
+}
+
+// 비활성 사용자 감지 시스템 설정
+function setupInactivityDetection(client, log) {
+    // 정기적으로 사용자 활동 확인
+    setInterval(() => {
+        checkUserActivity(client, log);
+    }, INACTIVITY_CHECK_INTERVAL);
+    
+    log('INFO', `비활성 사용자 감지 시스템이 설정되었습니다 (${INACTIVITY_THRESHOLD / 60000}분 간격으로 확인)`);
+}
+
+// 사용자 활동 확인 및 비활성 사용자 처리
+async function checkUserActivity(client, log) {
+    const now = Date.now();
+    
+    // 각 서버별로 음성 채널 내 사용자 확인
+    for (const guild of client.guilds.cache.values()) {
+        try {
+            // 모든 음성 채널 확인
+            const voiceChannels = guild.channels.cache.filter(channel => 
+                channel.type === ChannelType.GuildVoice && 
+                channel.members.size > 0 &&
+                !channel.name.includes('AFK') // AFK 채널은 제외
+            );
+            
+            // 모든 음성 채널의 멤버 확인
+            for (const [channelId, channel] of voiceChannels) {
+                for (const [memberId, member] of channel.members) {
+                    // 마지막 활동 시간 확인
+                    const lastActivity = userActivityTimestamps.get(memberId) || 0;
+                    const inactiveTime = now - lastActivity;
+                    
+                    // 30분 이상 비활성 상태면 AFK 채널로 이동
+                    if (inactiveTime >= INACTIVITY_THRESHOLD) {
+                        await moveToAFKChannel(member, guild, log);
+                    }
+                }
+            }
+        } catch (error) {
+            log('ERROR', `사용자 활동 확인 중 오류 발생: ${error.message}`);
+        }
+    }
+}
+
+// 사용자를 AFK 채널로 이동
+async function moveToAFKChannel(member, guild, log) {
+    try {
+        // 사용자가 AFK 채널에 이미 있는지 확인
+        if (member.voice.channel && member.voice.channel.name.includes('AFK')) {
+            return;
+        }
+        
+        // AFK 채널 찾기 또는 생성
+        const afkChannel = await findOrCreateAFKChannel(guild, log);
+        if (!afkChannel) return;
+        
+        // 사용자 이동
+        await member.voice.setChannel(afkChannel);
+        log('INFO', `비활성 사용자 ${member.user.tag}을(를) AFK 채널로 이동했습니다.`);
+        
+        // 이동 알림 DM 전송
+        try {
+            const inactivityEmbed = new EmbedBuilder()
+                .setColor('#FEE75C')
+                .setTitle('🪫 AFK 채널로 이동됨')
+                .setDescription(`30분 동안 활동이 없어 AFK 채널로 이동되었습니다.`)
+                .addFields(
+                    { name: '서버', value: guild.name, inline: true },
+                    { name: '이동 채널', value: afkChannel.name, inline: true }
+                )
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+            
+            await member.user.send({ embeds: [inactivityEmbed] }).catch(() => {
+                // DM 전송 실패는 무시
+            });
+        } catch (dmError) {
+            // DM 에러 무시
+        }
+    } catch (error) {
+        log('ERROR', `사용자 ${member.user.tag}를 AFK 채널로 이동하는 중 오류 발생: ${error.message}`);
+    }
+}
+
+// AFK 채널 찾기 또는 생성
+async function findOrCreateAFKChannel(guild, log) {
+    try {
+        // 이미 추적 중인 AFK 채널 확인
+        let afkChannelId = afkChannels.get(guild.id);
+        if (afkChannelId) {
+            const existingChannel = guild.channels.cache.get(afkChannelId);
+            if (existingChannel) return existingChannel;
+        }
+        
+        // 이름에 "AFK"가 포함된 채널 찾기
+        const afkChannel = guild.channels.cache.find(channel => 
+            channel.type === ChannelType.GuildVoice && 
+            channel.name.includes('AFK')
+        );
+        
+        if (afkChannel) {
+            // 발견된 AFK 채널 저장 및 반환
+            afkChannels.set(guild.id, afkChannel.id);
+            return afkChannel;
+        }
+        
+        // AFK 채널이 없으면 새로 생성
+        const newAFKChannel = await guild.channels.create({
+            name: ROOM_TYPES.afk.format(),
+            type: ChannelType.GuildVoice,
+            permissionOverwrites: [
+                {
+                    id: guild.id, // @everyone
+                    allow: [PermissionsBitField.Flags.Connect, PermissionsBitField.Flags.Speak]
+                }
+            ]
+        });
+        
+        // 새 AFK 채널 저장
+        afkChannels.set(guild.id, newAFKChannel.id);
+        log('INFO', `서버 ${guild.name}에 AFK 채널을 생성했습니다: ${newAFKChannel.name}`);
+        
+        return newAFKChannel;
+    } catch (error) {
+        log('ERROR', `AFK 채널 찾기/생성 중 오류 발생: ${error.message}`);
+        return null;
+    }
 }
 
 // 사용자가 부모 채널에 입장했을 때 처리
@@ -193,13 +410,12 @@ async function handleUserJoinParentChannel(state, client, log) {
     if (!parentChannel) return;
     
     try {
-        // 속도 개선을 위해 비동기 작업을 즉시 시작
         // 사용자 닉네임 또는 이름 가져오기
         const creatorName = state.member.nickname || state.member.user.username;
         
-        // 새 채널 생성 - 최대한 빠르게 생성
+        // 새 채널 생성 - 기본 이름 형식 변경
         const newChannel = await guild.channels.create({
-            name: `🔊 ${creatorName}의 통화방`,
+            name: ROOM_TYPES.default.format(creatorName),
             type: ChannelType.GuildVoice,
             parent: parentChannel.parent,
             bitrate: parentChannel.bitrate,
@@ -226,13 +442,16 @@ async function handleUserJoinParentChannel(state, client, log) {
             state.setChannel(newChannel).catch(e => {
                 if (log) log('ERROR', `사용자 이동 중 오류 발생: ${e.message}`);
             });
-        }, 500); // 500ms 지연 - Discord API 안정성과 사용자 경험 사이의 균형점
+        }, 500); // 500ms 지연
         
         // 채널 소유권 정보 저장
         channelOwnership.set(newChannel.id, {
             ownerId: state.member.id,
             createdAt: new Date()
         });
+        
+        // 사용자 활동 시간 초기화
+        userActivityTimestamps.set(state.member.id, Date.now());
         
         // 생성된 채널 추적
         addCreatedChannel(guild.id, parentChannel.id, newChannel.id);
@@ -387,6 +606,9 @@ async function handleOwnerLeftChannel(state, client, log) {
                 
                 await channel.send({ embeds: [transferEmbed] });
                 
+                // 사용자 활동 시간 초기화
+                userActivityTimestamps.set(newOwnerId, Date.now());
+                
                 if (log) log('INFO', `채널 ${channel.name} (${channelId})의 소유권이 자동으로 ${newOwnerId}에게 이전되었습니다.`);
             }
         } finally {
@@ -425,6 +647,11 @@ async function cleanupEmptyChannels(state, log) {
             // 권한 변경 작업 목록에서 제거
             pendingPermissionUpdates.delete(channel.id);
             
+            // AFK 채널이 삭제된 경우 추적 목록에서 제거
+            if (afkChannels.get(guild.id) === channel.id) {
+                afkChannels.delete(guild.id);
+            }
+            
             if (log) log('INFO', `빈 음성 채널 삭제됨: ${channel.name} (${channel.id})`);
             
             return true;
@@ -436,61 +663,97 @@ async function cleanupEmptyChannels(state, log) {
     return false;
 }
 
-// 채널 관리 메시지 전송
+// 채널 관리 메시지 전송 - 선택 메뉴로 변경
 async function sendChannelControlsMessage(user, channel) {
     try {
         // 임베드 생성 - 더 세련되고 가독성 있는 디자인
         const embed = new EmbedBuilder()
-            .setColor('#5865F2') // Discord 브랜드 색상으로 변경
+            .setColor('#5865F2') // Discord 브랜드 색상
             .setTitle('🎧 통화방이 생성되었습니다!')
-            .setDescription(`**${channel.name}** 통화방이 성공적으로 생성되었습니다.\n아래 버튼으로 통화방을 관리하세요.`)
+            .setDescription(`**${channel.name}** 통화방이 성공적으로 생성되었습니다.\n아래 선택 메뉴에서 원하는 작업을 선택하세요.`)
             .setThumbnail('https://i.imgur.com/6YToyEF.png')
             .addFields(
                 { 
-                    name: '📝 이름 변경', 
-                    value: '통화방의 이름을 원하는대로 변경할 수 있습니다.', 
-                    inline: true 
+                    name: '📝 채널 관리 옵션', 
+                    value: '선택 메뉴에서 채널 이름 변경, 소유권 이전, 채널 정보 확인 등의 작업을 할 수 있습니다.', 
+                    inline: false 
                 },
                 { 
-                    name: '👑 소유권 이전', 
-                    value: '다른 사용자에게 통화방 관리 권한을 넘길 수 있습니다.', 
-                    inline: true 
+                    name: '🏷️ 통화방 유형 선택', 
+                    value: '원하는 통화방 유형을 선택하여 이름을 변경할 수 있습니다.\n(예: 사냥파티, 교역파티, 스터디룸 등)', 
+                    inline: false 
                 },
                 { 
-                    name: 'ℹ️ 채널 정보', 
-                    value: '통화방 생성 시간, 참가자 수 등을 확인할 수 있습니다.', 
-                    inline: true 
-                }
-            )
-            .addFields(
-                { 
-                    name: '소유자 권한', 
-                    value: '👑 채널 소유자는 다음 권한을 가집니다:\n• 채널 이름 변경\n• 사용자 음소거/귓속말\n• 사용자 내보내기\n• 소유권 이전', 
+                    name: '👑 소유자 권한', 
+                    value: '채널 소유자는 다음 권한을 가집니다:\n• 채널 이름 변경\n• 사용자 음소거/귓속말\n• 사용자 내보내기\n• 소유권 이전', 
                     inline: false 
                 }
             )
-            .setImage('https://i.imgur.com/qwJpfaZ.gif') // 환영 이미지 추가
             .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
             .setTimestamp();
         
-        // 버튼 생성 - 동일한 기능이지만 세련된 디자인
+        // 선택 메뉴로 변경 (버튼 대신)
         const row = new ActionRowBuilder()
             .addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`rename_channel:${channel.id}`)
-                    .setLabel('이름 변경')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('📝'),
-                new ButtonBuilder()
-                    .setCustomId(`transfer_ownership:${channel.id}`)
-                    .setLabel('소유권 이전')
-                    .setStyle(ButtonStyle.Success)
-                    .setEmoji('👑'),
-                new ButtonBuilder()
-                    .setCustomId(`channel_info:${channel.id}`)
-                    .setLabel('채널 정보')
-                    .setStyle(ButtonStyle.Secondary)
-                    .setEmoji('ℹ️')
+                new StringSelectMenuBuilder()
+                    .setCustomId(`voice_room_actions:${channel.id}`)
+                    .setPlaceholder('원하는 작업을 선택하세요')
+                    .addOptions([
+                        {
+                            label: '이름 직접 변경',
+                            description: '통화방 이름을 직접 입력하여 변경합니다',
+                            value: `rename_channel`,
+                            emoji: '📝'
+                        },
+                        {
+                            label: '소유권 이전',
+                            description: '다른 사용자에게 통화방 관리 권한을 넘깁니다',
+                            value: `transfer_ownership`,
+                            emoji: '👑'
+                        },
+                        {
+                            label: '채널 정보',
+                            description: '통화방 생성 시간, 참가자 수 등을 확인합니다',
+                            value: `view_info`,
+                            emoji: 'ℹ️'
+                        },
+                        {
+                            label: '일반 대화방',
+                            description: 'freetalk 통화방으로 이름을 변경합니다',
+                            value: `room_type:freetalk`,
+                            emoji: '🔋'
+                        },
+                        {
+                            label: '사냥 파티',
+                            description: '사냥 파티용 통화방으로 이름을 변경합니다',
+                            value: `room_type:hunting`,
+                            emoji: '🏹'
+                        },
+                        {
+                            label: '교역 파티',
+                            description: '교역 파티용 통화방으로 이름을 변경합니다',
+                            value: `room_type:trading`,
+                            emoji: '🪙'
+                        },
+                        {
+                            label: '스터디룸',
+                            description: '스터디룸 통화방으로 이름을 변경합니다',
+                            value: `room_type:study`,
+                            emoji: '🎓'
+                        },
+                        {
+                            label: '뮤직룸',
+                            description: '음악 감상용 통화방으로 이름을 변경합니다',
+                            value: `room_type:music`,
+                            emoji: '🎶'
+                        },
+                        {
+                            label: '채널 닫기',
+                            description: '통화방을 닫고 삭제합니다',
+                            value: 'close_channel',
+                            emoji: '🔒'
+                        }
+                    ])
             );
         
         // DM으로 전송
@@ -498,6 +761,273 @@ async function sendChannelControlsMessage(user, channel) {
         
     } catch (error) {
         console.error(`음성 채널 관리 메시지 전송 중 오류 발생: ${error.message}`);
+    }
+}
+
+// 통화방 유형 선택 처리
+async function handleRoomTypeSelection(interaction, channelId, roomType, client, log) {
+    try {
+        // 먼저 응답을 지연시킴 (3초 타임아웃 방지)
+        await interaction.deferReply({ ephemeral: true });
+        
+        // 유효성 검사 - 소유자인지 확인
+        if (!validateChannelOwnership(interaction.user.id, channelId)) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 권한 오류')
+                .setDescription('자신이 생성한 채널만 관리할 수 있습니다.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.editReply({ embeds: [errorEmbed] });
+        }
+        
+        // 채널 가져오기
+        const channel = await client.channels.fetch(channelId).catch(() => null);
+        if (!channel) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 채널 찾기 오류')
+                .setDescription('채널을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.editReply({ embeds: [errorEmbed] });
+        }
+        
+        // 유효한 통화방 유형인지 확인
+        if (!ROOM_TYPES[roomType]) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 선택 오류')
+                .setDescription('유효하지 않은 통화방 유형입니다.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.editReply({ embeds: [errorEmbed] });
+        }
+        
+        // 서버 별명 가져오기
+        const guild = channel.guild;
+        const member = await guild.members.fetch(interaction.user.id);
+        const userName = member.nickname || member.user.username;
+        
+        // 새 채널 이름 생성
+        const newChannelName = ROOM_TYPES[roomType].format(userName);
+        
+        try {
+            // 이름 변경 시도
+            await channel.setName(newChannelName);
+            
+            // 성공 임베드 생성
+            const successEmbed = new EmbedBuilder()
+                .setColor('#57F287')
+                .setTitle('✅ 통화방 유형 변경 완료')
+                .setDescription(`통화방 이름이 **${newChannelName}**으로 변경되었습니다.`)
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+            
+            // 응답
+            await interaction.editReply({ embeds: [successEmbed] });
+            
+            if (log) log('INFO', `${interaction.user.tag}님이 음성 채널 유형을 "${roomType}"으로 변경했습니다.`);
+        } catch (err) {
+            // 이름 변경 실패
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 이름 변경 오류')
+                .setDescription(`채널 이름을 변경하지 못했습니다.\n사유: ${err.message}`)
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.editReply({ embeds: [errorEmbed] });
+        }
+    } catch (error) {
+        log('ERROR', `통화방 유형 변경 중 오류 발생: ${error.message}`);
+        
+        // 이미 응답했거나 지연했는지 확인
+        if (interaction.deferred) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 오류 발생')
+                .setDescription('예상치 못한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.editReply({ embeds: [errorEmbed] }).catch(() => {});
+        }
+    }
+}
+
+// 채널 닫기 확인 메뉴
+async function confirmCloseChannel(interaction, channelId, log) {
+    try {
+        // 유효성 검사 - 소유자인지 확인
+        if (!validateChannelOwnership(interaction.user.id, channelId)) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 권한 오류')
+                .setDescription('자신이 생성한 채널만 닫을 수 있습니다.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
+        
+        // 닫기 확인 임베드
+        const confirmEmbed = new EmbedBuilder()
+            .setColor('#FEE75C')
+            .setTitle('⚠️ 통화방 닫기 확인')
+            .setDescription('정말로 이 통화방을 닫으시겠습니까?\n통화방을 닫으면 모든 사용자가 연결 해제되고 채널이 삭제됩니다.')
+            .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+            .setTimestamp();
+        
+        // 확인 버튼
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`confirm_close_channel:${channelId}`)
+                    .setLabel('통화방 닫기')
+                    .setStyle(ButtonStyle.Danger)
+                    .setEmoji('🔒'),
+                new ButtonBuilder()
+                    .setCustomId(`cancel_close_channel:${channelId}`)
+                    .setLabel('취소')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('❌')
+            );
+        
+        await interaction.reply({ embeds: [confirmEmbed], components: [row], ephemeral: true });
+    } catch (error) {
+        log('ERROR', `통화방 닫기 확인 메뉴 표시 중 오류 발생: ${error.message}`);
+        
+        const errorEmbed = new EmbedBuilder()
+            .setColor('#ED4245')
+            .setTitle('⚠️ 오류 발생')
+            .setDescription('예상치 못한 오류가 발생했습니다. 잠시 후 다시 시도해주세요.')
+            .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+            .setTimestamp();
+            
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+    }
+}
+
+// 채널 닫기 처리
+async function handleChannelClose(interaction, channelId, client, log) {
+    try {
+        // 유효성 검사 - 소유자인지 확인
+        if (!validateChannelOwnership(interaction.user.id, channelId)) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 권한 오류')
+                .setDescription('자신이 생성한 채널만 닫을 수 있습니다.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.update({ embeds: [errorEmbed], components: [] });
+        }
+        
+        // 채널 가져오기
+        const channel = await client.channels.fetch(channelId).catch(() => null);
+        if (!channel) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 채널 찾기 오류')
+                .setDescription('채널을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.update({ embeds: [errorEmbed], components: [] });
+        }
+        
+        // 닫기 진행 중 임베드
+        const closingEmbed = new EmbedBuilder()
+            .setColor('#ED4245')
+            .setTitle('🔒 통화방 닫는 중')
+            .setDescription('통화방을 닫는 중입니다. 3초 후 모든 사용자가 연결 해제되고 채널이 삭제됩니다.')
+            .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+            .setTimestamp();
+        
+        await interaction.update({ embeds: [closingEmbed], components: [] });
+        
+        // 채널에 닫기 메시지 전송
+        try {
+            await channel.send({
+                content: `@everyone`,
+                embeds: [
+                    new EmbedBuilder()
+                        .setColor('#ED4245')
+                        .setTitle('🔒 통화방이 곧 닫힙니다')
+                        .setDescription(`<@${interaction.user.id}>님이 통화방을 닫았습니다. 3초 후 이 채널은 삭제됩니다.`)
+                        .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                        .setTimestamp()
+                ]
+            });
+        } catch (err) {
+            // 채널 메시지 전송 실패는 무시
+        }
+        
+        // 3초 후 채널 삭제
+        setTimeout(async () => {
+            try {
+                // 모든 멤버 연결 끊기 (AFK 채널로 이동)
+                const afkChannel = await findOrCreateAFKChannel(channel.guild, log);
+                if (afkChannel) {
+                    for (const [memberId, member] of channel.members) {
+                        try {
+                            await member.voice.setChannel(afkChannel);
+                        } catch (moveError) {
+                            // 멤버 이동 실패는 무시
+                        }
+                    }
+                }
+                
+                // 채널 삭제
+                await channel.delete();
+                
+                // 추적 정보 정리
+                removeCreatedChannel(channel.guild.id, channelId);
+                channelOwnership.delete(channelId);
+                transferRequests.delete(channelId);
+                
+                log('INFO', `${interaction.user.tag}님이 통화방 ${channel.name}을(를) 닫았습니다.`);
+            } catch (error) {
+                log('ERROR', `통화방 닫기 처리 중 오류 발생: ${error.message}`);
+            }
+        }, 3000);
+    } catch (error) {
+        log('ERROR', `통화방 닫기 처리 중 오류 발생: ${error.message}`);
+        
+        try {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 오류 발생')
+                .setDescription('통화방 닫기 처리 중 오류가 발생했습니다.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            await interaction.update({ embeds: [errorEmbed], components: [] });
+        } catch (replyError) {
+            // 응답 오류 무시
+        }
+    }
+}
+
+// 채널 닫기 취소 처리
+async function handleCancelClose(interaction, channelId, log) {
+    try {
+        const cancelEmbed = new EmbedBuilder()
+            .setColor('#5865F2')
+            .setTitle('❌ 통화방 닫기 취소됨')
+            .setDescription('통화방 닫기가 취소되었습니다.')
+            .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+            .setTimestamp();
+        
+        await interaction.update({ embeds: [cancelEmbed], components: [] });
+        
+        log('INFO', `${interaction.user.tag}님이 통화방 닫기를 취소했습니다.`);
+    } catch (error) {
+        log('ERROR', `통화방 닫기 취소 처리 중 오류 발생: ${error.message}`);
     }
 }
 
@@ -683,7 +1213,7 @@ async function renameChannel(interaction, channelId, client, log) {
         }
         
         // 이모지 접두사 추가
-        if (!newName.startsWith('🔊')) {
+        if (!newName.match(/^[\u2600-\u26FF\u2700-\u27BF\u{1F000}-\u{1F9FF}]/u)) {
             newName = `🔊 ${newName}`;
         }
         
@@ -740,7 +1270,7 @@ async function showTransferOwnershipMenu(interaction, channelId, client) {
         // 유효성 검사
         if (!validateChannelOwnership(interaction.user.id, channelId)) {
             const errorEmbed = new EmbedBuilder()
-                .setColor('#ED4245')  // 빨간색 (오류)
+                .setColor('#ED4245')
                 .setTitle('⚠️ 권한 오류')
                 .setDescription('자신이 생성한 채널만 관리할 수 있습니다.')
                 .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
@@ -753,7 +1283,7 @@ async function showTransferOwnershipMenu(interaction, channelId, client) {
         const channel = await client.channels.fetch(channelId).catch(() => null);
         if (!channel) {
             const errorEmbed = new EmbedBuilder()
-                .setColor('#ED4245')  // 빨간색 (오류)
+                .setColor('#ED4245')
                 .setTitle('⚠️ 채널 찾기 오류')
                 .setDescription('채널을 찾을 수 없습니다. 이미 삭제되었을 수 있습니다.')
                 .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
@@ -767,7 +1297,7 @@ async function showTransferOwnershipMenu(interaction, channelId, client) {
         
         if (otherMembers.size === 0) {
             const errorEmbed = new EmbedBuilder()
-                .setColor('#FEE75C')  // 노란색 (경고)
+                .setColor('#FEE75C')
                 .setTitle('⚠️ 소유권 이전 불가')
                 .setDescription('통화방에 다른 사용자가 없습니다.\n소유권을 이전할 사용자가 통화방에 입장해 있어야 합니다.')
                 .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
@@ -783,7 +1313,7 @@ async function showTransferOwnershipMenu(interaction, channelId, client) {
         
         // 임베드 생성
         const transferEmbed = new EmbedBuilder()
-            .setColor('#5865F2')  // Discord 브랜드 색상
+            .setColor('#5865F2')
             .setTitle('👑 통화방 소유권 이전')
             .setDescription('소유권을 이전할 사용자를 선택해주세요.')
             .addFields(
@@ -963,6 +1493,9 @@ async function transferOwnership(interaction, channelId, client, log) {
             
             await channel.send({ embeds: [channelNotifyEmbed] });
             
+            // 사용자 활동 시간 초기화
+            userActivityTimestamps.set(newOwnerId, Date.now());
+            
             if (log) log('INFO', `${interaction.user.tag}님이 채널 ${channel.name} (${channelId})의 소유권을 ${newOwnerId}에게 이전했습니다.`);
             
         } catch (err) {
@@ -1060,6 +1593,29 @@ async function handleOwnershipRequest(interaction, channelId, client) {
             transferRequests.set(channelId, new Set());
         }
         transferRequests.get(channelId).add(interaction.user.id);
+        
+        // 사용자가 현재 채널에 있는지 확인
+        const member = channel.members.get(interaction.user.id);
+        if (member) {
+            // 사용자가 이미 채널에 있으면 바로 소유권 이전
+            await handleUserJoinChannel({ 
+                channelId, 
+                channel, 
+                member: { id: interaction.user.id }
+            }, client, (type, msg) => console.log(`[${type}] ${msg}`));
+            
+            // 소유권 이전이 성공했는지 확인
+            if (isChannelOwner(interaction.user.id, channelId)) {
+                const successEmbed = new EmbedBuilder()
+                    .setColor('#57F287')
+                    .setTitle('✅ 소유권 이전 완료')
+                    .setDescription('성공적으로 통화방의 소유권을 가져왔습니다.')
+                    .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                    .setTimestamp();
+                
+                return await interaction.editReply({ embeds: [successEmbed] });
+            }
+        }
         
         // 성공 임베드
         const successEmbed = new EmbedBuilder()
@@ -1159,6 +1715,36 @@ async function showChannelInfo(interaction, channelId, client) {
                 membersList = '현재 참가자가 없습니다.';
             }
             
+            // 채널 유형 판단
+            let channelType = '기본 음성 채널';
+            for (const [type, config] of Object.entries(ROOM_TYPES)) {
+                if (channel.name.startsWith(config.emoji)) {
+                    switch(type) {
+                        case 'freetalk':
+                            channelType = '일반 대화방';
+                            break;
+                        case 'hunting':
+                            channelType = '사냥 파티';
+                            break;
+                        case 'trading':
+                            channelType = '교역 파티';
+                            break;
+                        case 'study':
+                            channelType = '스터디룸';
+                            break;
+                        case 'music':
+                            channelType = '뮤직룸';
+                            break;
+                        case 'afk':
+                            channelType = 'AFK 채널';
+                            break;
+                        default:
+                            channelType = '기본 음성 채널';
+                    }
+                    break;
+                }
+            }
+            
             // 임베드 생성
             const infoEmbed = new EmbedBuilder()
                 .setColor('#5865F2')
@@ -1168,9 +1754,9 @@ async function showChannelInfo(interaction, channelId, client) {
                     { name: '👤 생성자', value: ownerName, inline: true },
                     { name: '🕒 생성 시간', value: createdTimeStr, inline: true },
                     { name: '👥 참가자 수', value: `${memberCount}명`, inline: true },
-                    { name: '👑 소유권', value: isOwner ? '당신' : `<@${ownerData.ownerId}>`, inline: true }
-                )
-                .addFields(
+                    { name: '👑 소유권', value: isOwner ? '당신' : `<@${ownerData.ownerId}>`, inline: true },
+                    { name: '🏷️ 채널 유형', value: channelType, inline: true },
+                    { name: '🔊 음질', value: `${channel.bitrate / 1000}kbps`, inline: true },
                     { name: '현재 참가자', value: membersList, inline: false }
                 )
                 .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
@@ -1221,153 +1807,153 @@ async function showChannelInfo(interaction, channelId, client) {
         }
     }
     
-    // 슬래시 커맨드 정의
-    const slashCommands = [
-        new SlashCommandBuilder()
-            .setName('음성채널설정')
-            .setDescription('음성 통화방 자동 생성 기능을 설정합니다')
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('추가')
-                    .setDescription('자동 생성 기능을 활성화할 음성 채널을 추가합니다')
-                    .addChannelOption(option =>
-                        option.setName('채널')
-                            .setDescription('자동 생성 기능을 활성화할 음성 채널')
-                            .setRequired(true)))
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('제거')
-                    .setDescription('자동 생성 기능을 비활성화할 음성 채널을 제거합니다')
-                    .addChannelOption(option =>
-                        option.setName('채널')
-                            .setDescription('자동 생성 기능을 비활성화할 음성 채널')
-                            .setRequired(true)))
-            .addSubcommand(subcommand =>
-                subcommand
-                    .setName('목록')
-                    .setDescription('현재 설정된 자동 생성 음성 채널 목록을 확인합니다'))
-    ];
+// 슬래시 커맨드 정의
+const slashCommands = [
+    new SlashCommandBuilder()
+        .setName('음성채널설정')
+        .setDescription('음성 통화방 자동 생성 기능을 설정합니다')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('추가')
+                .setDescription('자동 생성 기능을 활성화할 음성 채널을 추가합니다')
+                .addChannelOption(option =>
+                    option.setName('채널')
+                        .setDescription('자동 생성 기능을 활성화할 음성 채널')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('제거')
+                .setDescription('자동 생성 기능을 비활성화할 음성 채널을 제거합니다')
+                .addChannelOption(option =>
+                    option.setName('채널')
+                        .setDescription('자동 생성 기능을 비활성화할 음성 채널')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('목록')
+                .setDescription('현재 설정된 자동 생성 음성 채널 목록을 확인합니다'))
+];
+
+// 슬래시 커맨드 실행 함수
+async function executeSlashCommand(interaction, client, log) {
+    const subcommand = interaction.options.getSubcommand();
+    const guildId = interaction.guildId;
     
-    // 슬래시 커맨드 실행 함수
-    async function executeSlashCommand(interaction, client, log) {
-        const subcommand = interaction.options.getSubcommand();
-        const guildId = interaction.guildId;
+    if (subcommand === '추가') {
+        const channel = interaction.options.getChannel('채널');
         
-        if (subcommand === '추가') {
-            const channel = interaction.options.getChannel('채널');
-            
-            // 음성 채널인지 확인
-            if (channel.type !== ChannelType.GuildVoice) {
-                const errorEmbed = new EmbedBuilder()
-                    .setColor('#ED4245')
-                    .setTitle('⚠️ 채널 유형 오류')
-                    .setDescription('선택한 채널은 음성 채널이 아닙니다.')
-                    .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
-                    .setTimestamp();
-                    
-                return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-            }
-            
-            // 채널 추가
-            const success = addAutoCreateChannel(guildId, channel.id, log);
-            
-            if (success) {
-                log('INFO', `서버 ${interaction.guild.name}에 자동 생성 음성 채널이 추가됨: ${channel.name} (${channel.id})`);
+        // 음성 채널인지 확인
+        if (channel.type !== ChannelType.GuildVoice) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('⚠️ 채널 유형 오류')
+                .setDescription('선택한 채널은 음성 채널이 아닙니다.')
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
                 
-                const successEmbed = new EmbedBuilder()
-                    .setColor('#57F287')
-                    .setTitle('✅ 설정 완료')
-                    .setDescription(`채널 <#${channel.id}>이(가) 음성 통화방 자동 생성 대상으로 추가되었습니다.`)
-                    .addFields(
-                        { name: '채널 정보', value: `이름: ${channel.name}\nID: ${channel.id}`, inline: true },
-                        { name: '사용 방법', value: '해당 음성 채널에 입장하면 자동으로 새 통화방이 생성됩니다.', inline: true }
-                    )
-                    .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
-                    .setTimestamp();
-                    
-                return await interaction.reply({ embeds: [successEmbed], ephemeral: true });
-            } else {
-                const alreadySetEmbed = new EmbedBuilder()
-                    .setColor('#FEE75C')
-                    .setTitle('⚠️ 이미 설정됨')
-                    .setDescription(`채널 <#${channel.id}>은(는) 이미 설정되어 있습니다.`)
-                    .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
-                    .setTimestamp();
-                    
-                return await interaction.reply({ embeds: [alreadySetEmbed], ephemeral: true });
-            }
+            return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
-        else if (subcommand === '제거') {
-            const channel = interaction.options.getChannel('채널');
+        
+        // 채널 추가
+        const success = addAutoCreateChannel(guildId, channel.id, log);
+        
+        if (success) {
+            log('INFO', `서버 ${interaction.guild.name}에 자동 생성 음성 채널이 추가됨: ${channel.name} (${channel.id})`);
             
-            // 채널 제거
-            const success = removeAutoCreateChannel(guildId, channel.id, log);
-            
-            if (success) {
-                log('INFO', `서버 ${interaction.guild.name}에서 자동 생성 음성 채널이 제거됨: ${channel.name} (${channel.id})`);
+            const successEmbed = new EmbedBuilder()
+                .setColor('#57F287')
+                .setTitle('✅ 설정 완료')
+                .setDescription(`채널 <#${channel.id}>이(가) 음성 통화방 자동 생성 대상으로 추가되었습니다.`)
+                .addFields(
+                    { name: '채널 정보', value: `이름: ${channel.name}\nID: ${channel.id}`, inline: true },
+                    { name: '사용 방법', value: '해당 음성 채널에 입장하면 자동으로 새 통화방이 생성됩니다.', inline: true }
+                )
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
                 
-                const removeEmbed = new EmbedBuilder()
-                    .setColor('#57F287')
-                    .setTitle('✅ 설정 제거 완료')
-                    .setDescription(`채널 <#${channel.id}>이(가) 음성 통화방 자동 생성 대상에서 제거되었습니다.`)
-                    .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
-                    .setTimestamp();
-                    
-                return await interaction.reply({ embeds: [removeEmbed], ephemeral: true });
-            } else {
-                const notSetEmbed = new EmbedBuilder()
-                    .setColor('#FEE75C')
-                    .setTitle('⚠️ 설정되지 않음')
-                    .setDescription(`채널 <#${channel.id}>은(는) 설정되어 있지 않습니다.`)
-                    .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
-                    .setTimestamp();
-                    
-                return await interaction.reply({ embeds: [notSetEmbed], ephemeral: true });
-            }
-        }
-        else if (subcommand === '목록') {
-            const channelIds = getAutoCreateChannels(guildId);
-            
-            if (channelIds.length === 0) {
-                const noChannelsEmbed = new EmbedBuilder()
-                    .setColor('#FEE75C')
-                    .setTitle('📋 설정 목록')
-                    .setDescription('설정된 자동 생성 음성 통화방이 없습니다.')
-                    .addFields(
-                        { name: '🔍 도움말', value: '`/음성채널설정 추가` 명령어로 음성 통화방 자동 생성 기능을 설정할 수 있습니다.' }
-                    )
-                    .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
-                    .setTimestamp();
-                    
-                return await interaction.reply({ embeds: [noChannelsEmbed], ephemeral: true });
-            } else {
-                const channelList = channelIds.map(id => {
-                    const channel = interaction.guild.channels.cache.get(id);
-                    return channel ? `• <#${id}> (ID: ${id})` : `• 알 수 없는 채널 (ID: ${id})`;
-                }).join('\n');
+            return await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+        } else {
+            const alreadySetEmbed = new EmbedBuilder()
+                .setColor('#FEE75C')
+                .setTitle('⚠️ 이미 설정됨')
+                .setDescription(`채널 <#${channel.id}>은(는) 이미 설정되어 있습니다.`)
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
                 
-                const listEmbed = new EmbedBuilder()
-                    .setColor('#5865F2')
-                    .setTitle('📋 음성 통화방 자동 생성 설정 목록')
-                    .setDescription('다음 채널에 입장하면 개인 음성 통화방이 자동으로 생성됩니다:')
-                    .addFields(
-                        { name: '설정된 채널 목록', value: channelList }
-                    )
-                    .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
-                    .setTimestamp();
-                    
-                return await interaction.reply({ embeds: [listEmbed], ephemeral: true });
-            }
+            return await interaction.reply({ embeds: [alreadySetEmbed], ephemeral: true });
         }
     }
-    
-    module.exports = {
-        name: 'voice-channel-manager',
-        description: '사용자 음성 통화방 자동 생성 및 관리 모듈',
-        version: '1.1.0',
-        commands: ['음성채널설정'],
-        enabled: true,
-        init,
-        executeSlashCommand,
-        slashCommands
-    };
+    else if (subcommand === '제거') {
+        const channel = interaction.options.getChannel('채널');
+        
+        // 채널 제거
+        const success = removeAutoCreateChannel(guildId, channel.id, log);
+        
+        if (success) {
+            log('INFO', `서버 ${interaction.guild.name}에서 자동 생성 음성 채널이 제거됨: ${channel.name} (${channel.id})`);
+            
+            const removeEmbed = new EmbedBuilder()
+                .setColor('#57F287')
+                .setTitle('✅ 설정 제거 완료')
+                .setDescription(`채널 <#${channel.id}>이(가) 음성 통화방 자동 생성 대상에서 제거되었습니다.`)
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.reply({ embeds: [removeEmbed], ephemeral: true });
+        } else {
+            const notSetEmbed = new EmbedBuilder()
+                .setColor('#FEE75C')
+                .setTitle('⚠️ 설정되지 않음')
+                .setDescription(`채널 <#${channel.id}>은(는) 설정되어 있지 않습니다.`)
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.reply({ embeds: [notSetEmbed], ephemeral: true });
+        }
+    }
+    else if (subcommand === '목록') {
+        const channelIds = getAutoCreateChannels(guildId);
+        
+        if (channelIds.length === 0) {
+            const noChannelsEmbed = new EmbedBuilder()
+                .setColor('#FEE75C')
+                .setTitle('📋 설정 목록')
+                .setDescription('설정된 자동 생성 음성 통화방이 없습니다.')
+                .addFields(
+                    { name: '🔍 도움말', value: '`/음성채널설정 추가` 명령어로 음성 통화방 자동 생성 기능을 설정할 수 있습니다.' }
+                )
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.reply({ embeds: [noChannelsEmbed], ephemeral: true });
+        } else {
+            const channelList = channelIds.map(id => {
+                const channel = interaction.guild.channels.cache.get(id);
+                return channel ? `• <#${id}> (ID: ${id})` : `• 알 수 없는 채널 (ID: ${id})`;
+            }).join('\n');
+            
+            const listEmbed = new EmbedBuilder()
+                .setColor('#5865F2')
+                .setTitle('📋 음성 통화방 자동 생성 설정 목록')
+                .setDescription('다음 채널에 입장하면 개인 음성 통화방이 자동으로 생성됩니다:')
+                .addFields(
+                    { name: '설정된 채널 목록', value: channelList }
+                )
+                .setFooter({ text: 'Sea Dogs Tavern', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                .setTimestamp();
+                
+            return await interaction.reply({ embeds: [listEmbed], ephemeral: true });
+        }
+    }
+}
+
+module.exports = {
+    name: 'voice-channel-manager',
+    description: '사용자 음성 통화방 자동 생성 및 관리 모듈',
+    version: '1.2.0',
+    commands: ['음성채널설정'],
+    enabled: true,
+    init,
+    executeSlashCommand,
+    slashCommands
+};
