@@ -473,6 +473,13 @@ class Storage {
         }
     }
     
+    // 여기에 _isEncrypted 함수를 추가
+    _isEncrypted(data) {
+        // 암호화된 데이터는 16진수 IV + ':' + 16진수 암호화 데이터 형식
+        return typeof data === 'string' && 
+               data.includes(':') && 
+               /^[0-9a-f]{32}:[0-9a-f]+$/.test(data);
+    }
     /**
      * 데이터 복호화
      * @param {string} encryptedData 암호화된 문자열 (IV:암호화된 데이터)
@@ -566,12 +573,24 @@ async load(storeName) {
             
             try {
                 // 암호화 여부 확인 및 처리
-                if (this._isEncrypted(data)) {
-                    // 암호화된 데이터는 IV:암호화데이터 형식
-                    return typeof data === 'string' && 
-                           data.includes(':') && 
-                           /^[0-9a-f]{32}:[0-9a-f]+$/.test(data);
-                }
+if (this._isEncrypted(data)) {
+    // 암호화된 데이터 처리
+    try {
+        const decryptedData = this._decrypt(data);
+        this.stores[storeName] = decryptedData;
+    } catch (decryptError) {
+        this.log('ERROR', `저장소 ${storeName} 복호화 오류: ${decryptError.message}`);
+        throw decryptError;
+    }
+} else {
+    // 일반 JSON 데이터 처리
+    try {
+        this.stores[storeName] = JSON.parse(data);
+    } catch (parseError) {
+        this.log('ERROR', `저장소 ${storeName} 파싱 오류: ${parseError.message}`);
+        throw parseError;
+    }
+}
                 
                 // 캐시 타임스탬프 갱신
                 this.cacheTimestamps[storeName] = Date.now();
