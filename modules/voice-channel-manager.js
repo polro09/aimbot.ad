@@ -1,5 +1,5 @@
 // modules/voice-channel-manager.js - 음성 채널 자동 생성 및 관리 모듈
-// 버전 1.4.0 - 개선된 통화방 유형, AFK 자동 감지 및 DM 메시지 이미지 개선
+// 버전 1.5.0 - AFK 채널 자동 삭제 및 UI 스크롤 상호작용 문제 수정
 
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, SlashCommandBuilder, StringSelectMenuBuilder } = require('discord.js');
 const storage = require('../storage');
@@ -17,7 +17,7 @@ const createdChannels = new Map();
 const parentChannels = new Map();
 
 // 사용자별 채널 소유 정보
-// Map<channelId, {ownerId, createdAt, roomType}>
+// Map<channelId, {ownerId, createdAt, roomType, lastInteraction}>
 const channelOwnership = new Map();
 
 // 소유자 이전 대기 목록
@@ -32,12 +32,16 @@ const pendingPermissionUpdates = new Set();
 const pendingInteractions = new Map();
 
 // AFK 채널 추적 맵
-// Map<guildId, channelId>
+// Map<guildId, {channelId, isEmpty, lastEmptyTime}>
 const afkChannels = new Map();
 
 // 사용자 활동 시간 추적
 // Map<userId, timestamp>
 const userActivityTimestamps = new Map();
+
+// 채널 상호작용 마지막 타임스탬프
+// Map<channelId, timestamp>
+const channelLastInteraction = new Map();
 
 // 비활성 감지 간격 (10분)
 const INACTIVITY_CHECK_INTERVAL = 10 * 60 * 1000;
@@ -47,6 +51,9 @@ const INACTIVITY_THRESHOLD = 30 * 60 * 1000;
 
 // 상호작용 타임아웃 (10초)
 const INTERACTION_TIMEOUT = 10 * 1000;
+
+// AFK 채널 삭제 타임아웃 (15분 비어있는 상태)
+const AFK_DELETION_TIMEOUT = 15 * 60 * 1000;
 
 // 오류 로그 추적 (최근 10개)
 const errorLogs = [];
@@ -61,7 +68,7 @@ const ROOM_TYPES = {
     },
     'freetalk': {
         emoji: '🔋',
-        format: name => `🔋ㅣ${name}의 freetalk`,
+        format: name => `🔋ㅣ${name}의 일반대화`,
         image: 'https://i.imgur.com/JKgZnul.png'
     },
     'hunting': {
@@ -115,15 +122,17 @@ function addErrorLog(source, message, details = {}) {
 }
 
 /**
- * 진행 중인 상호작용 추적
+ * 진행 중인 상호작용 추적 - 개선된 버전
  * @param {string} userId 사용자 ID
  * @param {string} channelId 채널 ID
+ * @param {string} actionType 액션 타입 (선택적)
  * @returns {boolean} 이미 진행 중인지 여부
  */
-function trackInteraction(userId, channelId) {
+function trackInteraction(userId, channelId, actionType = '') {
     if (!userId || !channelId) return false;
     
     const now = Date.now();
+    const interactionKey = `${channelId}:${actionType}`;
     
     // 사용자별 상호작용 맵 가져오기
     let userInteractions = pendingInteractions.get(userId);
@@ -133,8 +142,8 @@ function trackInteraction(userId, channelId) {
     }
     
     // 이미 진행 중인 상호작용이 있는지 확인
-    if (userInteractions.has(channelId)) {
-        const lastTime = userInteractions.get(channelId);
+    if (userInteractions.has(interactionKey)) {
+        const lastTime = userInteractions.get(interactionKey);
         
         // 10초 이내에 동일한 상호작용이 있으면 중복으로 간주
         if (now - lastTime < INTERACTION_TIMEOUT) {
@@ -143,13 +152,22 @@ function trackInteraction(userId, channelId) {
     }
     
     // 상호작용 기록
-    userInteractions.set(channelId, now);
+    userInteractions.set(interactionKey, now);
+    
+    // 채널 마지막 상호작용 시간 업데이트
+    channelLastInteraction.set(channelId, now);
+    
+    // 해당 채널의 소유권 정보에도 마지막 상호작용 시간 업데이트
+    const ownerData = channelOwnership.get(channelId);
+    if (ownerData) {
+        ownerData.lastInteraction = now;
+    }
     
     // 10초 후 자동 제거
     setTimeout(() => {
         const interactions = pendingInteractions.get(userId);
         if (interactions) {
-            interactions.delete(channelId);
+            interactions.delete(interactionKey);
             if (interactions.size === 0) {
                 pendingInteractions.delete(userId);
             }
@@ -246,6 +264,83 @@ async function loadConfig(log) {
     }
 }
 
+// AFK 채널 정리 함수 - 새로 추가됨
+async function cleanupAfkChannels(client, log) {
+    const now = Date.now();
+    
+    // 모든 AFK 채널 확인
+    for (const [guildId, afkData] of afkChannels.entries()) {
+        try {
+            if (!afkData || !afkData.channelId) continue;
+            
+            // 길드 가져오기
+            const guild = client.guilds.cache.get(guildId);
+            if (!guild) {
+                // 서버를 찾을 수 없으면 목록에서 제거
+                afkChannels.delete(guildId);
+                continue;
+            }
+            
+            // 채널 가져오기
+            const channel = guild.channels.cache.get(afkData.channelId);
+            if (!channel) {
+                // 채널이 이미 삭제되었으면 목록에서 제거
+                afkChannels.delete(guildId);
+                continue;
+            }
+            
+            // 채널이 비어있는지 확인
+            const isEmpty = channel.members.size === 0;
+            
+            // 상태 업데이트
+            if (isEmpty && !afkData.isEmpty) {
+                // 빈 상태로 변경됨
+                afkData.isEmpty = true;
+                afkData.lastEmptyTime = now;
+                afkChannels.set(guildId, afkData);
+                
+                if (log) log('INFO', `AFK 채널 ${channel.name} (${afkData.channelId})이(가) 비어 있음. 15분 후 삭제 예정.`);
+            } 
+            else if (!isEmpty && afkData.isEmpty) {
+                // 사용 중 상태로 변경됨
+                afkData.isEmpty = false;
+                afkData.lastEmptyTime = null;
+                afkChannels.set(guildId, afkData);
+                
+                if (log) log('INFO', `AFK 채널 ${channel.name} (${afkData.channelId})에 사용자가 입장했습니다. 삭제가 취소되었습니다.`);
+            }
+            else if (isEmpty && afkData.isEmpty && afkData.lastEmptyTime) {
+                // 비어있는 시간 확인
+                const emptyDuration = now - afkData.lastEmptyTime;
+                
+                // 15분 이상 비어있으면 삭제
+                if (emptyDuration >= AFK_DELETION_TIMEOUT) {
+                    if (log) log('INFO', `AFK 채널 ${channel.name} (${afkData.channelId})이(가) ${Math.floor(emptyDuration / 60000)}분 동안 비어 있어 삭제합니다.`);
+                    
+                    try {
+                        await channel.delete();
+                        afkChannels.delete(guildId);
+                        
+                        // 추적 목록에서도 제거
+                        removeCreatedChannel(guildId, afkData.channelId);
+                        
+                        if (log) log('INFO', `AFK 채널 ${afkData.channelId}이(가) 삭제되었습니다.`);
+                    } catch (deleteError) {
+                        if (log) log('ERROR', `AFK 채널 삭제 중 오류: ${deleteError.message}`);
+                        addErrorLog('cleanupAfkChannels', deleteError.message, {
+                            guildId,
+                            channelId: afkData.channelId
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            if (log) log('ERROR', `AFK 채널 정리 중 오류: ${error.message}`);
+            addErrorLog('cleanupAfkChannels', error.message, { guildId });
+        }
+    }
+}
+
 // 모듈 초기화 함수
 async function init(client, log) {
     // 스토리지 초기화
@@ -327,7 +422,7 @@ async function init(client, log) {
         userActivityTimestamps.set(message.author.id, Date.now());
     });
     
-    // 버튼 및 선택 메뉴 상호작용 처리
+    // 버튼 및 선택 메뉴 상호작용 처리 - 개선된 UI 처리
     client.on('interactionCreate', async (interaction) => {
         // 버튼, 모달 제출, 또는 문자열 선택 메뉴만 처리
         if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isStringSelectMenu()) return;
@@ -339,8 +434,8 @@ async function init(client, log) {
             if (interaction.isButton()) {
                 const [action, channelId] = interaction.customId.split(':');
                 
-                // 중복 상호작용 확인 - 버튼
-                if (trackInteraction(interaction.user.id, `button:${action}:${channelId}`)) {
+                // 중복 상호작용 확인 - 버튼 (액션 타입 포함)
+                if (trackInteraction(interaction.user.id, channelId, `button:${action}`)) {
                     return await interaction.deferUpdate().catch(() => {});
                 }
                 
@@ -361,8 +456,8 @@ async function init(client, log) {
             } else if (interaction.isModalSubmit() && interaction.customId.startsWith('rename_modal:')) {
                 const channelId = interaction.customId.split(':')[1];
                 
-                // 중복 상호작용 확인 - 모달
-                if (trackInteraction(interaction.user.id, `modal:rename:${channelId}`)) {
+                // 중복 상호작용 확인 - 모달 (모달 유형 포함)
+                if (trackInteraction(interaction.user.id, channelId, 'modal:rename')) {
                     return await interaction.deferUpdate().catch(() => {});
                 }
                 
@@ -374,8 +469,11 @@ async function init(client, log) {
                     const channelId = customId.split(':')[1];
                     const selectedAction = interaction.values[0];
                     
-                    // 중복 상호작용 확인 - 선택 메뉴
-                    if (trackInteraction(interaction.user.id, `select:${selectedAction}:${channelId}`)) {
+                    // 액션 식별자 추출 (선택 메뉴 아이템마다 고유한 추적을 위해)
+                    const actionType = selectedAction.split(':')[0];
+                    
+                    // 중복 상호작용 확인 - 선택 메뉴 (액션 타입 포함)
+                    if (trackInteraction(interaction.user.id, channelId, `select:${actionType}`)) {
                         return await interaction.deferUpdate().catch(() => {});
                     }
                     
@@ -394,8 +492,8 @@ async function init(client, log) {
                 } else if (customId.startsWith('transfer_owner:')) {
                     const channelId = customId.split(':')[1];
                     
-                    // 중복 상호작용 확인 - 소유권 이전
-                    if (trackInteraction(interaction.user.id, `transfer:${channelId}`)) {
+                    // 중복 상호작용 확인 - 소유권 이전 (특정 사용자 선택 무시)
+                    if (trackInteraction(interaction.user.id, channelId, 'transfer')) {
                         return await interaction.deferUpdate().catch(() => {});
                     }
                     
@@ -444,6 +542,18 @@ async function init(client, log) {
                                 continue;
                             }
                             
+                            // AFK 채널 확인 및 추적
+                            if (channel.name.includes('AFK')) {
+                                afkChannels.set(guild.id, {
+                                    channelId: channel.id,
+                                    isEmpty: channel.members.size === 0,
+                                    lastEmptyTime: channel.members.size === 0 ? Date.now() : null
+                                });
+                                
+                                log('INFO', `기존 AFK 채널 감지됨: ${channel.name} (${channel.id})`);
+                                continue; // AFK 채널은 바로 삭제하지 않고 모니터링
+                            }
+                            
                             if (channel.members.size === 0) {
                                 try {
                                     await channel.delete();
@@ -473,6 +583,11 @@ async function init(client, log) {
     
     // AFK 채널 자동 감지 설정
     setupInactivityDetection(client, log);
+    
+    // AFK 채널 자동 정리 설정 - 새로 추가됨
+    setInterval(() => {
+        cleanupAfkChannels(client, log);
+    }, 60000); // 1분마다 확인
     
     log('MODULE', '음성 채널 관리 모듈이 초기화되었습니다.');
 }
@@ -524,7 +639,6 @@ async function checkUserActivity(client, log) {
         }
     }
 }
-
 // 사용자를 AFK 채널로 이동
 async function moveToAFKChannel(member, guild, log) {
     try {
@@ -576,9 +690,9 @@ async function moveToAFKChannel(member, guild, log) {
 async function findOrCreateAFKChannel(guild, log) {
     try {
         // 이미 추적 중인 AFK 채널 확인
-        let afkChannelId = afkChannels.get(guild.id);
-        if (afkChannelId) {
-            const existingChannel = guild.channels.cache.get(afkChannelId);
+        let afkData = afkChannels.get(guild.id);
+        if (afkData && afkData.channelId) {
+            const existingChannel = guild.channels.cache.get(afkData.channelId);
             if (existingChannel) return existingChannel;
         }
         
@@ -590,7 +704,11 @@ async function findOrCreateAFKChannel(guild, log) {
         
         if (afkChannel) {
             // 발견된 AFK 채널 저장 및 반환
-            afkChannels.set(guild.id, afkChannel.id);
+            afkChannels.set(guild.id, {
+                channelId: afkChannel.id,
+                isEmpty: afkChannel.members.size === 0,
+                lastEmptyTime: afkChannel.members.size === 0 ? Date.now() : null
+            });
             return afkChannel;
         }
         
@@ -626,7 +744,11 @@ async function findOrCreateAFKChannel(guild, log) {
         const newAFKChannel = await guild.channels.create(channelOptions);
         
         // 새 AFK 채널 저장
-        afkChannels.set(guild.id, newAFKChannel.id);
+        afkChannels.set(guild.id, {
+            channelId: newAFKChannel.id,
+            isEmpty: true,
+            lastEmptyTime: Date.now()
+        });
         log('INFO', `서버 ${guild.name}에 AFK 채널을 생성했습니다: ${newAFKChannel.name} (카테고리: ${parentCategory ? parentCategory.name : '없음'})`);
         
         return newAFKChannel;
@@ -640,7 +762,6 @@ async function findOrCreateAFKChannel(guild, log) {
         return null;
     }
 }
-
 // 사용자가 부모 채널에 입장했을 때 처리
 async function handleUserJoinParentChannel(state, client, log) {
     const guild = state.guild;
@@ -688,7 +809,8 @@ async function handleUserJoinParentChannel(state, client, log) {
         channelOwnership.set(newChannel.id, {
             ownerId: state.member.id,
             createdAt: new Date(),
-            roomType: 'default' // 기본 유형 저장
+            roomType: 'default', // 기본 유형 저장
+            lastInteraction: Date.now() // 마지막 상호작용 시간 초기화
         });
         
         // 사용자 활동 시간 초기화
@@ -764,6 +886,7 @@ async function handleUserJoinChannel(state, client, log) {
                     
                     // 소유권 정보 업데이트
                     ownerData.ownerId = userId;
+                    ownerData.lastInteraction = Date.now(); // 마지막 상호작용 시간 업데이트
                     channelOwnership.set(channelId, ownerData);
                     
                     // 요청 목록에서 제거
@@ -808,7 +931,6 @@ async function handleUserJoinChannel(state, client, log) {
         }
     }
 }
-
 // 소유자가 채널을 떠났을 때 처리
 async function handleOwnerLeftChannel(state, client, log) {
     const channelId = state.channelId;
@@ -852,6 +974,7 @@ async function handleOwnerLeftChannel(state, client, log) {
                 
                 // 소유권 정보 업데이트
                 ownerData.ownerId = newOwnerId;
+                ownerData.lastInteraction = Date.now(); // 마지막 상호작용 시간 업데이트
                 channelOwnership.set(channelId, ownerData);
                 
                 // 채널에 소유권 이전 알림
@@ -895,7 +1018,20 @@ async function cleanupEmptyChannels(state, log) {
     try {
         // 채널이 비어 있고 자동 생성된 채널인지 확인
         if (channel.members.size === 0 && isCreatedChannel(guild.id, channel.id)) {
-            // 채널 삭제
+            // AFK 채널인 경우 바로 삭제하지 않고 비어있는 상태로 마킹
+            if (channel.name.includes('AFK')) {
+                const afkData = afkChannels.get(guild.id);
+                if (afkData && afkData.channelId === channel.id) {
+                    afkData.isEmpty = true;
+                    afkData.lastEmptyTime = Date.now();
+                    afkChannels.set(guild.id, afkData);
+                    
+                    if (log) log('INFO', `AFK 채널이 비어 있음. 15분 후 삭제 예정: ${channel.name} (${channel.id})`);
+                    return false;
+                }
+            }
+            
+            // 일반 채널은 바로 삭제
             await channel.delete();
             
             // 추적 목록에서 제거
@@ -910,8 +1046,12 @@ async function cleanupEmptyChannels(state, log) {
             // 권한 변경 작업 목록에서 제거
             pendingPermissionUpdates.delete(channel.id);
             
+            // 마지막 상호작용 시간 제거
+            channelLastInteraction.delete(channel.id);
+            
             // AFK 채널이 삭제된 경우 추적 목록에서 제거
-            if (afkChannels.get(guild.id) === channel.id) {
+            const afkData = afkChannels.get(guild.id);
+            if (afkData && afkData.channelId === channel.id) {
                 afkChannels.delete(guild.id);
             }
             
@@ -960,60 +1100,30 @@ async function sendChannelControlsMessage(user, channel, ownerName) {
             .setFooter({ text: 'AimBot.AD', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
             .setTimestamp();
         
-        // 선택 메뉴로 변경 (버튼 대신)
-        const row = new ActionRowBuilder()
+        // 선택 메뉴로 변경 (버튼 대신) - 옵션 수 제한으로 인해 UI 분리 및 스크롤 문제 해결
+        const actionRow = new ActionRowBuilder()
             .addComponents(
                 new StringSelectMenuBuilder()
                     .setCustomId(`voice_room_actions:${channel.id}`)
-                    .setPlaceholder('원하는 작업을 선택하세요')
+                    .setPlaceholder('관리 기능 선택')
                     .addOptions([
                         {
                             label: '이름 직접 변경',
                             description: '통화방 이름을 직접 입력하여 변경합니다',
-                            value: `rename_channel`,
+                            value: 'rename_channel',
                             emoji: '📝'
                         },
                         {
                             label: '소유권 이전',
                             description: '다른 사용자에게 통화방 관리 권한을 넘깁니다',
-                            value: `transfer_ownership`,
+                            value: 'transfer_ownership',
                             emoji: '👑'
                         },
                         {
                             label: '채널 정보',
                             description: '통화방 생성 시간, 참가자 수 등을 확인합니다',
-                            value: `view_info`,
+                            value: 'view_info',
                             emoji: 'ℹ️'
-                        },
-                        {
-                            label: '일반 대화방',
-                            description: 'freetalk 통화방으로 이름을 변경합니다',
-                            value: `room_type:freetalk`,
-                            emoji: '🔋'
-                        },
-                        {
-                            label: '사냥 파티',
-                            description: '사냥 파티용 통화방으로 이름을 변경합니다',
-                            value: `room_type:hunting`,
-                            emoji: '🏹'
-                        },
-                        {
-                            label: '교역 파티',
-                            description: '교역 파티용 통화방으로 이름을 변경합니다',
-                            value: `room_type:trading`,
-                            emoji: '🪙'
-                        },
-                        {
-                            label: '스터디룸',
-                            description: '스터디룸 통화방으로 이름을 변경합니다',
-                            value: `room_type:study`,
-                            emoji: '🎓'
-                        },
-                        {
-                            label: '뮤직룸',
-                            description: '음악 감상용 통화방으로 이름을 변경합니다',
-                            value: `room_type:music`,
-                            emoji: '🎶'
                         },
                         {
                             label: '채널 닫기',
@@ -1024,8 +1134,64 @@ async function sendChannelControlsMessage(user, channel, ownerName) {
                     ])
             );
         
-        // DM으로 전송
-        await user.send({ embeds: [embed], components: [row] });
+        // 통화방 유형 선택 메뉴 (별도 컴포넌트로 분리)
+        const typeRow = new ActionRowBuilder()
+            .addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId(`voice_room_actions:${channel.id}`)
+                    .setPlaceholder('통화방 유형 선택')
+                    .addOptions([
+                        {
+                            label: '일반 대화방',
+                            description: 'freetalk 통화방으로 이름을 변경합니다',
+                            value: 'room_type:freetalk',
+                            emoji: '🔋'
+                        },
+                        {
+                            label: '사냥 파티',
+                            description: '사냥 파티용 통화방으로 이름을 변경합니다',
+                            value: 'room_type:hunting',
+                            emoji: '🏹'
+                        },
+                        {
+                            label: '교역 파티',
+                            description: '교역 파티용 통화방으로 이름을 변경합니다',
+                            value: 'room_type:trading',
+                            emoji: '🪙'
+                        },
+                        {
+                            label: '스터디룸',
+                            description: '스터디룸 통화방으로 이름을 변경합니다',
+                            value: 'room_type:study',
+                            emoji: '🎓'
+                        },
+                        {
+                            label: '뮤직룸',
+                            description: '음악 감상용 통화방으로 이름을 변경합니다',
+                            value: 'room_type:music',
+                            emoji: '🎶'
+                        }
+                    ])
+            );
+        
+        // DM으로 전송 - 메시지 두 개로 분리하여 스크롤 및 상호작용 문제 해결
+        await user.send({ embeds: [embed], components: [actionRow] });
+        
+        // 약간 지연 후 두 번째 메시지 전송 (첫 번째 메시지와 충돌 방지)
+        setTimeout(async () => {
+            try {
+                const typeEmbed = new EmbedBuilder()
+                    .setColor('#5865F2')
+                    .setTitle('🏷️ 통화방 유형 선택')
+                    .setDescription('통화방 목적에 맞는 유형을 선택하면 자동으로 이름이 변경됩니다.')
+                    .setFooter({ text: 'AimBot.AD', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
+                    .setTimestamp();
+                
+                await user.send({ embeds: [typeEmbed], components: [typeRow] });
+            } catch (error) {
+                // 두 번째 메시지 전송 실패는 무시
+            }
+        }, 500);
         
     } catch (error) {
         console.error(`음성 채널 관리 메시지 전송 중 오류 발생: ${error.message}`);
@@ -1036,7 +1202,6 @@ async function sendChannelControlsMessage(user, channel, ownerName) {
         });
     }
 }
-
 // 채널 정보 표시 함수
 async function showChannelInfo(interaction, channelId, client) {
     try {
@@ -1250,6 +1415,7 @@ async function transferOwnership(interaction, channelId, client, log) {
             
             // 소유권 정보 업데이트
             ownerData.ownerId = newOwnerId;
+            ownerData.lastInteraction = Date.now(); // 마지막 상호작용 시간 업데이트
             channelOwnership.set(channelId, ownerData);
             
             // 소유권 이전 성공 알림
@@ -1301,7 +1467,6 @@ async function transferOwnership(interaction, channelId, client, log) {
         }
     }
 }
-
 // 소유권 요청 처리
 async function handleOwnershipRequest(interaction, channelId, client) {
     try {
@@ -1436,6 +1601,7 @@ async function handleRoomTypeSelection(interaction, channelId, roomType, client,
             };
             
             ownerData.roomType = roomType;
+            ownerData.lastInteraction = Date.now(); // 마지막 상호작용 시간 업데이트
             channelOwnership.set(channelId, ownerData);
             
             // 성공 임베드 생성
@@ -1551,7 +1717,6 @@ async function confirmCloseChannel(interaction, channelId, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 채널 닫기 처리
 async function handleChannelClose(interaction, channelId, client, log) {
     try {
@@ -1631,6 +1796,7 @@ async function handleChannelClose(interaction, channelId, client, log) {
                 removeCreatedChannel(channel.guild.id, channelId);
                 channelOwnership.delete(channelId);
                 transferRequests.delete(channelId);
+                channelLastInteraction.delete(channelId);
                 
                 log('INFO', `${interaction.user.tag}님이 통화방 ${channel.name}을(를) 닫았습니다.`);
             } catch (error) {
@@ -1798,7 +1964,6 @@ function isCreatedChannel(guildId, channelId) {
     
     return false;
 }
-
 // 채널 소유자인지 확인
 function isChannelOwner(userId, channelId) {
     const ownerData = channelOwnership.get(channelId);
@@ -1916,6 +2081,7 @@ async function renameChannel(interaction, channelId, client, log) {
                 roomType: 'default'
             };
             ownerData.roomType = 'custom'; // 사용자 정의 유형으로 설정
+            ownerData.lastInteraction = Date.now(); // 마지막 상호작용 시간 업데이트
             channelOwnership.set(channelId, ownerData);
             
             // 성공 임베드 생성
@@ -2000,7 +2166,6 @@ const slashCommands = [
                 .setName('진단')
                 .setDescription('음성 채널 모듈의 진단 정보를 확인합니다'))
 ];
-
 // 슬래시 커맨드 실행 함수
 async function executeSlashCommand(interaction, client, log) {
     const subcommand = interaction.options.getSubcommand();
@@ -2151,6 +2316,12 @@ async function executeSlashCommand(interaction, client, log) {
             ? recentErrors.map(e => `${new Date(e.timestamp).toLocaleString()} - ${e.source}: ${e.message}`).join('\n')
             : '최근 오류 없음';
         
+        // AFK 채널 정보
+        const afkData = afkChannels.get(guildId);
+        const afkChannelInfo = afkData 
+            ? `ID: ${afkData.channelId}\n상태: ${afkData.isEmpty ? '비어 있음' : '사용 중'}`
+            : '없음';
+        
         // 진단 정보 임베드 생성
         const diagEmbed = new EmbedBuilder()
             .setColor('#5865F2')
@@ -2158,7 +2329,8 @@ async function executeSlashCommand(interaction, client, log) {
             .addFields(
                 { name: '설정된 부모 채널', value: `총 ${guildChannelIds.length}개 (유효: ${validParentChannels}개)`, inline: true },
                 { name: '생성된 채널', value: `총 ${totalCreatedChannels}개`, inline: true },
-                { name: '모듈 버전', value: '1.4.0', inline: true },
+                { name: '모듈 버전', value: '1.5.0', inline: true },
+                { name: 'AFK 채널', value: afkChannelInfo, inline: false },
                 { name: '최근 오류 로그', value: errorSummary, inline: false }
             )
             .setFooter({ text: 'AimBot.AD', iconURL: 'https://i.imgur.com/wSTFkRM.png' })
@@ -2195,7 +2367,7 @@ function getCreatedChannelCount(guildId, parentId) {
 module.exports = {
     name: 'voice-channel-manager',
     description: '사용자 음성 통화방 자동 생성 및 관리 모듈',
-    version: '1.4.0',
+    version: '1.5.0',
     commands: ['음성채널설정'],
     enabled: true,
     init,
@@ -2209,7 +2381,8 @@ module.exports = {
             parentChannels: new Map(parentChannels),
             createdChannels: new Map(createdChannels),
             totalOwned: channelOwnership.size,
-            pendingTransfers: new Map(transferRequests)
+            pendingTransfers: new Map(transferRequests),
+            afkChannels: new Map(afkChannels)
         })
     }
 };
