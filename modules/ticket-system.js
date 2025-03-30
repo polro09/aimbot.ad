@@ -108,28 +108,6 @@ function addApplication(guildId, userId, application, log) {
     saveApplications(log);
 }
 
-// 가입 신청서 가져오기
-function getApplications(guildId) {
-    const guildApps = clanApplications.get(guildId);
-    if (!guildApps) return [];
-    
-    // Map을 배열로 변환
-    return Array.from(guildApps.entries()).map(([userId, application]) => {
-        return {
-            userId,
-            ...application
-        };
-    });
-}
-
-// 특정 사용자의 가입 신청서 가져오기
-function getUserApplication(guildId, userId) {
-    const guildApps = clanApplications.get(guildId);
-    if (!guildApps) return null;
-    
-    return guildApps.get(userId);
-}
-
 // 티켓 임베드 생성
 async function createTicketEmbed(interaction, client, log) {
     try {
@@ -161,7 +139,7 @@ async function createTicketEmbed(interaction, client, log) {
         const ticketEmbed = new EmbedBuilder()
             .setColor('#5865F2')  // Discord 브랜드 색상
             .setTitle('🎫 티켓')
-            .setDescription('아래 버튼을 클릭하여 새 티켓을 생성하세요.\n문의사항, 클랜 가입 신청 등을 위해 티켓을 생성할 수 있습니다.')
+            .setDescription('아래 버튼을 클릭하여 새 티켓을 생성하세요.\n문의사항, 길드 가입 신청 등을 위해 티켓을 생성할 수 있습니다.')
             .setThumbnail('https://imgur.com/5SH3rZy.png')
             .setImage('https://imgur.com/PKwWSvx.png') // 환영 이미지 추가
             .addFields(
@@ -172,7 +150,7 @@ async function createTicketEmbed(interaction, client, log) {
                 },
                 { 
                     name: '\u200b✅ 티켓 생성 가능 사유', 
-                    value: '• 💬 클랜 가입 신청\n• ❓ 문의사항\n• 💡 건의사항\n• 🚨 신고', 
+                    value: '• 💬 길드 가입 신청\n• ❓ 문의사항\n• 💡 건의사항\n• 🚨 신고', 
                     inline: false 
                 }
             )
@@ -256,6 +234,58 @@ async function setAdminRole(interaction, client, log) {
             .setColor('#ED4245')
             .setTitle('❌ 오류 발생')
             .setDescription(`관리자 역할 설정 중 오류가 발생했습니다: ${error.message}`)
+            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+            
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+    }
+}
+
+// 신청서 채널 설정
+async function setApplicationChannel(interaction, client, log) {
+    try {
+        const channel = interaction.options.getChannel('채널');
+        
+        // 채널 권한 확인
+        if (!channel.permissionsFor(interaction.guild.members.me).has(PermissionsBitField.Flags.SendMessages)) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('❌ 권한 오류')
+                .setDescription(`${channel} 채널에 메시지를 보낼 권한이 없습니다.`)
+                .addFields({ name: '해결 방법', value: '봇에게 필요한 권한을 부여해주세요.', inline: false })
+                .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+                .setTimestamp();
+                
+            return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
+        
+        // 서버 설정 가져오기 또는 생성
+        let settings = guildSettings.get(interaction.guild.id) || {};
+        settings.applicationChannel = channel.id;
+        
+        // 설정 저장
+        updateGuildSettings(interaction.guild.id, settings, log);
+        
+        // 성공 메시지
+        const successEmbed = new EmbedBuilder()
+            .setColor('#57F287')
+            .setTitle('✅ 길드 신청서 채널 설정 완료')
+            .setDescription(`길드 가입 신청서가 제출될 채널이 ${channel}(으)로 설정되었습니다.`)
+            .addFields({ name: '✨ 기능 안내', value: '이제 티켓에서 작성된 길드 가입 신청서가 이 채널에도 자동으로 전송됩니다.', inline: false })
+            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+        
+        await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+        
+        log('INFO', `${interaction.user.tag}가 ${interaction.guild.name} 서버의 길드 신청서 채널을 ${channel.name}(으)로 설정했습니다.`);
+        
+    } catch (error) {
+        log('ERROR', `신청서 채널 설정 중 오류 발생: ${error.message}`);
+        
+        const errorEmbed = new EmbedBuilder()
+            .setColor('#ED4245')
+            .setTitle('❌ 오류 발생')
+            .setDescription(`신청서 채널 설정 중 오류가 발생했습니다: ${error.message}`)
             .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
             .setTimestamp();
             
@@ -371,12 +401,12 @@ async function createTicket(interaction, client, log) {
                     inline: false 
                 },
                 { 
-                    name: '📜 클랜 규칙', 
-                    value: '클랜 규칙을 확인하시고.\n규칙을 동의해주세요.', 
+                    name: '📜 길드 규칙', 
+                    value: '길드 규칙을 확인하시고.\n규칙을 동의해주세요.', 
                     inline: true 
                 },
                 { 
-                    name: '📝 클랜 가입 신청', 
+                    name: '📝 길드 가입 신청', 
                     value: '신청서를 작성한 뒤.\n관리자를 기다려주세요.', 
                     inline: true 
                 },
@@ -397,14 +427,14 @@ async function createTicket(interaction, client, log) {
                     .setPlaceholder('원하는 작업을 선택하세요')
                     .addOptions([
                         {
-                            label: '클랜 규칙',
-                            description: '클랜 규칙을 확인합니다',
+                            label: '길드 규칙',
+                            description: '길드 규칙을 확인합니다',
                             value: 'clan_rules',
                             emoji: '📜'
                         },
                         {
-                            label: '클랜 가입 신청',
-                            description: '클랜 가입 신청서를 작성합니다',
+                            label: '길드 가입 신청',
+                            description: '길드 가입 신청서를 작성합니다',
                             value: 'clan_application',
                             emoji: '📝'
                         },
@@ -449,14 +479,14 @@ async function createTicket(interaction, client, log) {
     }
 }
 
-// 클랜 규칙 표시
+// 길드 규칙 표시
 async function showClanRules(interaction, client, log) {
     try {
-        // 블루스 클랜 규칙 임베드
+        // 블루스 길드 규칙 임베드
         const clanRulesEmbed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle('📜 블루스 클랜규칙')
-            .setDescription('블루스 클랜의 규칙입니다. 가입 전에 자세히 읽어주시고 숙지해주세요!')
+            .setTitle('📜 블루스 길드규칙')
+            .setDescription('블루스 길드의 규칙입니다. 가입 전에 자세히 읽어주시고 숙지해주세요!')
             .addFields(
                 { 
                     name: '(1) 길드 운영 지침', 
@@ -469,7 +499,7 @@ async function showClanRules(interaction, client, log) {
                     inline: false 
                 }
             )
-            .setFooter({ text: '클랜 규칙에 동의하시면 아래 버튼을 클릭해주세요.', iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setFooter({ text: '길드 규칙에 동의하시면 아래 버튼을 클릭해주세요.', iconURL: interaction.guild.iconURL({ dynamic: true }) })
             .setTimestamp();
         
         // 동의 버튼
@@ -490,12 +520,12 @@ async function showClanRules(interaction, client, log) {
         });
         
     } catch (error) {
-        log('ERROR', `클랜 규칙 표시 중 오류 발생: ${error.message}`);
+        log('ERROR', `길드 규칙 표시 중 오류 발생: ${error.message}`);
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
             .setTitle('❌ 오류 발생')
-            .setDescription('클랜 규칙을 표시하는 중 오류가 발생했습니다.')
+            .setDescription('길드 규칙을 표시하는 중 오류가 발생했습니다.')
             .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
             .setTimestamp();
             
@@ -503,14 +533,14 @@ async function showClanRules(interaction, client, log) {
     }
 }
 
-// 클랜 규칙 동의 처리
+// 길드 규칙 동의 처리
 async function handleRulesAgreement(interaction, client, log) {
     try {
         // 동의 임베드
         const agreementEmbed = new EmbedBuilder()
             .setColor('#57F287')
-            .setTitle('✅ 클랜 규칙 동의')
-            .setDescription(`${interaction.user}님이 클랜 규칙에 동의하였습니다.`)
+            .setTitle('✅ 길드 규칙 동의')
+            .setDescription(`${interaction.user}님이 길드 규칙에 동의하였습니다.`)
             .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
             .setTimestamp();
         
@@ -521,14 +551,14 @@ async function handleRulesAgreement(interaction, client, log) {
         
         // 사용자에게 응답
         await interaction.reply({
-            content: '클랜 규칙 동의가 완료되었습니다.',
+            content: '길드 규칙 동의가 완료되었습니다.',
             ephemeral: true
         });
         
-        log('INFO', `${interaction.user.tag}님이 클랜 규칙에 동의했습니다.`);
+        log('INFO', `${interaction.user.tag}님이 길드 규칙에 동의했습니다.`);
         
     } catch (error) {
-        log('ERROR', `클랜 규칙 동의 처리 중 오류 발생: ${error.message}`);
+        log('ERROR', `길드 규칙 동의 처리 중 오류 발생: ${error.message}`);
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -541,13 +571,13 @@ async function handleRulesAgreement(interaction, client, log) {
     }
 }
 
-// 클랜 가입 신청 모달 표시
+// 길드 가입 신청 모달 표시
 async function showClanApplicationModal(interaction, client, log) {
     try {
         // 모달 생성
         const modal = new ModalBuilder()
             .setCustomId('clan_application_modal')
-            .setTitle('클랜 가입 신청서');
+            .setTitle('길드 가입 신청서');
         
         // 텍스트 입력 필드 추가
         const sourceInput = new TextInputBuilder()
@@ -598,7 +628,7 @@ async function showClanApplicationModal(interaction, client, log) {
         await interaction.showModal(modal);
         
     } catch (error) {
-        log('ERROR', `클랜 가입 신청 모달 표시 중 오류 발생: ${error.message}`);
+        log('ERROR', `길드 가입 신청 모달 표시 중 오류 발생: ${error.message}`);
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -611,7 +641,7 @@ async function showClanApplicationModal(interaction, client, log) {
     }
 }
 
-// 클랜 가입 신청 처리
+// 길드 가입 신청 처리
 async function handleClanApplication(interaction, client, log) {
     try {
         // 폼 데이터 가져오기
@@ -640,8 +670,8 @@ async function handleClanApplication(interaction, client, log) {
         // 신청서 임베드 생성
         const applicationEmbed = new EmbedBuilder()
             .setColor('#5865F2')
-            .setTitle('📝 클랜 가입 신청서')
-            .setDescription(`${interaction.user}님의 클랜 가입 신청서입니다.`)
+            .setTitle('📝 길드 가입 신청서')
+            .setDescription(`${interaction.user}님의 길드 가입 신청서입니다.`)
             .addFields(
                 { name: '👤 디스코드 태그', value: interaction.user.tag, inline: true },
                 { name: '🎮 가입 경로', value: source, inline: true },
@@ -674,21 +704,40 @@ async function handleClanApplication(interaction, client, log) {
             components: [row]
         });
         
+        // 신청서 채널이 설정되어 있다면 해당 채널에도 전송
+        const guildId = interaction.guild.id;
+        const settings = guildSettings.get(guildId);
+        
+        if (settings && settings.applicationChannel) {
+            try {
+                const applicationChannel = interaction.guild.channels.cache.get(settings.applicationChannel);
+                if (applicationChannel) {
+                    await applicationChannel.send({
+                        embeds: [applicationEmbed],
+                        components: [row]
+                    });
+                    log('INFO', `길드 가입 신청서가 신청서 채널 ${applicationChannel.name}에도 전송되었습니다.`);
+                }
+            } catch (channelError) {
+                log('ERROR', `신청서 채널 전송 중 오류 발생: ${channelError.message}`);
+            }
+        }
+        
         // 사용자에게 응답
         const responseEmbed = new EmbedBuilder()
             .setColor('#57F287')
             .setTitle('✅ 신청서 제출 완료')
-            .setDescription('클랜 가입 신청이 성공적으로 제출되었습니다.')
+            .setDescription('길드 가입 신청이 성공적으로 제출되었습니다.')
             .addFields({ name: '📢 다음 단계', value: '관리자가 검토 후 연락드릴 예정입니다.', inline: false })
             .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
             .setTimestamp();
             
         await interaction.reply({ embeds: [responseEmbed], ephemeral: true });
         
-        log('INFO', `${interaction.user.tag}님이 클랜 가입 신청서를 제출했습니다.`);
+        log('INFO', `${interaction.user.tag}님이 길드 가입 신청서를 제출했습니다.`);
         
     } catch (error) {
-        log('ERROR', `클랜 가입 신청 처리 중 오류 발생: ${error.message}`);
+        log('ERROR', `길드 가입 신청 처리 중 오류 발생: ${error.message}`);
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -700,7 +749,6 @@ async function handleClanApplication(interaction, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 가입 신청 승인
 async function approveApplication(interaction, client, log) {
     try {
@@ -728,7 +776,7 @@ async function approveApplication(interaction, client, log) {
         const approveEmbed = new EmbedBuilder()
             .setColor('#57F287')
             .setTitle('✅ 가입 신청 승인')
-            .setDescription(`<@${userId}>님의 클랜 가입 신청이 승인되었습니다.`)
+            .setDescription(`<@${userId}>님의 길드 가입 신청이 승인되었습니다.`)
             .addFields(
                 { name: '👑 승인자', value: `${interaction.user.tag}`, inline: true },
                 { name: '🕒 승인 시간', value: new Date().toLocaleString('ko-KR'), inline: true }
@@ -749,7 +797,7 @@ async function approveApplication(interaction, client, log) {
         // 추가 알림 메시지
         await interaction.channel.send({ embeds: [approveEmbed] });
         
-        log('INFO', `${interaction.user.tag}님이 ${userId} 사용자의 클랜 가입 신청을 승인했습니다.`);
+        log('INFO', `${interaction.user.tag}님이 ${userId} 사용자의 길드 가입 신청을 승인했습니다.`);
         
     } catch (error) {
         log('ERROR', `가입 신청 승인 중 오류 발생: ${error.message}`);
@@ -826,7 +874,7 @@ async function handleRejectReason(interaction, client, log) {
         const rejectEmbed = new EmbedBuilder()
             .setColor('#ED4245')
             .setTitle('❌ 가입 신청 거부')
-            .setDescription(`<@${userId}>님의 클랜 가입 신청이 거부되었습니다.`)
+            .setDescription(`<@${userId}>님의 길드 가입 신청이 거부되었습니다.`)
             .addFields(
                 { name: '👑 거부자', value: `${interaction.user.tag}`, inline: true },
                 { name: '🕒 거부 시간', value: new Date().toLocaleString('ko-KR'), inline: true },
@@ -848,7 +896,7 @@ async function handleRejectReason(interaction, client, log) {
         // 추가 알림 메시지
         await interaction.channel.send({ embeds: [rejectEmbed] });
         
-        log('INFO', `${interaction.user.tag}님이 ${userId} 사용자의 클랜 가입 신청을 거부했습니다. 사유: ${reason}`);
+        log('INFO', `${interaction.user.tag}님이 ${userId} 사용자의 길드 가입 신청을 거부했습니다. 사유: ${reason}`);
         
     } catch (error) {
         log('ERROR', `가입 신청 거부 사유 처리 중 오류 발생: ${error.message}`);
@@ -863,7 +911,6 @@ async function handleRejectReason(interaction, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 관리자 호출
 async function callAdmin(interaction, client, log) {
     try {
@@ -1052,7 +1099,6 @@ async function cancelCloseTicket(interaction, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 선택 메뉴 처리
 async function handleSelectMenu(interaction, client, log) {
     try {
@@ -1086,148 +1132,26 @@ async function handleSelectMenu(interaction, client, log) {
     }
 }
 
-// 가입 신청서 목록 조회
-async function showApplicationList(interaction, client, log) {
-    try {
-        const applications = getApplications(interaction.guild.id);
-        
-        if (applications.length === 0) {
-            return await interaction.reply({
-                content: '현재 제출된 가입 신청서가 없습니다.',
-                ephemeral: true
-            });
-        }
-        
-        // 가입 신청서 목록 임베드
-        const listEmbed = new EmbedBuilder()
-            .setColor('#5865F2')
-            .setTitle('📋 클랜 가입 신청서 목록')
-            .setDescription(`총 ${applications.length}개의 가입 신청서가 있습니다.`)
-            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-            .setTimestamp();
-        
-        // 최대 10개 표시
-        const recentApps = applications.slice(0, 10);
-        
-        // 필드 추가
-        recentApps.forEach((app, index) => {
-            // 상태별 이모지
-            let statusEmoji = '⏳';
-            if (app.status === 'approved') statusEmoji = '✅';
-            if (app.status === 'rejected') statusEmoji = '❌';
-            
-            // 날짜 포맷팅
-            const date = new Date(app.timestamp).toLocaleDateString('ko-KR');
-            
-            listEmbed.addFields({
-                name: `${index + 1}. ${app.characterName} (${statusEmoji})`,
-                value: `👤 <@${app.userId}>\n📅 ${date}\n🔍 캐릭터명: ${app.characterName}\n🎮 플레이 기간: ${app.playtime}`,
-                inline: false
-            });
-        });
-        
-        await interaction.reply({
-            embeds: [listEmbed],
-            ephemeral: true
-        });
-        
-    } catch (error) {
-        log('ERROR', `가입 신청서 목록 조회 중 오류 발생: ${error.message}`);
-        
-        const errorEmbed = new EmbedBuilder()
-            .setColor('#ED4245')
-            .setTitle('❌ 오류 발생')
-            .setDescription('가입 신청서 목록 조회 중 오류가 발생했습니다.')
-            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-            .setTimestamp();
-            
-        await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
-    }
+// 가입 신청서 목록 조회를 위한 함수
+function getApplications(guildId) {
+    const guildApps = clanApplications.get(guildId);
+    if (!guildApps) return [];
+    
+    // Map을 배열로 변환
+    return Array.from(guildApps.entries()).map(([userId, application]) => {
+        return {
+            userId,
+            ...application
+        };
+    });
 }
 
-// 가입 신청서 조회 - 특정 사용자
-async function showUserApplication(interaction, client, log) {
-    try {
-        const targetUser = interaction.options.getUser('유저');
-        const userId = targetUser ? targetUser.id : interaction.user.id;
-        
-        // 가입 신청서 가져오기
-        const application = getUserApplication(interaction.guild.id, userId);
-        
-        if (!application) {
-            return await interaction.reply({
-                content: targetUser ? `${targetUser.username}님의 가입 신청서가 없습니다.` : '제출한 가입 신청서가 없습니다.',
-                ephemeral: true
-            });
-        }
-        
-        // 상태별 이모지 및 색상
-        let statusEmoji = '⏳';
-        let statusText = '대기중';
-        let statusColor = '#FEE75C';
-        
-        if (application.status === 'approved') {
-            statusEmoji = '✅';
-            statusText = '승인됨';
-            statusColor = '#57F287';
-        } else if (application.status === 'rejected') {
-            statusEmoji = '❌';
-            statusText = '거부됨';
-            statusColor = '#ED4245';
-        }
-        
-        // 신청서 임베드
-        const applicationEmbed = new EmbedBuilder()
-            .setColor(statusColor)
-            .setTitle(`📝 클랜 가입 신청서 ${statusEmoji}`)
-            .setDescription(`${targetUser ? targetUser.username : interaction.user.username}님의 클랜 가입 신청서`)
-            .addFields(
-                { name: '👤 디스코드 정보', value: `${application.userTag}\n<@${application.userId}>`, inline: false },
-                { name: '📝 신청 내용', value: 
-                    `🎮 **가입 경로**: ${application.source}\n` +
-                    `🎲 **캐릭터명**: ${application.characterName}\n` +
-                    `👫 **성별/나이대**: ${application.genderAge}\n` +
-                    `⏱️ **플레이 기간**: ${application.playtime}\n` +
-                    `📋 **추가 정보**:\n${application.additionalInfo}`, 
-                    inline: false },
-                { name: '📊 상태', value: `${statusEmoji} ${statusText}`, inline: true },
-                { name: '📅 제출일', value: new Date(application.timestamp).toLocaleDateString('ko-KR'), inline: true }
-            )
-            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-            .setTimestamp();
-        
-        // 승인/거부 정보 추가
-        if (application.status === 'approved') {
-            applicationEmbed.addFields({
-                name: '✅ 승인 정보',
-                value: `👑 승인자: <@${application.approvedBy}>\n📅 승인일: ${new Date(application.approvedAt).toLocaleDateString('ko-KR')}`,
-                inline: false
-            });
-        } else if (application.status === 'rejected') {
-            applicationEmbed.addFields({
-                name: '❌ 거부 정보',
-                value: `👑 거부자: <@${application.rejectedBy}>\n📅 거부일: ${new Date(application.rejectedAt).toLocaleDateString('ko-KR')}\n📝 거부 사유: ${application.rejectReason}`,
-                inline: false
-            });
-        }
-        
-        await interaction.reply({
-            embeds: [applicationEmbed],
-            ephemeral: true
-        });
-        
-    } catch (error) {
-        log('ERROR', `가입 신청서 조회 중 오류 발생: ${error.message}`);
-        
-        const errorEmbed = new EmbedBuilder()
-            .setColor('#ED4245')
-            .setTitle('❌ 오류 발생')
-            .setDescription('가입 신청서 조회 중 오류가 발생했습니다.')
-            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-            .setTimestamp();
-            
-        await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
-    }
+// 특정 사용자의 가입 신청서 가져오기
+function getUserApplication(guildId, userId) {
+    const guildApps = clanApplications.get(guildId);
+    if (!guildApps) return null;
+    
+    return guildApps.get(userId);
 }
 
 // 모듈 초기화 함수
@@ -1237,7 +1161,6 @@ async function init(client, log) {
         await storage.init(log);
     }
     
-    // 다음 코드를 추가합니다 (여기서부터)
     // clan-applications 저장소가 없으면 생성
     try {
         await storage.load('clan-applications');
@@ -1304,14 +1227,14 @@ async function init(client, log) {
                                     .setPlaceholder('원하는 작업을 선택하세요')
                                     .addOptions([
                                         {
-                                            label: '클랜 규칙',
-                                            description: '클랜 규칙을 확인합니다',
+                                            label: '길드 규칙',
+                                            description: '길드 규칙을 확인합니다',
                                             value: 'clan_rules',
                                             emoji: '📜'
                                         },
                                         {
-                                            label: '클랜 가입 신청',
-                                            description: '클랜 가입 신청서를 작성합니다',
+                                            label: '길드 가입 신청',
+                                            description: '길드 가입 신청서를 작성합니다',
                                             value: 'clan_application',
                                             emoji: '📝'
                                         },
@@ -1432,90 +1355,60 @@ async function init(client, log) {
 
 // 슬래시 커맨드 정의
 const slashCommands = [
-    new SlashCommandBuilder()
-        .setName('티켓설정')
-        .setDescription('티켓 시스템을 설정합니다')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('임베드생성')
-                .setDescription('티켓 시스템 임베드를 생성합니다')
-                .addChannelOption(option =>
-                    option.setName('채널')
-                        .setDescription('임베드를 생성할 채널')
-                        .setRequired(true)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('관리자역할설정')
-                .setDescription('티켓 관리자 역할을 설정합니다')
-                .addRoleOption(option =>
-                    option.setName('역할')
-                        .setDescription('티켓 관리자 역할')
-                        .setRequired(true))),
-    new SlashCommandBuilder()
-        .setName('티켓')
-        .setDescription('티켓 관련 명령어')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('가입신청서')
-                .setDescription('클랜 가입 신청서를 조회합니다')
-                .addUserOption(option =>
-                    option.setName('유저')
-                        .setDescription('조회할 사용자 (관리자만 다른 사용자 조회 가능)')
-                        .setRequired(false)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('목록')
-                .setDescription('클랜 가입 신청서 목록을 조회합니다'))
+new SlashCommandBuilder()
+    .setName('티켓설정')
+    .setDescription('티켓 시스템을 설정합니다')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('임베드생성')
+            .setDescription('티켓 시스템 임베드를 생성합니다')
+            .addChannelOption(option =>
+                option.setName('채널')
+                    .setDescription('임베드를 생성할 채널')
+                    .setRequired(true)))
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('관리자역할설정')
+            .setDescription('티켓 관리자 역할을 설정합니다')
+            .addRoleOption(option =>
+                option.setName('역할')
+                    .setDescription('티켓 관리자 역할')
+                    .setRequired(true)))
+    .addSubcommand(subcommand =>
+        subcommand
+            .setName('신청서채널')
+            .setDescription('길드 가입 신청서가 전송될 채널을 설정합니다')
+            .addChannelOption(option =>
+                option.setName('채널')
+                    .setDescription('길드 가입 신청서가 전송될 채널')
+                    .setRequired(true)))
 ];
 
 // 슬래시 커맨드 실행 함수
 async function executeSlashCommand(interaction, client, log) {
-    const { commandName, options } = interaction;
+const { commandName, options } = interaction;
+
+if (commandName === '티켓설정') {
+    const subcommand = options.getSubcommand();
     
-    if (commandName === '티켓설정') {
-        const subcommand = options.getSubcommand();
-        
-        if (subcommand === '임베드생성') {
-            await createTicketEmbed(interaction, client, log);
-        } else if (subcommand === '관리자역할설정') {
-            await setAdminRole(interaction, client, log);
-        }
-    } else if (commandName === '티켓') {
-        const subcommand = options.getSubcommand();
-        
-        if (subcommand === '가입신청서') {
-            // 다른 사용자의 신청서를 조회하려는 경우 관리자 권한 체크
-            const targetUser = options.getUser('유저');
-            
-            if (targetUser && targetUser.id !== interaction.user.id) {
-                // 서버 설정에서 관리자 역할 확인
-                const settings = guildSettings.get(interaction.guild.id);
-                const isAdmin = settings && settings.adminRole && 
-                    interaction.member.roles.cache.has(settings.adminRole);
-                
-                if (!isAdmin && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
-                    return interaction.reply({
-                        content: '다른 사용자의 가입 신청서를 조회할 권한이 없습니다.',
-                        ephemeral: true
-                    });
-                }
-            }
-            
-            await showUserApplication(interaction, client, log);
-        } else if (subcommand === '목록') {
-            await showApplicationList(interaction, client, log);
-        }
+    if (subcommand === '임베드생성') {
+        await createTicketEmbed(interaction, client, log);
+    } else if (subcommand === '관리자역할설정') {
+        await setAdminRole(interaction, client, log);
+    } else if (subcommand === '신청서채널') {
+        await setApplicationChannel(interaction, client, log);
     }
+}
 }
 
 module.exports = {
-    name: 'ticket-system',
-    description: '티켓 시스템 모듈',
-    version: '1.1.0',
-    commands: ['티켓설정', '티켓'],
-    enabled: true,
-    init,
-    executeSlashCommand,
-    slashCommands
+name: 'ticket-system',
+description: '티켓 시스템 모듈',
+version: '1.2.0',
+commands: ['티켓설정'],
+enabled: true,
+init,
+executeSlashCommand,
+slashCommands
 };
