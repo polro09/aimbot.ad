@@ -1090,69 +1090,89 @@ if (this._isEncrypted(data)) {
    }
 
    /**
-    * 사용자 생성
-    * @param {string} username 사용자명
-    * @param {string} password 비밀번호
-    * @param {string} [role='user'] 권한
-    * @returns {Promise<Object>} 생성된 사용자 정보
-    */
-   async createUser(username, password, role = 'user') {
-       const users = this.getStore('users');
-       
-       // 사용자명 검증
-       if (!username || typeof username !== 'string') {
-           throw new Error('유효한 사용자명을 입력해주세요.');
-       }
-       
-       // 비밀번호 검증
-       if (!password || typeof password !== 'string' || password.length < 6) {
-           throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
-       }
-       
-       // 비밀번호 강도 검증
-       if (!/(?=.*[a-z])(?=.*[A-Z])|(?=.*[a-zA-Z])(?=.*[0-9])|(?=.*[a-zA-Z])(?=.*[^a-zA-Z0-9])/.test(password)) {
-           throw new Error('비밀번호는 최소한 숫자와 문자, 또는 대/소문자, 또는 특수문자가 조합되어야 합니다.');
-       }
-       
-       // 권한 검증
-       const validRoles = ['admin', 'level1', 'level2', 'level3', 'user'];
-       if (!validRoles.includes(role)) {
-           throw new Error('유효하지 않은 역할입니다.');
-       }
-       
-       // 사용자명 중복 확인
-       if (users[username]) {
-           throw new Error('이미 존재하는 사용자명입니다.');
-       }
-       
-       // 비밀번호 해시 생성
-       const saltRounds = 10;
-       const passwordHash = await bcrypt.hash(password, saltRounds);
-       
-       // 사용자 정보 생성
-       users[username] = {
-           username,
-           passwordHash,
-           role,
-           created: new Date().toISOString(),
-           lastLogin: null,
-           assignedChannels: [],
-           assignedServers: [],
-           settings: {}
-       };
-       
-       // 저장
-       await this.save('users');
-       
-       // 사용자 생성 로깅
-       this.log('INFO', `새 사용자 생성: ${username}, 역할: ${role}`);
-       
-       return {
-           username,
-           role,
-           created: users[username].created
-       };
-   }
+ * 사용자 생성 - 개선된 버전
+ * @param {string} username 사용자명
+ * @param {string} password 비밀번호
+ * @param {string} [role='user'] 권한
+ * @returns {Promise<Object>} 생성된 사용자 정보
+ */
+async createUser(username, password, role = 'user') {
+    try {
+        // 저장소 로드 시도
+        if (!this.stores['users'] || Object.keys(this.stores['users']).length === 0) {
+            try {
+                await this.load('users');
+            } catch (loadError) {
+                // 사용자 저장소가 없으면 생성
+                this.log('WARN', `사용자 저장소 로드 실패: ${loadError.message}`);
+                this.stores['users'] = {};
+            }
+        }
+        
+        const users = this.stores['users'];
+        
+        // 사용자명 검증
+        if (!username || typeof username !== 'string') {
+            throw new Error('유효한 사용자명을 입력해주세요.');
+        }
+        
+        if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+            throw new Error('사용자명은 3-20자의 영문자, 숫자, 언더스코어(_)만 사용할 수 있습니다.');
+        }
+        
+        // 비밀번호 검증
+        if (!password || typeof password !== 'string' || password.length < 6) {
+            throw new Error('비밀번호는 최소 6자 이상이어야 합니다.');
+        }
+        
+        // 비밀번호 강도 검증
+        if (!/(?=.*[a-z])(?=.*[A-Z])|(?=.*[a-zA-Z])(?=.*[0-9])|(?=.*[a-zA-Z])(?=.*[^a-zA-Z0-9])/.test(password)) {
+            throw new Error('비밀번호는 최소한 숫자와 문자, 또는 대/소문자, 또는 특수문자가 포함되어야 합니다.');
+        }
+        
+        // 권한 검증
+        const validRoles = ['admin', 'level1', 'level2', 'level3', 'user'];
+        if (!validRoles.includes(role)) {
+            throw new Error('유효하지 않은 역할입니다.');
+        }
+        
+        // 사용자명 중복 확인
+        if (users[username]) {
+            throw new Error('이미 존재하는 사용자명입니다.');
+        }
+        
+        // 비밀번호 해시 생성
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(password, saltRounds);
+        
+        // 사용자 정보 생성
+        users[username] = {
+            username,
+            passwordHash,
+            role,
+            created: new Date().toISOString(),
+            lastLogin: null,
+            assignedChannels: [],
+            assignedServers: [],
+            settings: {}
+        };
+        
+        // 사용자 저장
+        await this.save('users');
+        
+        // 사용자 생성 로깅
+        this.log('INFO', `새 사용자 생성: ${username}, 역할: ${role}`);
+        
+        return {
+            username,
+            role,
+            created: users[username].created
+        };
+    } catch (error) {
+        this.log('ERROR', `사용자 생성 중 오류: ${error.message}`);
+        throw error;
+    }
+}
 
    /**
     * 사용자 삭제
@@ -1234,56 +1254,116 @@ if (this._isEncrypted(data)) {
    }
 
    /**
-    * 초대 코드 생성
-    * @param {string} [customCode=null] 커스텀 코드
-    * @returns {Promise<Object>} 생성된 초대 코드
-    */
-   async createInviteCode(customCode = null) {
-       const inviteCodes = this.getStore('invite-codes');
-       
-       // 커스텀 코드가 있으면 사용, 없으면 랜덤 생성
-       let code = customCode;
-       if (!code) {
-           // 랜덤 코드 생성 (8자리)
-           const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-           code = '';
-           for (let i = 0; i < 8; i++) {
-               code += characters.charAt(Math.floor(Math.random() * characters.length));
-           }
-           
-           // 충돌 방지를 위해 타임스탬프 추가 (맨 앞 2자리)
-           const timestamp = Date.now().toString(36).slice(-2).toUpperCase();
-           code = timestamp + code.slice(0, 6);
-       }
-       
-       // 코드 포맷 검증
-       if (!/^[A-Z0-9]+$/.test(code)) {
-           throw new Error('초대 코드는 대문자와 숫자만 포함할 수 있습니다.');
-       }
-       
-       // 코드 중복 확인
-       if (inviteCodes[code]) {
-           throw new Error('이미 존재하는 초대 코드입니다.');
-       }
-       
-       // 초대 코드 정보 생성
-       inviteCodes[code] = {
-           code,
-           created: new Date().toISOString(),
-           createdBy: '시스템', // 생성자 정보 추가 가능
-           used: false,
-           usedBy: null,
-           usedAt: null
-       };
-       
-       // 저장
-       await this.save('invite-codes');
-       
-       // 초대 코드 생성 로깅
-       this.log('INFO', `새 초대 코드 생성: ${code}`);
-       
-       return inviteCodes[code];
-   }
+ * 초대 코드 사용 - 개선된 버전
+ * @param {string} code 초대 코드
+ * @param {string} username 사용자명
+ * @returns {Promise<Object>} 결과
+ */
+async useInviteCode(code, username) {
+    try {
+        // 저장소 로드 시도
+        if (!this.stores['invite-codes'] || Object.keys(this.stores['invite-codes']).length === 0) {
+            try {
+                await this.load('invite-codes');
+            } catch (loadError) {
+                throw new Error('초대 코드 저장소를 로드할 수 없습니다.');
+            }
+        }
+        
+        const inviteCodes = this.stores['invite-codes'];
+        
+        if (!inviteCodes[code]) {
+            throw new Error('유효하지 않은 초대 코드입니다.');
+        }
+        
+        if (inviteCodes[code].used) {
+            throw new Error('이미 사용된 초대 코드입니다.');
+        }
+        
+        // 초대 코드 사용 처리
+        inviteCodes[code].used = true;
+        inviteCodes[code].usedBy = username;
+        inviteCodes[code].usedAt = new Date().toISOString();
+        
+        // 저장
+        await this.save('invite-codes');
+        
+        // 초대 코드 사용 로깅
+        this.log('INFO', `초대 코드 사용: ${code}, 사용자: ${username}`);
+        
+        return { 
+            success: true, 
+            message: '초대 코드가 사용되었습니다.'
+        };
+    } catch (error) {
+        this.log('ERROR', `초대 코드 사용 중 오류: ${error.message}`);
+        throw error;
+    }
+}
+
+/**
+ * 새 초대 코드 생성 - 개선된 버전
+ * @param {string} [customCode=null] 커스텀 코드
+ * @returns {Promise<Object>} 생성된 초대 코드
+ */
+async createInviteCode(customCode = null) {
+    try {
+        // 저장소 로드 시도
+        if (!this.stores['invite-codes'] || Object.keys(this.stores['invite-codes']).length === 0) {
+            try {
+                await this.load('invite-codes');
+            } catch (loadError) {
+                // 초대 코드 저장소가 없으면 생성
+                this.log('WARN', `초대 코드 저장소 로드 실패: ${loadError.message}`);
+                this.stores['invite-codes'] = {};
+            }
+        }
+        
+        const inviteCodes = this.stores['invite-codes'];
+        
+        // 커스텀 코드가 있으면 사용, 없으면 랜덤 생성
+        let code = customCode;
+        if (!code) {
+            // 랜덤 코드 생성 (8자리)
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            code = '';
+            for (let i = 0; i < 8; i++) {
+                code += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+        }
+        
+        // 코드 포맷 검증
+        if (!/^[A-Z0-9]+$/.test(code)) {
+            throw new Error('초대 코드는 대문자와 숫자만 포함할 수 있습니다.');
+        }
+        
+        // 코드 중복 확인
+        if (inviteCodes[code]) {
+            throw new Error('이미 존재하는 초대 코드입니다.');
+        }
+        
+        // 초대 코드 정보 생성
+        inviteCodes[code] = {
+            code,
+            created: new Date().toISOString(),
+            createdBy: '시스템', // 생성자 정보 추가 가능
+            used: false,
+            usedBy: null,
+            usedAt: null
+        };
+        
+        // 저장
+        await this.save('invite-codes');
+        
+        // 초대 코드 생성 로깅
+        this.log('INFO', `새 초대 코드 생성: ${code}`);
+        
+        return inviteCodes[code];
+    } catch (error) {
+        this.log('ERROR', `초대 코드 생성 중 오류: ${error.message}`);
+        throw error;
+    }
+}
 
    /**
     * 초대 코드 삭제
@@ -1351,14 +1431,35 @@ if (this._isEncrypted(data)) {
    }
 
    /**
-    * 초대 코드 유효성 확인
-    * @param {string} code 초대 코드
-    * @returns {boolean} 유효 여부
-    */
-   isValidInviteCode(code) {
-       const inviteCodes = this.getStore('invite-codes');
-       return inviteCodes[code] && !inviteCodes[code].used;
-   }
+ * 초대 코드 유효성 확인 - 개선된 버전
+ * @param {string} code 초대 코드
+ * @returns {Promise<boolean>} 유효 여부
+ */
+async isValidInviteCode(code) {
+    try {
+        // 저장소 로드 시도
+        if (!this.stores['invite-codes'] || Object.keys(this.stores['invite-codes']).length === 0) {
+            try {
+                await this.load('invite-codes');
+            } catch (loadError) {
+                this.log('ERROR', `초대 코드 저장소 로드 실패: ${loadError.message}`);
+                return false;
+            }
+        }
+        
+        const inviteCodes = this.stores['invite-codes'];
+        
+        // 코드 존재 여부 및 미사용 상태 확인
+        if (!code || !inviteCodes[code]) {
+            return false;
+        }
+        
+        return !inviteCodes[code].used;
+    } catch (error) {
+        this.log('ERROR', `초대 코드 유효성 확인 중 오류: ${error.message}`);
+        return false;
+    }
+}
 
    /**
     * 사용자 역할 업데이트

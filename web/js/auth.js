@@ -1,10 +1,12 @@
 /**
  * Sea Dogs Tavern Discord Bot WebUI
- * 인증 관리 시스템
+ * 개선된 인증 관리 시스템
  */
 
 const AuthManager = {
     user: null,
+    loginCallback: null,
+    registerCallback: null,
     
     init: function() {
         // 페이지 새로고침/재접속 시 항상 로그아웃 상태로 시작
@@ -27,6 +29,12 @@ const AuthManager = {
         const logoutBtn = document.getElementById('logout-btn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', this.logout.bind(this));
+        }
+        
+        // 사이드바 로그아웃 버튼 리스너
+        const sidebarLogoutBtn = document.getElementById('sidebar-logout-btn');
+        if (sidebarLogoutBtn) {
+            sidebarLogoutBtn.addEventListener('click', this.logout.bind(this));
         }
         
         // 회원가입 모달 이벤트 리스너
@@ -61,6 +69,8 @@ const AuthManager = {
         
         // 초기 UI 업데이트
         this.updateAuthUI();
+        
+        console.log('AuthManager 초기화 완료');
     },
     
     // 로그인 상태 확인
@@ -133,10 +143,12 @@ const AuthManager = {
     handleLogin: function(e) {
         e.preventDefault();
         
-        const username = document.getElementById('username').value;
+        // 폼 입력값 가져오기
+        const username = document.getElementById('username').value.trim();
         const password = document.getElementById('password').value;
         const messageElement = document.querySelector('.login-message');
         
+        // 입력값 검증
         if (!username || !password) {
             messageElement.textContent = '아이디와 비밀번호를 입력해주세요.';
             return;
@@ -144,6 +156,10 @@ const AuthManager = {
         
         // 로딩 메시지
         messageElement.textContent = '로그인 중...';
+        
+        // 로그인 버튼 비활성화
+        const loginButton = document.querySelector('#login-form button[type="submit"]');
+        if (loginButton) loginButton.disabled = true;
         
         // 웹소켓으로 로그인 요청
         if (typeof WebSocketManager !== 'undefined' && WebSocketManager.sendMessage) {
@@ -154,32 +170,59 @@ const AuthManager = {
             });
         } else {
             messageElement.textContent = '웹소켓 연결이 준비되지 않았습니다. 페이지를 새로고침 해주세요.';
+            if (loginButton) loginButton.disabled = false;
         }
     },
     
-    // 회원가입 처리
+    // 회원가입 처리 - 개선됨
     handleRegister: function(e) {
         e.preventDefault();
         
-        const username = document.getElementById('register-username').value;
+        // 폼 입력값 가져오기
+        const username = document.getElementById('register-username').value.trim();
         const password = document.getElementById('register-password').value;
         const passwordConfirm = document.getElementById('register-password-confirm').value;
-        const inviteCode = document.getElementById('register-invite-code').value;
+        const inviteCode = document.getElementById('register-invite-code').value.trim();
         const messageElement = document.querySelector('.register-message');
         
-        // 입력 검증
+        // 입력값 검증
         if (!username || !password || !passwordConfirm || !inviteCode) {
             messageElement.textContent = '모든 필드를 입력해주세요.';
             return;
         }
         
+        // 아이디 유효성 검사
+        if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+            messageElement.textContent = '아이디는 3-20자의 영문, 숫자, 언더스코어(_)만 사용할 수 있습니다.';
+            return;
+        }
+        
+        // 비밀번호 복잡성 검사
+        if (password.length < 6) {
+            messageElement.textContent = '비밀번호는 최소 6자 이상이어야 합니다.';
+            return;
+        }
+        
+        // 비밀번호 일치 확인
         if (password !== passwordConfirm) {
             messageElement.textContent = '비밀번호가 일치하지 않습니다.';
             return;
         }
         
+        // 초대 코드 형식 검사
+        if (!/^[A-Z0-9]{8}$/.test(inviteCode) && !/^[A-Z0-9]{10}$/.test(inviteCode)) {
+            messageElement.textContent = '유효하지 않은 초대 코드 형식입니다.';
+            return;
+        }
+        
         // 로딩 메시지
         messageElement.textContent = '회원가입 중...';
+        
+        // 등록 버튼 비활성화
+        const registerButton = document.querySelector('#register-form button[type="submit"]');
+        if (registerButton) registerButton.disabled = true;
+        
+        console.log('회원가입 요청 전송:', username, inviteCode);
         
         // 웹소켓으로 회원가입 요청
         if (typeof WebSocketManager !== 'undefined' && WebSocketManager.sendMessage) {
@@ -189,30 +232,52 @@ const AuthManager = {
                 password: password,
                 inviteCode: inviteCode
             });
+            
+            // 콜백 저장 (응답 처리용)
+            this.registerCallback = function(success) {
+                if (registerButton) registerButton.disabled = false;
+                
+                if (success) {
+                    // 성공 메시지를 표시하고 로그인 모달로 전환
+                    setTimeout(() => {
+                        this.hideRegisterModal();
+                        setTimeout(() => {
+                            this.showLoginModal();
+                        }, 500);
+                    }, 1500);
+                }
+            }.bind(this);
         } else {
             messageElement.textContent = '웹소켓 연결이 준비되지 않았습니다. 페이지를 새로고침 해주세요.';
+            if (registerButton) registerButton.disabled = false;
         }
     },
     
     // 로그인 응답 처리
-    handleLoginResponse: function(response) {
+    handleLoginResponse: function(message) {
         const messageElement = document.querySelector('.login-message');
+        const loginButton = document.querySelector('#login-form button[type="submit"]');
+        
+        if (loginButton) loginButton.disabled = false;
+        
         if (!messageElement) return;
         
-        if (response.success) {
+        if (message.success) {
             // 로그인 성공
             this.login({
                 username: document.getElementById('username').value,
-                role: response.role || 'user',
-                servers: response.servers || [],
-                assignedChannels: response.assignedChannels || []
+                role: message.role || 'user',
+                servers: message.servers || [],
+                assignedChannels: message.assignedChannels || []
             });
             
             // 모달 닫기
             this.hideLoginModal();
             
             // 알림 표시
-            Utilities.showNotification(`${response.message || '로그인 성공'}`, 'success');
+            if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+                Utilities.showNotification(`${message.message || '로그인 성공'}`, 'success');
+            }
             
             // 콜백 실행
             if (typeof this.loginCallback === 'function') {
@@ -221,34 +286,48 @@ const AuthManager = {
             }
         } else {
             // 로그인 실패
-            messageElement.textContent = response.message || '로그인에 실패했습니다.';
+            messageElement.textContent = message.message || '로그인에 실패했습니다.';
         }
     },
     
-    // 회원가입 응답 처리
-    handleRegisterResponse: function(response) {
+    // 회원가입 응답 처리 - 개선됨
+    handleRegisterResponse: function(message) {
         const messageElement = document.querySelector('.register-message');
+        const registerButton = document.querySelector('#register-form button[type="submit"]');
+        
+        if (registerButton) registerButton.disabled = false;
+        
         if (!messageElement) return;
         
-        if (response.success) {
+        if (message.success) {
             // 회원가입 성공
-            messageElement.textContent = response.message || '회원가입이 완료되었습니다.';
+            messageElement.textContent = message.message || '회원가입이 완료되었습니다.';
+            messageElement.style.color = '#27ae60'; // 성공 메시지 색상을 녹색으로 변경
             
             // 알림 표시
-            Utilities.showNotification('회원가입이 완료되었습니다. 로그인 해주세요.', 'success');
+            if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+                Utilities.showNotification('회원가입이 완료되었습니다. 로그인 해주세요.', 'success');
+            }
             
-            // 회원가입 모달 닫기
-            setTimeout(() => {
-                this.hideRegisterModal();
-                
-                // 로그인 모달 표시
-                setTimeout(() => {
-                    this.showLoginModal();
-                }, 500);
-            }, 1500);
+            console.log('회원가입 성공 응답 수신');
+            
+            // 콜백 실행
+            if (typeof this.registerCallback === 'function') {
+                this.registerCallback(true);
+                this.registerCallback = null;
+            }
         } else {
             // 회원가입 실패
-            messageElement.textContent = response.message || '회원가입에 실패했습니다.';
+            messageElement.textContent = message.message || '회원가입에 실패했습니다.';
+            messageElement.style.color = '#e74c3c'; // 실패 메시지 색상을 빨간색으로 변경
+            
+            console.log('회원가입 실패 응답 수신:', message.message);
+            
+            // 콜백 실행 (실패)
+            if (typeof this.registerCallback === 'function') {
+                this.registerCallback(false);
+                this.registerCallback = null;
+            }
         }
     },
     
@@ -265,6 +344,10 @@ const AuthManager = {
             const passwordEl = document.getElementById('password');
             if (usernameEl) usernameEl.value = '';
             if (passwordEl) passwordEl.value = '';
+            
+            // 버튼 활성화
+            const loginButton = document.querySelector('#login-form button[type="submit"]');
+            if (loginButton) loginButton.disabled = false;
             
             // 콜백 저장
             this.loginCallback = callback;
@@ -288,7 +371,10 @@ const AuthManager = {
         if (modal) {
             // 이전 메시지 초기화
             const msgEl = document.querySelector('.register-message');
-            if (msgEl) msgEl.textContent = '';
+            if (msgEl) {
+                msgEl.textContent = '';
+                msgEl.style.color = '#e74c3c'; // 기본 색상 초기화
+            }
             
             // 이전 입력값 초기화
             const usernameEl = document.getElementById('register-username');
@@ -300,6 +386,10 @@ const AuthManager = {
             if (passwordEl) passwordEl.value = '';
             if (passwordConfirmEl) passwordConfirmEl.value = '';
             if (inviteCodeEl) inviteCodeEl.value = '';
+            
+            // 버튼 활성화
+            const registerButton = document.querySelector('#register-form button[type="submit"]');
+            if (registerButton) registerButton.disabled = false;
             
             // 모달 표시
             modal.style.display = 'block';
@@ -402,7 +492,7 @@ const AuthManager = {
         if (serverEl) {
             if (this.user.assignedServers && this.user.assignedServers.length > 0) {
                 serverEl.textContent = Array.isArray(this.user.assignedServers) ? 
-                    this.user.assignedServers.map(server => server.serverName).join(', ') : 
+                    this.user.assignedServers.map(server => server.serverName || server.name).join(', ') : 
                     '할당된 서버 있음';
             } else if (this.user.assignedChannels && this.user.assignedChannels.length > 0) {
                 serverEl.textContent = Array.isArray(this.user.assignedChannels) ? 
@@ -443,7 +533,7 @@ const AuthManager = {
         if (userInfoServer) {
             if (this.user.assignedServers && this.user.assignedServers.length > 0) {
                 userInfoServer.textContent = Array.isArray(this.user.assignedServers) ? 
-                    this.user.assignedServers.map(server => server.serverName).join(', ') : 
+                    this.user.assignedServers.map(server => server.serverName || server.name).join(', ') : 
                     '할당된 서버 있음';
             } else if (this.user.assignedChannels && this.user.assignedChannels.length > 0) {
                 userInfoServer.textContent = Array.isArray(this.user.assignedChannels) ? 
@@ -484,6 +574,19 @@ const AuthManager = {
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         AuthManager.init();
+        
+        // 웹소켓 메시지 핸들러 등록
+        if (typeof WebSocketManager !== 'undefined') {
+            // 로그인 응답 처리
+            WebSocketManager.messageHandlers['loginResult'] = (message) => {
+                AuthManager.handleLoginResponse(message);
+            };
+            
+            // 회원가입 응답 처리
+            WebSocketManager.messageHandlers['registerResult'] = (message) => {
+                AuthManager.handleRegisterResponse(message);
+            };
+        }
         
         // 웹소켓 준비 이벤트 발생
         const event = new CustomEvent('websocket_ready');

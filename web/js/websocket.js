@@ -71,15 +71,47 @@ const WebSocketManager = {
         console.log('WebSocketManager 초기화 완료');
     },
     
-    // 연결 상태 확인 함수
+    // 연결 상태 확인 함수 - 개선됨
     checkConnection: function() {
         // 연결이 끊어진 상태에서 네트워크가 복구되면 재연결 시도
         if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
             console.log('연결이 끊어진 상태 감지. 재연결 시도...');
+            
+            // 로그인/회원가입 모달이 열려있으면 메시지 표시
+            const loginModal = document.getElementById('login-modal');
+            const registerModal = document.getElementById('register-modal');
+            
+            if ((loginModal && loginModal.style.display === 'block') ||
+                (registerModal && registerModal.style.display === 'block')) {
+                
+                const loginMsg = document.querySelector('.login-message');
+                const registerMsg = document.querySelector('.register-message');
+                
+                if (loginModal && loginModal.style.display === 'block' && loginMsg) {
+                    loginMsg.textContent = '서버 연결이 끊어졌습니다. 재연결 중...';
+                }
+                
+                if (registerModal && registerModal.style.display === 'block' && registerMsg) {
+                    registerMsg.textContent = '서버 연결이 끊어졌습니다. 재연결 중...';
+                }
+            }
+            
             this.reconnect();
         } else {
             // 연결 상태이면 상태 요청으로 활성 상태 유지
             this.sendMessage({ command: 'ping' });
+            
+            // 로그인/회원가입 모달 메시지 초기화
+            const loginMsg = document.querySelector('.login-message');
+            const registerMsg = document.querySelector('.register-message');
+            
+            if (loginMsg && loginMsg.textContent.includes('서버 연결이 끊어졌습니다')) {
+                loginMsg.textContent = '';
+            }
+            
+            if (registerMsg && registerMsg.textContent.includes('서버 연결이 끊어졌습니다')) {
+                registerMsg.textContent = '';
+            }
             
             // 대시보드 데이터도 요청
             if (window.location.hash === '#dashboard') {
@@ -87,7 +119,7 @@ const WebSocketManager = {
             }
         }
     },
-    
+
     connect: function() {
         // 이미 재연결 중이면 중복 연결 방지
         if (this.isReconnecting) {
@@ -495,40 +527,88 @@ const WebSocketManager = {
     },
     
     // 기본 메시지 핸들러 등록
-    registerMessageHandlers: function() {
-        // 로그인 응답
-        this.messageHandlers['loginResult'] = (message) => {
-            if (typeof AuthManager !== 'undefined' && AuthManager.handleLoginResponse) {
-                AuthManager.handleLoginResponse(message);
-            }
-        };
+registerMessageHandlers: function() {
+    // 로그인 응답
+    this.messageHandlers['loginResult'] = (message) => {
+        if (typeof AuthManager !== 'undefined' && AuthManager.handleLoginResponse) {
+            AuthManager.handleLoginResponse(message);
+        }
+    };
         
-        // 회원가입 결과
-        this.messageHandlers['registerResult'] = (message) => {
-            if (typeof AuthManager !== 'undefined' && AuthManager.handleRegisterResponse) {
-                AuthManager.handleRegisterResponse(message);
+        // 회원가입 결과 - 개선됨
+    this.messageHandlers['registerResult'] = (message) => {
+        console.log('회원가입 응답 수신:', message);
+        
+        if (typeof AuthManager !== 'undefined' && AuthManager.handleRegisterResponse) {
+            AuthManager.handleRegisterResponse(message);
+        } else {
+            console.warn('AuthManager가 정의되지 않았거나 handleRegisterResponse 함수가 없습니다.');
+            
+            // 기본 알림 표시
+            if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+                if (message.success) {
+                    Utilities.showNotification(
+                        message.message || '회원가입이 완료되었습니다. 로그인 해주세요.', 
+                        'success'
+                    );
+                } else {
+                    Utilities.showNotification(
+                        message.message || '회원가입에 실패했습니다.', 
+                        'error'
+                    );
+                }
             }
-        };
+        }
+    };
         
         // 온라인 관리자 목록
-        this.messageHandlers['onlineAdmins'] = (message) => {
-            if (message.admins && typeof updateOnlineAdmins === 'function') {
-                updateOnlineAdmins(message.admins);
-            }
-        };
+    this.messageHandlers['onlineAdmins'] = (message) => {
+        if (message.admins && typeof updateOnlineAdmins === 'function') {
+            updateOnlineAdmins(message.admins);
+        }
+    };
+    
+    // 초대 코드 관련 응답 - 추가됨
+    this.messageHandlers['inviteCodeResult'] = (message) => {
+        console.log('초대 코드 응답 수신:', message);
         
-        // 사용자 정보 업데이트
-        this.messageHandlers['userInfoUpdate'] = (message) => {
-            if (message.success && message.user && typeof AuthManager !== 'undefined') {
-                // 사용자 정보 업데이트
-                AuthManager.login(message.user);
-                
-                // 알림 표시
-                Utilities.showNotification(message.message || '사용자 정보가 업데이트되었습니다.', 'success');
+        if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+            if (message.success) {
+                Utilities.showNotification(
+                    message.message || '초대 코드 작업이 완료되었습니다.', 
+                    'success'
+                );
             } else {
-                Utilities.showNotification(message.message || '사용자 정보 업데이트 실패', 'error');
+                Utilities.showNotification(
+                    message.message || '초대 코드 작업 실패', 
+                    'error'
+                );
             }
-        };
+        }
+    };
+        
+       // 사용자 정보 업데이트
+    this.messageHandlers['userInfoUpdate'] = (message) => {
+        if (message.success && message.user && typeof AuthManager !== 'undefined') {
+            // 사용자 정보 업데이트
+            AuthManager.login(message.user);
+            
+            // 알림 표시
+            if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+                Utilities.showNotification(
+                    message.message || '사용자 정보가 업데이트되었습니다.', 
+                    'success'
+                );
+            }
+        } else {
+            if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
+                Utilities.showNotification(
+                    message.message || '사용자 정보 업데이트 실패', 
+                    'error'
+                );
+            }
+        }
+    };
         
         // 서버 상태 메시지 핸들러 - 수정: 봇 상태 메시지 중복 알림 제거
         this.messageHandlers['serverStatus'] = (message) => {
@@ -554,30 +634,60 @@ const WebSocketManager = {
             }
         };
         
-        // 에러 메시지 - 중복 메시지 방지 개선
-        this.messageHandlers['error'] = (message) => {
-            // 특정 오류 메시지 체크를 위한 변수
-            const errorMsg = message.message || '';
+        // 오류 메시지 - 개선됨
+    this.messageHandlers['error'] = (message) => {
+        const errorMsg = message.message || '';
+        
+        // 무시할 오류 메시지 패턴
+        const ignorePatterns = [
+            '봇 시작에 실패했습니다',
+            '봇이 이미 실행 중입니다',
+            '이미 할당된 채널입니다',
+            '모듈 재로드 중',
+            '봇이 실행 중입니다',
+            '봇이 실행 중이 아닙니다',
+            '권한이 필요합니다'
+        ];
+        
+        // 해당 패턴이 있으면 무시
+        if (ignorePatterns.some(pattern => errorMsg.includes(pattern))) {
+            console.log('무시된 오류 메시지:', errorMsg);
+            return;
+        }
+        
+        // 인증 관련 오류는 특별히 처리
+        if (errorMsg.includes('로그인') || 
+            errorMsg.includes('비밀번호') || 
+            errorMsg.includes('회원가입') || 
+            errorMsg.includes('초대 코드')) {
             
-            // 무시할 오류 메시지 패턴
-            const ignorePatterns = [
-                '봇 시작에 실패했습니다',
-                '봇이 이미 실행 중입니다',
-                '이미 할당된 채널입니다',
-                '모듈 재로드 중',
-                '봇이 실행 중입니다',
-                '봇이 실행 중이 아닙니다',
-                '권한이 필요합니다'
-            ];
+            // 로그인 모달이 열려있는 경우
+            const loginModal = document.getElementById('login-modal');
+            const registerModal = document.getElementById('register-modal');
             
-            // 해당 패턴이 있으면 무시
-            if (ignorePatterns.some(pattern => errorMsg.includes(pattern))) {
-                console.log('무시된 오류 메시지:', errorMsg);
-                return;
+            if ((loginModal && loginModal.style.display === 'block') ||
+                (registerModal && registerModal.style.display === 'block')) {
+                
+                // 모달 메시지 업데이트 (중복 알림 방지)
+                const loginMsg = document.querySelector('.login-message');
+                const registerMsg = document.querySelector('.register-message');
+                
+                if (loginModal && loginModal.style.display === 'block' && loginMsg) {
+                    loginMsg.textContent = errorMsg;
+                    return;
+                }
+                
+                if (registerModal && registerModal.style.display === 'block' && registerMsg) {
+                    registerMsg.textContent = errorMsg;
+                    return;
+                }
             }
-            
+        }
+        
+        if (typeof Utilities !== 'undefined' && Utilities.showNotification) {
             Utilities.showNotification(errorMsg, 'error');
-        };
+        }
+    };
         
         // 기본 정보 메시지 - 중복 처리 방지 개선
         this.messageHandlers['info'] = (message) => {

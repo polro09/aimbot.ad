@@ -306,40 +306,86 @@ class WebServer {
                 }
                 break;
                 
-            // 회원가입 처리
-            case 'register':
-                try {
-                    const { username, password, inviteCode } = data;
-                    
-                    // 초대 코드 유효성 확인
-                    if (!storage.isValidInviteCode(inviteCode)) {
-                        this._sendMessage(ws, {
-                            type: 'registerResult',
-                            success: false,
-                            message: '유효하지 않은 초대 코드입니다.'
-                        });
-                        return;
-                    }
-                    
-                    // 사용자 생성
-                    const user = await storage.createUser(username, password);
-                    
-                    // 초대 코드 사용 처리
-                    await storage.useInviteCode(inviteCode, username);
-                    
-                    this._sendMessage(ws, {
-                        type: 'registerResult',
-                        success: true,
-                        message: '회원가입이 완료되었습니다.'
-                    });
-                } catch (error) {
-                    this._sendMessage(ws, {
-                        type: 'registerResult',
-                        success: false,
-                        message: `회원가입 처리 중 오류 발생: ${error.message}`
-                    });
-                }
-                break;
+            // webserver.js의 회원가입 처리 부분
+
+// 회원가입 처리
+case 'register':
+    try {
+        const { username, password, inviteCode } = data;
+        
+        this.log('INFO', `회원가입 요청: ${username}, 초대 코드: ${inviteCode}`);
+        
+        // 유효성 검사
+        if (!username || typeof username !== 'string') {
+            this._sendMessage(ws, {
+                type: 'registerResult',
+                success: false,
+                message: '유효한 사용자명을 입력해주세요.'
+            });
+            return;
+        }
+        
+        if (!password || typeof password !== 'string') {
+            this._sendMessage(ws, {
+                type: 'registerResult',
+                success: false,
+                message: '유효한 비밀번호를 입력해주세요.'
+            });
+            return;
+        }
+        
+        if (!inviteCode || typeof inviteCode !== 'string') {
+            this._sendMessage(ws, {
+                type: 'registerResult',
+                success: false,
+                message: '유효한 초대 코드를 입력해주세요.'
+            });
+            return;
+        }
+        
+        // 초대 코드 유효성 확인
+        const isValidCode = await storage.isValidInviteCode(inviteCode);
+        if (!isValidCode) {
+            this.log('WARN', `유효하지 않은 초대 코드 사용 시도: ${inviteCode}, 사용자: ${username}`);
+            this._sendMessage(ws, {
+                type: 'registerResult',
+                success: false,
+                message: '유효하지 않은 초대 코드입니다. 다른 코드를 사용하거나 관리자에게 문의하세요.'
+            });
+            return;
+        }
+        
+        try {
+            // 사용자 생성
+            const user = await storage.createUser(username, password);
+            
+            // 초대 코드 사용 처리
+            await storage.useInviteCode(inviteCode, username);
+            
+            this.log('INFO', `회원가입 성공: ${username}, 초대 코드: ${inviteCode}`);
+            
+            this._sendMessage(ws, {
+                type: 'registerResult',
+                success: true,
+                message: '회원가입이 완료되었습니다. 로그인 해주세요.'
+            });
+        } catch (createError) {
+            this.log('ERROR', `사용자 생성 오류: ${createError.message}`);
+            this._sendMessage(ws, {
+                type: 'registerResult',
+                success: false,
+                message: createError.message || '회원가입에 실패했습니다. 다시 시도해주세요.'
+            });
+        }
+    } catch (error) {
+        this.log('ERROR', `회원가입 처리 중 예외 발생: ${error.message}`);
+        this._sendMessage(ws, {
+            type: 'registerResult',
+            success: false,
+            message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        });
+    }
+    break;
                 
             // 사용자 목록 요청 처리
             case 'getUsers':
