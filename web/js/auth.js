@@ -316,6 +316,14 @@ const AuthManager = {
                 this.registerCallback(true);
                 this.registerCallback = null;
             }
+            
+            // 성공 시 모달 닫고 로그인 모달 표시
+            setTimeout(() => {
+                this.hideRegisterModal();
+                setTimeout(() => {
+                    this.showLoginModal();
+                }, 500);
+            }, 1500);
         } else {
             // 회원가입 실패
             messageElement.textContent = message.message || '회원가입에 실패했습니다.';

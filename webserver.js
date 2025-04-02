@@ -107,6 +107,11 @@ class WebServer {
         return `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
     }
     
+    // 로그 함수 추가
+    log(type, message) {
+        console.log(`[${type}] ${message}`);
+    }
+    
     // 웹소켓 연결 처리
     _handleWebSocketConnection(ws) {
         // 연결 카운트 증가
@@ -166,13 +171,12 @@ class WebServer {
             });
         };
     }
-
     // 웹소켓 메시지 처리
     async _handleWebSocketMessage(ws, data) {
         const { command } = data;
         
         // 명령어 로깅
-        console.log(`클라이언트로부터, 인트 받은 웹소켓 명령:`, command);
+        console.log(`클라이언트로부터 받은 웹소켓 명령:`, command);
         
         // 관리자 권한이 필요한 명령어 목록
         const adminCommands = ['start', 'stop', 'restart', 'moduleAction', 'assignServer', 'unassignServer'];
@@ -201,6 +205,15 @@ class WebServer {
         }
         
         switch (command) {
+            // ping/pong 처리 (통신 연결 확인용)
+            case 'ping':
+                // 연결 활성 상태 확인 (pong 응답)
+                this._sendMessage(ws, {
+                    type: 'pong',
+                    timestamp: Date.now()
+                });
+                break;
+                
             // 온라인 관리자 목록 요청 처리 (로그인 필요 없음)
             case 'getOnlineAdmins':
                 try {
@@ -271,7 +284,7 @@ class WebServer {
                             ws.userSession.role = user.role;
                             
                             // 사용자 정보에서 할당된 채널 가져오기
-                            const assignedChannels = storage.getUserChannels(username);
+                            const assignedChannels = storage.getUserChannels ? storage.getUserChannels(username) : [];
                             
                             this._sendMessage(ws, {
                                 type: 'loginResult',
@@ -306,86 +319,85 @@ class WebServer {
                 }
                 break;
                 
-            // webserver.js의 회원가입 처리 부분
-
-// 회원가입 처리
-case 'register':
-    try {
-        const { username, password, inviteCode } = data;
-        
-        this.log('INFO', `회원가입 요청: ${username}, 초대 코드: ${inviteCode}`);
-        
-        // 유효성 검사
-        if (!username || typeof username !== 'string') {
-            this._sendMessage(ws, {
-                type: 'registerResult',
-                success: false,
-                message: '유효한 사용자명을 입력해주세요.'
-            });
-            return;
-        }
-        
-        if (!password || typeof password !== 'string') {
-            this._sendMessage(ws, {
-                type: 'registerResult',
-                success: false,
-                message: '유효한 비밀번호를 입력해주세요.'
-            });
-            return;
-        }
-        
-        if (!inviteCode || typeof inviteCode !== 'string') {
-            this._sendMessage(ws, {
-                type: 'registerResult',
-                success: false,
-                message: '유효한 초대 코드를 입력해주세요.'
-            });
-            return;
-        }
-        
-        // 초대 코드 유효성 확인
-        const isValidCode = await storage.isValidInviteCode(inviteCode);
-        if (!isValidCode) {
-            this.log('WARN', `유효하지 않은 초대 코드 사용 시도: ${inviteCode}, 사용자: ${username}`);
-            this._sendMessage(ws, {
-                type: 'registerResult',
-                success: false,
-                message: '유효하지 않은 초대 코드입니다. 다른 코드를 사용하거나 관리자에게 문의하세요.'
-            });
-            return;
-        }
-        
-        try {
-            // 사용자 생성
-            const user = await storage.createUser(username, password);
-            
-            // 초대 코드 사용 처리
-            await storage.useInviteCode(inviteCode, username);
-            
-            this.log('INFO', `회원가입 성공: ${username}, 초대 코드: ${inviteCode}`);
-            
-            this._sendMessage(ws, {
-                type: 'registerResult',
-                success: true,
-                message: '회원가입이 완료되었습니다. 로그인 해주세요.'
-            });
-        } catch (createError) {
-            this.log('ERROR', `사용자 생성 오류: ${createError.message}`);
-            this._sendMessage(ws, {
-                type: 'registerResult',
-                success: false,
-                message: createError.message || '회원가입에 실패했습니다. 다시 시도해주세요.'
-            });
-        }
-    } catch (error) {
-        this.log('ERROR', `회원가입 처리 중 예외 발생: ${error.message}`);
-        this._sendMessage(ws, {
-            type: 'registerResult',
-            success: false,
-            message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
-        });
-    }
-    break;
+            // 회원가입 처리
+            case 'register':
+                try {
+                    const { username, password, inviteCode } = data;
+                    
+                    this.log('INFO', `회원가입 요청: ${username}, 초대 코드: ${inviteCode}`);
+                    
+                    // 유효성 검사
+                    if (!username || typeof username !== 'string') {
+                        this._sendMessage(ws, {
+                            type: 'registerResult',
+                            success: false,
+                            message: '유효한 사용자명을 입력해주세요.'
+                        });
+                        return;
+                    }
+                    
+                    if (!password || typeof password !== 'string') {
+                        this._sendMessage(ws, {
+                            type: 'registerResult',
+                            success: false,
+                            message: '유효한 비밀번호를 입력해주세요.'
+                        });
+                        return;
+                    }
+                    
+                    if (!inviteCode || typeof inviteCode !== 'string') {
+                        this._sendMessage(ws, {
+                            type: 'registerResult',
+                            success: false,
+                            message: '유효한 초대 코드를 입력해주세요.'
+                        });
+                        return;
+                    }
+                    
+                    // 초대 코드 유효성 확인
+                    const isValidCode = await storage.isValidInviteCode(inviteCode);
+                    if (!isValidCode) {
+                        this.log('WARN', `유효하지 않은 초대 코드 사용 시도: ${inviteCode}, 사용자: ${username}`);
+                        this._sendMessage(ws, {
+                            type: 'registerResult',
+                            success: false,
+                            message: '유효하지 않은 초대 코드입니다. 다른 코드를 사용하거나 관리자에게 문의하세요.'
+                        });
+                        return;
+                    }
+                    
+                    try {
+                        // 사용자 생성
+                        const user = await storage.createUser(username, password);
+                        
+                        // 초대 코드 사용 처리
+                        await storage.useInviteCode(inviteCode, username);
+                        
+                        this.log('INFO', `회원가입 성공: ${username}, 초대 코드: ${inviteCode}`);
+                        
+                        // 등록 결과 전송 - 명확한 성공 상태 포함
+                        this._sendMessage(ws, {
+                            type: 'registerResult',
+                            success: true,
+                            message: '회원가입이 완료되었습니다. 로그인 해주세요.'
+                        });
+                    } catch (createError) {
+                        this.log('ERROR', `사용자 생성 오류: ${createError.message}`);
+                        this._sendMessage(ws, {
+                            type: 'registerResult',
+                            success: false,
+                            message: createError.message || '회원가입에 실패했습니다. 다시 시도해주세요.'
+                        });
+                    }
+                } catch (error) {
+                    this.log('ERROR', `회원가입 처리 중 예외 발생: ${error.message}`);
+                    this._sendMessage(ws, {
+                        type: 'registerResult',
+                        success: false,
+                        message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+                    });
+                }
+                break;
                 
             // 사용자 목록 요청 처리
             case 'getUsers':
@@ -452,8 +464,7 @@ case 'register':
                     });
                 }
                 break;
-            
-            // 초대 코드 삭제 처리
+                // 초대 코드 삭제 처리
             case 'deleteInviteCode':
                 try {
                     const { code } = data;
@@ -592,7 +603,8 @@ case 'register':
                     }
                     
                     // storage.js에 assignServerToUser 함수 호출
-                    const assignedServers = await storage.assignServerToUser(username, serverId, serverName);
+                    const assignedServers = storage.assignServerToUser ? 
+                        await storage.assignServerToUser(username, serverId, serverName) : [];
                     
                     this._sendMessage(ws, {
                         type: 'info',
@@ -620,7 +632,8 @@ case 'register':
                     const { username, serverId } = data;
                     
                     // storage.js에 구현된 함수 호출
-                    const assignedServers = await storage.unassignServerFromUser(username, serverId);
+                    const assignedServers = storage.unassignServerFromUser ? 
+                        await storage.unassignServerFromUser(username, serverId) : [];
                     
                     this._sendMessage(ws, {
                         type: 'info',
@@ -657,7 +670,7 @@ case 'register':
                     }
                     
                     // storage.js에 구현된 함수 호출
-                    const servers = storage.getUserServers(username);
+                    const servers = storage.getUserServers ? storage.getUserServers(username) : [];
                     
                     this._sendMessage(ws, {
                         type: 'userServers',
@@ -689,24 +702,30 @@ case 'register':
                         }
                     }
                     
-                    // TODO: 채널 이름 가져오기 구현
-                    
-                    const assignedChannels = await storage.assignChannelToUser(
-                        username, serverId, channelId, serverName, channelName
-                    );
-                    
-                    this._sendMessage(ws, {
-                        type: 'info',
-                        message: '채널이 할당되었습니다.',
-                        assignedChannels
-                    });
-                    
-                    // 사용자 채널 목록 업데이트
-                    this._sendMessage(ws, {
-                        type: 'userChannels',
-                        username,
-                        channels: assignedChannels
-                    });
+                    // 채널 할당 함수가 있는지 확인
+                    if (typeof storage.assignChannelToUser === 'function') {
+                        const assignedChannels = await storage.assignChannelToUser(
+                            username, serverId, channelId, serverName, channelName
+                        );
+                        
+                        this._sendMessage(ws, {
+                            type: 'info',
+                            message: '채널이 할당되었습니다.',
+                            assignedChannels
+                        });
+                        
+                        // 사용자 채널 목록 업데이트
+                        this._sendMessage(ws, {
+                            type: 'userChannels',
+                            username,
+                            channels: assignedChannels
+                        });
+                    } else {
+                        this._sendMessage(ws, {
+                            type: 'error',
+                            message: '채널 할당 기능이 구현되지 않았습니다.'
+                        });
+                    }
                 } catch (error) {
                     this._sendMessage(ws, {
                         type: 'error',
@@ -719,20 +738,29 @@ case 'register':
             case 'unassignChannel':
                 try {
                     const { username, channelId } = data;
-                    const assignedChannels = await storage.unassignChannelFromUser(username, channelId);
                     
-                    this._sendMessage(ws, {
-                        type: 'info',
-                        message: '채널 할당이 해제되었습니다.',
-                        assignedChannels
-                    });
-                    
-                    // 사용자 채널 목록 업데이트
-                    this._sendMessage(ws, {
-                        type: 'userChannels',
-                        username,
-                        channels: assignedChannels
-                    });
+                    // 채널 할당 해제 함수가 있는지 확인
+                    if (typeof storage.unassignChannelFromUser === 'function') {
+                        const assignedChannels = await storage.unassignChannelFromUser(username, channelId);
+                        
+                        this._sendMessage(ws, {
+                            type: 'info',
+                            message: '채널 할당이 해제되었습니다.',
+                            assignedChannels
+                        });
+                        
+                        // 사용자 채널 목록 업데이트
+                        this._sendMessage(ws, {
+                            type: 'userChannels',
+                            username,
+                            channels: assignedChannels
+                        });
+                    } else {
+                        this._sendMessage(ws, {
+                            type: 'error',
+                            message: '채널 할당 해제 기능이 구현되지 않았습니다.'
+                        });
+                    }
                 } catch (error) {
                     this._sendMessage(ws, {
                         type: 'error',
@@ -755,7 +783,9 @@ case 'register':
                         return;
                     }
                     
-                    const channels = storage.getUserChannels(username);
+                    // 채널 목록 가져오기 함수가 있는지 확인
+                    const channels = typeof storage.getUserChannels === 'function' ? 
+                        storage.getUserChannels(username) : [];
                     
                     this._sendMessage(ws, {
                         type: 'userChannels',
@@ -857,8 +887,8 @@ case 'register':
                 try {
                     const { serverId } = data;
                     
-                    // TODO: 봇을 통해 서버의 채널 목록 가져오기
-                    // 임시 응답으로 몇 가지 채널 목록 반환
+                    // 봇을 통해 서버의 채널 목록 가져오기 (실제 구현 필요)
+                    // 임시 응답으로 기본 채널 목록 반환
                     const channels = [
                         { id: 'channel1', name: '일반', type: 0 },
                         { id: 'channel2', name: '공지사항', type: 0 },
@@ -900,50 +930,50 @@ case 'register':
                 }
                 break;
             
-                case 'start':
-                    try {
-                        // 봇이 이미 실행 중인지 확인
-                        if (bot.status.isRunning) {
-                            // 조용히 무시하거나 성공 메시지 전송
-                            this._sendMessage(ws, {
-                                type: 'info',
-                                message: '봇이 실행 중입니다.'
-                            });
-                            
-                            // 상태 업데이트 전송
-                            this._sendStatus(ws);
-                            return;
-                        }
+            // 봇 시작 처리    
+            case 'start':
+                try {
+                    // 봇이 이미 실행 중인지 확인
+                    if (bot.status.isRunning) {
+                        // 조용히 무시하거나 성공 메시지 전송
+                        this._sendMessage(ws, {
+                            type: 'info',
+                            message: '봇이 실행 중입니다.'
+                        });
                         
-                        const success = await bot.start();
+                        // 상태 업데이트 전송
+                        this._sendStatus(ws);
+                        return;
+                    }
+                    
+                    const success = await bot.start();
+                    
+                    if (success) {
+                        this._sendMessage(ws, {
+                            type: 'info',
+                            message: '봇이 시작되었습니다.'
+                        });
                         
-                        if (success) {
-                            this._sendMessage(ws, {
-                                type: 'info',
-                                message: '봇이 시작되었습니다.'
-                            });
-                            
-                            // 모든 클라이언트에 상태 업데이트
-                            this.wss.clients.forEach(client => {
-                                if (client.readyState === WebSocket.OPEN) {
-                                    this._sendStatus(client);
-                                }
-                            });
-                        } else {
-                            this._sendMessage(ws, {
-                                type: 'error',
-                                message: '봇 시작에 실패했습니다.'
-                            });
-                        }
-                    } catch (error) {
+                        // 모든 클라이언트에 상태 업데이트
+                        this.wss.clients.forEach(client => {
+                            if (client.readyState === WebSocket.OPEN) {
+                                this._sendStatus(client);
+                            }
+                        });
+                    } else {
                         this._sendMessage(ws, {
                             type: 'error',
-                            message: `봇 시작 중 오류 발생: ${error.message}`
+                            message: '봇 시작에 실패했습니다.'
                         });
                     }
-                    break;
-            
-            // 봇 종료 처리
+                } catch (error) {
+                    this._sendMessage(ws, {
+                        type: 'error',
+                        message: `봇 시작 중 오류 발생: ${error.message}`
+                    });
+                }
+                break;
+                // 봇 종료 처리
             case 'stop':
                 try {
                     const success = await bot.stop();
