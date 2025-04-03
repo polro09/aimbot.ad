@@ -444,76 +444,82 @@ class Storage {
     }
     
     /**
-     * 데이터 암호화 - 랜덤 IV 사용
-     * @param {Object} data 암호화할 데이터
-     * @returns {string} 암호화된 문자열 (IV:암호화된 데이터)
-     * @private
-     */
-    _encrypt(data) {
-        try {
-            // 32바이트 암호화 키 생성
-            const key = crypto.createHash('sha256').update(this.encryptionKey).digest();
-            
-            // 16바이트 랜덤 초기화 벡터(IV) 생성 - 매번 새로운 값 사용
-            const iv = crypto.randomBytes(16);
-            
-            // 암호화 알고리즘 생성
-            const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-            
-            // 데이터 직렬화 및 암호화
-            const serializedData = JSON.stringify(data);
-            let encrypted = cipher.update(serializedData, 'utf8', 'hex');
-            encrypted += cipher.final('hex');
-            
-            // IV와 암호화된 데이터 결합 (IV는 복호화에 필요)
-            return iv.toString('hex') + ':' + encrypted;
-        } catch (error) {
-            this.log('ERROR', `데이터 암호화 중 오류: ${error.message}`);
-            throw new Error('데이터 암호화 실패');
+ * 데이터 암호화 - 랜덤 IV 사용
+ * @param {Object} data 암호화할 데이터
+ * @returns {string} 암호화된 문자열 (IV:암호화된 데이터)
+ * @private
+ */
+_encrypt(data) {
+    try {
+        // 32바이트 암호화 키 생성
+        const key = crypto.createHash('sha256').update(this.encryptionKey).digest();
+        
+        // 16바이트 랜덤 초기화 벡터(IV) 생성 - 매번 새로운 값 사용
+        const iv = crypto.randomBytes(16);
+        
+        // 암호화 알고리즘 생성
+        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+        
+        // 데이터 직렬화 및 암호화
+        const serializedData = JSON.stringify(data);
+        let encrypted = cipher.update(serializedData, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        
+        // IV와 암호화된 데이터 결합 (IV는 복호화에 필요)
+        return iv.toString('hex') + ':' + encrypted;
+    } catch (error) {
+        this.log('ERROR', `데이터 암호화 중 오류: ${error.message}`);
+        throw new Error('데이터 암호화 실패');
+    }
+}
+
+/**
+ * 암호화된 데이터 여부 확인
+ * @param {string} data 검사할 데이터
+ * @returns {boolean} 암호화 여부
+ * @private
+ */
+_isEncrypted(data) {
+    // 암호화된 데이터는 16진수 IV + ':' + 16진수 암호화 데이터 형식
+    return typeof data === 'string' && 
+           data.includes(':') && 
+           /^[0-9a-f]{32}:[0-9a-f]+$/.test(data);
+}
+
+/**
+ * 데이터 복호화
+ * @param {string} encryptedData 암호화된 문자열 (IV:암호화된 데이터)
+ * @returns {Object} 복호화된 데이터 객체
+ * @private
+ */
+_decrypt(encryptedData) {
+    try {
+        // IV와 암호화된 데이터 분리
+        const [ivHex, encrypted] = encryptedData.split(':');
+        
+        if (!ivHex || !encrypted) {
+            throw new Error('잘못된 암호화 데이터 형식');
         }
+        
+        // IV 복원
+        const iv = Buffer.from(ivHex, 'hex');
+        
+        // 32바이트 암호화 키 생성
+        const key = crypto.createHash('sha256').update(this.encryptionKey).digest();
+        
+        // 복호화 알고리즘 생성
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+        
+        // 데이터 복호화 및 역직렬화
+        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        
+        return JSON.parse(decrypted);
+    } catch (error) {
+        this.log('ERROR', `데이터 복호화 중 오류: ${error.message}`);
+        throw new Error('데이터 복호화 실패');
     }
-    
-    // 여기에 _isEncrypted 함수를 추가
-    _isEncrypted(data) {
-        // 암호화된 데이터는 16진수 IV + ':' + 16진수 암호화 데이터 형식
-        return typeof data === 'string' && 
-               data.includes(':') && 
-               /^[0-9a-f]{32}:[0-9a-f]+$/.test(data);
-    }
-    /**
-     * 데이터 복호화
-     * @param {string} encryptedData 암호화된 문자열 (IV:암호화된 데이터)
-     * @returns {Object} 복호화된 데이터 객체
-     * @private
-     */
-    _decrypt(encryptedData) {
-        try {
-            // IV와 암호화된 데이터 분리
-            const [ivHex, encrypted] = encryptedData.split(':');
-            
-            if (!ivHex || !encrypted) {
-                throw new Error('잘못된 암호화 데이터 형식');
-            }
-            
-            // IV 복원
-            const iv = Buffer.from(ivHex, 'hex');
-            
-            // 32바이트 암호화 키 생성
-            const key = crypto.createHash('sha256').update(this.encryptionKey).digest();
-            
-            // 복호화 알고리즘 생성
-            const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-            
-            // 데이터 복호화 및 역직렬화
-            let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-            decrypted += decipher.final('utf8');
-            
-            return JSON.parse(decrypted);
-        } catch (error) {
-            this.log('ERROR', `데이터 복호화 중 오류: ${error.message}`);
-            throw new Error('데이터 복호화 실패');
-        }
-    }
+}
     
     // storage.js 파일에 다음 함수를 추가합니다
 
@@ -1253,51 +1259,65 @@ async createUser(username, password, role = 'user') {
        };
    }
 
+
    /**
- * 초대 코드 사용 - 개선된 버전
+    * 초대 코드 삭제
+    * @param {string} code 초대 코드
+    * @returns {Promise<Object>} 삭제 결과
+    */
+   async deleteInviteCode(code) {
+       const inviteCodes = this.getStore('invite-codes');
+       
+       if (!inviteCodes[code]) {
+           throw new Error('초대 코드를 찾을 수 없습니다.');
+       }
+       
+       // 초대 코드 정보 백업
+       const codeInfo = { ...inviteCodes[code] };
+       
+       // 초대 코드 삭제
+       delete inviteCodes[code];
+       
+       // 저장
+       await this.save('invite-codes');
+       
+       // 초대 코드 삭제 로깅
+       this.log('INFO', `초대 코드 삭제: ${code}`);
+       
+       return { 
+           success: true, 
+           message: '초대 코드가 삭제되었습니다.',
+           codeInfo
+       };
+   }
+/**
+ * 초대 코드 유효성 확인 - 개선된 버전
  * @param {string} code 초대 코드
- * @param {string} username 사용자명
- * @returns {Promise<Object>} 결과
+ * @returns {Promise<boolean>} 유효 여부
  */
-async useInviteCode(code, username) {
+async isValidInviteCode(code) {
     try {
         // 저장소 로드 시도
         if (!this.stores['invite-codes'] || Object.keys(this.stores['invite-codes']).length === 0) {
             try {
                 await this.load('invite-codes');
             } catch (loadError) {
-                throw new Error('초대 코드 저장소를 로드할 수 없습니다.');
+                this.log('ERROR', `초대 코드 저장소 로드 실패: ${loadError.message}`);
+                return false;
             }
         }
         
         const inviteCodes = this.stores['invite-codes'];
         
-        if (!inviteCodes[code]) {
-            throw new Error('유효하지 않은 초대 코드입니다.');
+        // 코드 존재 여부 및 미사용 상태 확인
+        if (!code || !inviteCodes[code]) {
+            return false;
         }
         
-        if (inviteCodes[code].used) {
-            throw new Error('이미 사용된 초대 코드입니다.');
-        }
-        
-        // 초대 코드 사용 처리
-        inviteCodes[code].used = true;
-        inviteCodes[code].usedBy = username;
-        inviteCodes[code].usedAt = new Date().toISOString();
-        
-        // 저장
-        await this.save('invite-codes');
-        
-        // 초대 코드 사용 로깅
-        this.log('INFO', `초대 코드 사용: ${code}, 사용자: ${username}`);
-        
-        return { 
-            success: true, 
-            message: '초대 코드가 사용되었습니다.'
-        };
+        return !inviteCodes[code].used;
     } catch (error) {
-        this.log('ERROR', `초대 코드 사용 중 오류: ${error.message}`);
-        throw error;
+        this.log('ERROR', `초대 코드 유효성 확인 중 오류: ${error.message}`);
+        return false;
     }
 }
 
@@ -1365,37 +1385,53 @@ async createInviteCode(customCode = null) {
     }
 }
 
-   /**
-    * 초대 코드 삭제
-    * @param {string} code 초대 코드
-    * @returns {Promise<Object>} 삭제 결과
-    */
-   async deleteInviteCode(code) {
-       const inviteCodes = this.getStore('invite-codes');
-       
-       if (!inviteCodes[code]) {
-           throw new Error('초대 코드를 찾을 수 없습니다.');
-       }
-       
-       // 초대 코드 정보 백업
-       const codeInfo = { ...inviteCodes[code] };
-       
-       // 초대 코드 삭제
-       delete inviteCodes[code];
-       
-       // 저장
-       await this.save('invite-codes');
-       
-       // 초대 코드 삭제 로깅
-       this.log('INFO', `초대 코드 삭제: ${code}`);
-       
-       return { 
-           success: true, 
-           message: '초대 코드가 삭제되었습니다.',
-           codeInfo
-       };
-   }
-
+/**
+ * 초대 코드 사용 - 개선된 버전
+ * @param {string} code 초대 코드
+ * @param {string} username 사용자명
+ * @returns {Promise<Object>} 결과
+ */
+async useInviteCode(code, username) {
+    try {
+        // 저장소 로드 시도
+        if (!this.stores['invite-codes'] || Object.keys(this.stores['invite-codes']).length === 0) {
+            try {
+                await this.load('invite-codes');
+            } catch (loadError) {
+                throw new Error('초대 코드 저장소를 로드할 수 없습니다.');
+            }
+        }
+        
+        const inviteCodes = this.stores['invite-codes'];
+        
+        if (!inviteCodes[code]) {
+            throw new Error('유효하지 않은 초대 코드입니다.');
+        }
+        
+        if (inviteCodes[code].used) {
+            throw new Error('이미 사용된 초대 코드입니다.');
+        }
+        
+        // 초대 코드 사용 처리
+        inviteCodes[code].used = true;
+        inviteCodes[code].usedBy = username;
+        inviteCodes[code].usedAt = new Date().toISOString();
+        
+        // 저장
+        await this.save('invite-codes');
+        
+        // 초대 코드 사용 로깅
+        this.log('INFO', `초대 코드 사용: ${code}, 사용자: ${username}`);
+        
+        return { 
+            success: true, 
+            message: '초대 코드가 사용되었습니다.'
+        };
+    } catch (error) {
+        this.log('ERROR', `초대 코드 사용 중 오류: ${error.message}`);
+        throw error;
+    }
+}
    /**
     * 초대 코드 사용
     * @param {string} code 초대 코드
@@ -1429,37 +1465,6 @@ async createInviteCode(customCode = null) {
            message: '초대 코드가 사용되었습니다.'
        };
    }
-
-   /**
- * 초대 코드 유효성 확인 - 개선된 버전
- * @param {string} code 초대 코드
- * @returns {Promise<boolean>} 유효 여부
- */
-async isValidInviteCode(code) {
-    try {
-        // 저장소 로드 시도
-        if (!this.stores['invite-codes'] || Object.keys(this.stores['invite-codes']).length === 0) {
-            try {
-                await this.load('invite-codes');
-            } catch (loadError) {
-                this.log('ERROR', `초대 코드 저장소 로드 실패: ${loadError.message}`);
-                return false;
-            }
-        }
-        
-        const inviteCodes = this.stores['invite-codes'];
-        
-        // 코드 존재 여부 및 미사용 상태 확인
-        if (!code || !inviteCodes[code]) {
-            return false;
-        }
-        
-        return !inviteCodes[code].used;
-    } catch (error) {
-        this.log('ERROR', `초대 코드 유효성 확인 중 오류: ${error.message}`);
-        return false;
-    }
-}
 
    /**
     * 사용자 역할 업데이트

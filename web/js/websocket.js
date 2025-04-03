@@ -343,12 +343,12 @@ const WebSocketManager = {
         this.scheduleReconnect();
     },
     
-    // 명령어 쓰로틀 체크 - 수정: 봇 제어 명령어는 쓰로틀링 없앰
-    isThrottled: function(command) {
-        // 봇 제어 관련 명령은 쓰로틀링하지 않음
-        if (['start', 'stop', 'restart'].includes(command)) {
-            return false;
-        }
+// 명령어 쓰로틀 체크 - 수정: ping 명령어 포함
+isThrottled: function(command) {
+    // 봇 제어 및 ping 관련 명령은 쓰로틀링하지 않음
+    if (['start', 'stop', 'restart', 'ping'].includes(command)) {
+        return false;
+    }
         
         const now = Date.now();
         const throttleTime = {
@@ -468,32 +468,34 @@ const WebSocketManager = {
         }
     },
     
-    // 명령이 이미 처리 중인지 확인
-    isCommandPending: function(command, message) {
-        // 특정 명령은 항상 허용 (중복 검사 안함)
-        const alwaysAllowCommands = ['login', 'register', 'getUserChannels', 'assignChannel', 'unassignChannel', 'start', 'stop', 'restart', 'ping'];
-        if (alwaysAllowCommands.includes(command)) {
+    // web/js/websocket.js 파일에서 WebSocketManager 객체 내부
+
+// 명령이 이미 처리 중인지 확인
+isCommandPending: function(command, message) {
+    // 특정 명령은 항상 허용 (중복 검사 안함) - ping 추가
+    const alwaysAllowCommands = ['login', 'register', 'getUserChannels', 'assignChannel', 'unassignChannel', 'start', 'stop', 'restart', 'ping'];
+    if (alwaysAllowCommands.includes(command)) {
+        return false;
+    }
+    
+    // 초대 코드 생성/삭제는 매개변수로 비교
+    if (command === 'generateInviteCode' || command === 'deleteInviteCode') {
+        // 배열 형태로 저장된 명령들 체크
+        const pendingCommands = this.pendingCommands[command] || [];
+        return pendingCommands.some(item => {
+            if (command === 'generateInviteCode' && item.message.code === message.code) {
+                return true;
+            }
+            if (command === 'deleteInviteCode' && item.message.code === message.code) {
+                return true;
+            }
             return false;
-        }
-        
-        // 초대 코드 생성/삭제는 매개변수로 비교
-        if (command === 'generateInviteCode' || command === 'deleteInviteCode') {
-            // 배열 형태로 저장된 명령들 체크
-            const pendingCommands = this.pendingCommands[command] || [];
-            return pendingCommands.some(item => {
-                if (command === 'generateInviteCode' && item.message.code === message.code) {
-                    return true;
-                }
-                if (command === 'deleteInviteCode' && item.message.code === message.code) {
-                    return true;
-                }
-                return false;
-            });
-        }
-        
-        // 나머지 명령은 단순히 명령 이름으로 확인
-        return this.pendingCommands[command] && this.pendingCommands[command].length > 0;
-    },
+        });
+    }
+    
+    // 나머지 명령은 단순히 명령 이름으로 확인
+    return this.pendingCommands[command] && this.pendingCommands[command].length > 0;
+},
     
     // 명령 추적에 추가
     trackCommand: function(command, requestId, message) {

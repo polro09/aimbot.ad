@@ -175,6 +175,16 @@ class WebServer {
     async _handleWebSocketMessage(ws, data) {
         const { command } = data;
         
+        // ping 명령어 처리 추가
+        if (command === 'ping') {
+            // ping 요청에 즉시 pong으로 응답
+            this._sendMessage(ws, {
+                type: 'pong',
+                timestamp: Date.now()
+            });
+            return; // 다른 처리 중단
+        }
+        
         // 명령어 로깅
         console.log(`클라이언트로부터 받은 웹소켓 명령:`, command);
         
