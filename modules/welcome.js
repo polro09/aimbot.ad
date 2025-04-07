@@ -10,7 +10,7 @@ const STORAGE_KEY = 'welcome-settings';
 let guildSettings = new Map();
 
 // 저장된 설정 불러오기
-async function loadSettings(log) {
+async function loadSettings() {
     try {
         await storage.load(STORAGE_KEY);
         const data = storage.getAll(STORAGE_KEY);
@@ -18,18 +18,18 @@ async function loadSettings(log) {
         if (data) {
             // Map으로 변환
             guildSettings = new Map(Object.entries(data));
-            if (log) log('INFO', '입장/퇴장 알림 설정을 로드했습니다.');
+            logger.info('입장/퇴장 알림 설정을 로드했습니다.', null, 'WELCOME');
         }
         
         return true;
     } catch (error) {
-        if (log) log('ERROR', `입장/퇴장 알림 설정 로드 중 오류: ${error.message}`);
+        logger.error(`입장/퇴장 알림 설정 로드 중 오류: ${error.message}`, null, 'WELCOME', error);
         return false;
     }
 }
 
 // 설정 저장하기
-async function saveSettings(log) {
+async function saveSettings() {
     try {
         // Map을 객체로 변환
         const data = Object.fromEntries(guildSettings);
@@ -38,18 +38,18 @@ async function saveSettings(log) {
         storage.setAll(STORAGE_KEY, data);
         await storage.save(STORAGE_KEY);
         
-        if (log) log('INFO', '입장/퇴장 알림 설정을 저장했습니다.');
+        logger.info('입장/퇴장 알림 설정을 저장했습니다.', null, 'WELCOME');
         return true;
     } catch (error) {
-        if (log) log('ERROR', `입장/퇴장 알림 설정 저장 중 오류: ${error.message}`);
+        logger.error(`입장/퇴장 알림 설정 저장 중 오류: ${error.message}`, null, 'WELCOME', error);
         return false;
     }
 }
 
 // 서버 설정 저장
-function updateGuildSettings(guildId, settings, log) {
+function updateGuildSettings(guildId, settings) {
     guildSettings.set(guildId, settings);
-    saveSettings(log);
+    saveSettings();
 }
 
 module.exports = {
@@ -75,7 +75,7 @@ module.exports = {
     ],
     
     // 슬래시 커맨드 실행 함수
-    executeSlashCommand: async (interaction, client, log) => {
+    executeSlashCommand: async (interaction, client) => {
         const { commandName } = interaction;
         
         if (commandName === '웰컴채널지정') {
@@ -87,7 +87,7 @@ module.exports = {
                 leaveChannel: channel.id
             };
             
-            updateGuildSettings(interaction.guild.id, settings, log);
+            updateGuildSettings(interaction.guild.id, settings);
             
             // 설정 완료 임베드 생성
             const successEmbed = new EmbedBuilder()
@@ -102,7 +102,7 @@ module.exports = {
             
             // 설정 완료 메시지
             await interaction.reply({ embeds: [successEmbed], ephemeral: true });
-            log('COMMAND', `${interaction.user.tag}가 ${interaction.guild.name} 서버의 입장/퇴장 알림 채널을 설정했습니다.`);
+            logger.command(`${interaction.user.tag}가 ${interaction.guild.name} 서버의 입장/퇴장 알림 채널을 설정했습니다.`);
         }
         else if (commandName === '웰컴채널확인') {
             const settings = guildSettings.get(interaction.guild.id);
@@ -150,21 +150,21 @@ module.exports = {
             }
             
             await interaction.reply({ embeds: [settingsEmbed], ephemeral: true });
-            log('COMMAND', `${interaction.user.tag}가 ${interaction.guild.name} 서버의 입장/퇴장 설정을 확인했습니다.`);
+            logger.command(`${interaction.user.tag}가 ${interaction.guild.name} 서버의 입장/퇴장 설정을 확인했습니다.`);
         }
     },
     
     // 모듈 초기화 함수
-    init: async (client, log) => {
+    init: async (client) => {
         // 스토리지 초기화 확인
         if (!storage.initialized) {
-            await storage.init(log);
+            await storage.init();
         }
         
         // 저장된 설정 불러오기
-        await loadSettings(log);
+        await loadSettings();
         
-        log('INFO', '입장/퇴장 알림 모듈이 초기화되었습니다.');
+        logger.module('welcome', '입장/퇴장 알림 모듈이 초기화되었습니다.');
         
         // 입장 이벤트
         client.on('guildMemberAdd', async (member) => {
@@ -203,9 +203,9 @@ module.exports = {
                     .setAuthor({ name: `${member.user.tag}`, iconURL: member.user.displayAvatarURL({ dynamic: true }) });
                 
                 await welcomeChannel.send({ embeds: [welcomeEmbed] });
-                log('INFO', `${member.user.tag}님이 ${member.guild.name} 서버에 입장했습니다.`);
+                logger.info(`${member.user.tag}님이 ${member.guild.name} 서버에 입장했습니다.`, null, 'WELCOME');
             } catch (error) {
-                log('ERROR', `입장 알림 전송 중 오류 발생: ${error.message}`);
+                logger.error(`입장 알림 전송 중 오류 발생: ${error.message}`, null, 'WELCOME', error);
             }
         });
         
@@ -249,10 +249,12 @@ module.exports = {
                     .setAuthor({ name: `${member.user.tag}`, iconURL: member.user.displayAvatarURL({ dynamic: true }) });
                 
                 await leaveChannel.send({ embeds: [leaveEmbed] });
-                log('INFO', `${member.user.tag}님이 ${member.guild.name} 서버에서 퇴장했습니다.`);
+                logger.info(`${member.user.tag}님이 ${member.guild.name} 서버에서 퇴장했습니다.`, null, 'WELCOME');
             } catch (error) {
-                log('ERROR', `퇴장 알림 전송 중 오류 발생: ${error.message}`);
+                logger.error(`퇴장 알림 전송 중 오류 발생: ${error.message}`, null, 'WELCOME', error);
             }
         });
+
+        return true;
     }
 };

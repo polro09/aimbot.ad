@@ -8,7 +8,6 @@ const WebSocket = require('ws');
 const config = require('./config');
 const bot = require('./bot');
 const storage = require('./storage');
-// 이 부분 추가
 const logger = require('./utils/logger');
 
 class WebServer {
@@ -116,23 +115,22 @@ _createServer() {
     }
     
     // log 함수 수정
-log(type, message) {
-    // 기존: console.log(`[${type}] ${message}`);
-    // 변경:
-    switch(type) {
-        case 'ERROR':
-            logger.error(message, 'WEB');
-            break;
-        case 'WARN':
-            logger.warn(message, 'WEB');
-            break;
-        case 'INFO':
-            logger.info(message, 'WEB');
-            break;
-        default:
-            logger.info(message, type, 'WEB');
+    log(type, message) {
+        // 통합 로거 사용
+        switch(type) {
+            case 'ERROR':
+                logger.error(message, null, 'WEB');
+                break;
+            case 'WARN':
+                logger.warn(message, null, 'WEB');
+                break;
+            case 'INFO':
+                logger.info(message, null, 'WEB');
+                break;
+            default:
+                logger.info(message, type, 'WEB');
+        }
     }
-}
     
     // _handleWebSocketConnection 함수 내 console.log를 logger로 대체
 _handleWebSocketConnection(ws) {

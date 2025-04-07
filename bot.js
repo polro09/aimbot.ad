@@ -191,8 +191,7 @@ class DiscordBot {
         }
     }
     
-    // 기존 this.log 함수를 logger로 교체
-// log 함수 (약 259번 줄)를 아래와 같이 수정
+// 이전 코드 (약 259번 줄)
 log(type, message) {
     const logEntry = {
         timestamp: new Date().toISOString(),
@@ -203,17 +202,16 @@ log(type, message) {
     this.status.logs.unshift(logEntry); // 최신 로그를 앞에 추가
     if (this.status.logs.length > this.maxLogs) this.status.logs.pop(); // 오래된 로그 제거
     
-    // 기존: console.log(`[${type}] ${message}`);
-    // 변경:
+    // 수정된 부분: switch 문을 간소화하고 통합 로거 사용
     switch(type) {
         case 'ERROR':
-            logger.error(message, 'BOT');
+            logger.error(message, null, 'BOT');
             break;
         case 'WARN':
-            logger.warn(message, 'BOT');
+            logger.warn(message, null, 'BOT');
             break;
         case 'INFO':
-            logger.info(message, 'BOT');
+            logger.info(message, null, 'BOT');
             break;
         case 'MODULE':
             logger.module(message);
@@ -235,10 +233,6 @@ log(type, message) {
     
     return logEntry;
 }
-
-// _registerEventListeners 함수 내 console.log를 logger로 대체
-// 예를 들어, 약 90번 줄의 this.log('INFO', `${this.client.user.tag} 봇이 준비되었습니다.`); 등을 수정할 필요는 없음
-// 왜냐하면 이미 수정된 log 함수가 logger를 사용하기 때문
     
     // 봇 상태 정보 업데이트 함수
     _updateBotStatus() {
@@ -740,8 +734,8 @@ async _loadModule(file) {
     // 봇 시작 함수 - 중복 시작 방지 및 에러 처리 개선
     async start() {
         if (this.status.isRunning) {
-            console.log('봇이 이미 실행 중입니다.');
-            return true; // 이미 실행 중인 경우 성공으로 간주
+            logger.info('봇이 이미 실행 중입니다.', 'BOT');
+            return true;
         }
         
         // 저장소 초기화
@@ -767,8 +761,8 @@ async _loadModule(file) {
     // 봇 종료 함수 - 중복 종료 방지 및 에러 처리 개선
     async stop() {
         if (!this.status.isRunning) {
-            console.log('봇이 실행 중이 아닙니다.');
-            return true; // 이미 종료된 경우 성공으로 간주
+            logger.info('봇이 실행 중이 아닙니다.', 'BOT');
+            return true;
         }
         
         this.log('INFO', '봇을 종료합니다...');

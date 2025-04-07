@@ -267,33 +267,26 @@ class Storage {
   }
 
   // log 함수 수정
-log(type, message) {
-  // 기존:
-  // if (this.logFunction) {
-  //   this.logFunction(type, `[Storage] ${message}`);
-  // } else {
-  //   console.log(`[${type}] [Storage] ${message}`);
-  // }
-  
-  // 변경:
-  switch(type) {
-      case 'ERROR':
-          logger.error(message, 'STORAGE');
-          break;
-      case 'WARN':
-          logger.warn(message, 'STORAGE');
-          break;
-      case 'INFO':
-          logger.info(message, 'STORAGE');
-          break;
-      default:
-          logger.info(message, type, 'STORAGE');
-  }
-  
-  // 이전 로그 함수 호환성 유지
-  if (this.logFunction && this.logFunction !== logger.storage) {
-      this.logFunction(type, `[Storage] ${message}`);
-  }
+  log(type, message) {
+    // 통합 로거 사용
+    switch(type) {
+        case 'ERROR':
+            logger.error(message, null, 'STORAGE');
+            break;
+        case 'WARN':
+            logger.warn(message, null, 'STORAGE');
+            break;
+        case 'INFO':
+            logger.info(message, null, 'STORAGE');
+            break;
+        default:
+            logger.info(message, type, 'STORAGE');
+    }
+    
+    // 이전 로그 함수 호환성 유지
+    if (this.logFunction && this.logFunction !== logger.storage) {
+        this.logFunction(type, `[Storage] ${message}`);
+    }
 }
 
   /* ----------------------- 암호화/복호화 ----------------------- */
