@@ -1,5 +1,5 @@
 // welcome.js - 입장/퇴장 알림 모듈 (슬래시 커맨드 버전)
-
+const logger = require('../utils/logger');
 const { EmbedBuilder, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const storage = require('../storage');
 

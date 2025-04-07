@@ -1,5 +1,4 @@
-// webserver.js - Express.js와 WebSocket 기반 웹 서버
-
+// 상단에 로거 모듈 추가
 const express = require('express');
 const http = require('http');
 const https = require('https');
@@ -9,6 +8,8 @@ const WebSocket = require('ws');
 const config = require('./config');
 const bot = require('./bot');
 const storage = require('./storage');
+// 이 부분 추가
+const logger = require('./utils/logger');
 
 class WebServer {
     constructor() {
@@ -54,36 +55,43 @@ class WebServer {
         });
     }
     
-    // 서버 생성
-    _createServer() {
-        // HTTPS 활성화 확인
-        if (config.https && config.https.enabled) {
-            try {
-                // SSL 인증서 읽기
-                const sslOptions = {
-                    key: fs.readFileSync(config.https.keyPath),
-                    cert: fs.readFileSync(config.https.certPath)
-                };
-                
-                // 중간 인증서가 있는 경우
-                if (config.https.caPath) {
-                    sslOptions.ca = fs.readFileSync(config.https.caPath);
-                }
-                
-                // HTTPS 서버 생성
-                this.server = https.createServer(sslOptions, this.app);
-                console.log('HTTPS가 활성화되었습니다.');
-            } catch (error) {
-                console.error(`HTTPS 서버 생성 중 오류 발생: ${error.message}`);
-                console.log('HTTP 모드로 대체합니다.');
-                this.server = http.createServer(this.app);
+    // _createServer 함수 내 console.log를 logger로 대체
+_createServer() {
+    // HTTPS 활성화 확인
+    if (config.https && config.https.enabled) {
+        try {
+            // SSL 인증서 읽기
+            const sslOptions = {
+                key: fs.readFileSync(config.https.keyPath),
+                cert: fs.readFileSync(config.https.certPath)
+            };
+            
+            // 중간 인증서가 있는 경우
+            if (config.https.caPath) {
+                sslOptions.ca = fs.readFileSync(config.https.caPath);
             }
-        } else {
-            // HTTP 서버 생성
+            
+            // HTTPS 서버 생성
+            this.server = https.createServer(sslOptions, this.app);
+            // 기존: console.log('HTTPS가 활성화되었습니다.');
+            // 변경:
+            logger.info('HTTPS가 활성화되었습니다.', 'WEB');
+        } catch (error) {
+            // 기존: console.error(`HTTPS 서버 생성 중 오류 발생: ${error.message}`);
+            // 기존: console.log('HTTP 모드로 대체합니다.');
+            // 변경:
+            logger.error(`HTTPS 서버 생성 중 오류 발생: ${error.message}`, 'WEB');
+            logger.info('HTTP 모드로 대체합니다.', 'WEB');
             this.server = http.createServer(this.app);
-            console.log('HTTP 모드로 실행 중입니다.');
         }
+    } else {
+        // HTTP 서버 생성
+        this.server = http.createServer(this.app);
+        // 기존: console.log('HTTP 모드로 실행 중입니다.');
+        // 변경:
+        logger.info('HTTP 모드로 실행 중입니다.', 'WEB');
     }
+}
     
     // 웹소켓 서버 설정
     _setupWebSocketServer() {
@@ -107,16 +115,32 @@ class WebServer {
         return `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
     }
     
-    // 로그 함수 추가
-    log(type, message) {
-        console.log(`[${type}] ${message}`);
+    // log 함수 수정
+log(type, message) {
+    // 기존: console.log(`[${type}] ${message}`);
+    // 변경:
+    switch(type) {
+        case 'ERROR':
+            logger.error(message, 'WEB');
+            break;
+        case 'WARN':
+            logger.warn(message, 'WEB');
+            break;
+        case 'INFO':
+            logger.info(message, 'WEB');
+            break;
+        default:
+            logger.info(message, type, 'WEB');
     }
+}
     
-    // 웹소켓 연결 처리
-    _handleWebSocketConnection(ws) {
-        // 연결 카운트 증가
-        this.activeConnections++;
-        console.log(`웹 대시보드 연결됨 (총 연결: ${this.activeConnections})`);
+    // _handleWebSocketConnection 함수 내 console.log를 logger로 대체
+_handleWebSocketConnection(ws) {
+    // 연결 카운트 증가
+    this.activeConnections++;
+    // 기존: console.log(`웹 대시보드 연결됨 (총 연결: ${this.activeConnections})`);
+    // 변경:
+    logger.info(`웹 대시보드 연결됨 (총 연결: ${this.activeConnections})`, 'WEB');
         
         // 사용자 세션 정보
         ws.userSession = {
@@ -149,11 +173,13 @@ class WebServer {
             }
         });
         
-        // 연결 종료 시 처리
-        ws.on('close', () => {
-            clearInterval(interval);
-            this.activeConnections--;
-            console.log(`웹 대시보드 연결 종료됨 (남은 연결: ${this.activeConnections})`);
+// 연결 종료 시 처리
+ws.on('close', () => {
+    clearInterval(interval);
+    this.activeConnections--;
+    // 기존: console.log(`웹 대시보드 연결 종료됨 (남은 연결: ${this.activeConnections})`);
+    // 변경:
+    logger.info(`웹 대시보드 연결 종료됨 (남은 연결: ${this.activeConnections})`, 'WEB');
             
             // 사용자가 로그인 상태였다면 온라인 관리자 목록 업데이트
             if (ws.userSession && ws.userSession.isLoggedIn) {
@@ -161,16 +187,17 @@ class WebServer {
             }
         });
         
-        // 봇 로그 이벤트 수신기 등록
-        bot.onLog = (logEntry) => {
-            // 모든 웹소켓 클라이언트에 로그 전송
-            this.wss.clients.forEach(client => {
-                if (client.readyState === WebSocket.OPEN) {
-                    this._sendStatus(client);
-                }
-            });
-        };
-    }
+        // 봇 로그 이벤트 수신기 등록 - 이 부분은 중요하게 수정
+    bot.onLog = (logEntry) => {
+        // 이 부분에 logger.setWebSocketHandler 연결을 고려할 수 있음
+        // 모든 웹소켓 클라이언트에 로그 전송
+        this.wss.clients.forEach(client => {
+            if (client.readyState === WebSocket.OPEN) {
+                this._sendStatus(client);
+            }
+        });
+    };
+}
     // 웹소켓 메시지 처리
     async _handleWebSocketMessage(ws, data) {
         const { command } = data;
@@ -186,7 +213,7 @@ class WebServer {
         }
         
         // 명령어 로깅
-        console.log(`클라이언트로부터 받은 웹소켓 명령:`, command);
+        logger.info(`클라이언트로부터 받은 웹소켓 명령: ${command}`, 'WEB');
         
         // 관리자 권한이 필요한 명령어 목록
         const adminCommands = ['start', 'stop', 'restart', 'moduleAction', 'assignServer', 'unassignServer'];
@@ -1208,41 +1235,38 @@ class WebServer {
         });
     }
     
-    // 서버 시작 함수
-    async start() {
-        // 서버 생성
-        this._createServer();
-        
-        // 웹소켓 서버 설정
-        this._setupWebSocketServer();
-        
-        // 서버 시작
-        const PORT = config.webPort || (config.https && config.https.enabled ? 443 : 80);
-        
-        return new Promise((resolve, reject) => {
-            this.server.listen(PORT, config.host || '0.0.0.0', () => {
-                const protocol = config.https && config.https.enabled ? 'https' : 'http';
-                const host = config.host || '0.0.0.0';
-                const localUrl = `${protocol}://localhost:${PORT}`;
-                const domainUrl = config.domain ? 
-                    `${protocol}://${config.domain}` : 
-                    `${protocol}://${host === '0.0.0.0' ? '<서버IP>' : host}:${PORT}`;
-                
-                console.log(`웹 인터페이스 시작됨:`);
-                console.log(`- 로컬 접속: ${localUrl}`);
-                console.log(`- 도메인 접속: ${domainUrl}`);
-                console.log(`- 프로토콜: ${protocol.toUpperCase()}`);
-                console.log(`- 포트: ${PORT}`);
-                
-                resolve(true);
+    // start 함수에서 웹 서버 시작 메시지를 logger.startup으로 대체
+async start() {
+    // ... 기존 코드 ...
+    
+    return new Promise((resolve, reject) => {
+        this.server.listen(PORT, config.host || '0.0.0.0', () => {
+            const protocol = config.https && config.https.enabled ? 'https' : 'http';
+            const host = config.host || '0.0.0.0';
+            const localUrl = `${protocol}://localhost:${PORT}`;
+            const domainUrl = config.domain ? 
+                `${protocol}://${config.domain}` : 
+                `${protocol}://${host === '0.0.0.0' ? '<서버IP>' : host}:${PORT}`;
+            
+            // 기존의 console.log 메시지들을 대체
+            logger.startup({
+                local: localUrl,
+                domain: domainUrl,
+                protocol: protocol.toUpperCase(),
+                port: PORT
             });
             
-            this.server.on('error', (error) => {
-                console.error(`웹 서버 시작 중 오류 발생: ${error.message}`);
-                reject(error);
-            });
+            resolve(true);
         });
-    }
+        
+        this.server.on('error', (error) => {
+            // 기존: console.error(`웹 서버 시작 중 오류 발생: ${error.message}`);
+            // 변경:
+            logger.error(`웹 서버 시작 중 오류 발생: ${error.message}`, 'WEB');
+            reject(error);
+        });
+    });
+}
     
     // 서버 종료 함수
     async stop() {

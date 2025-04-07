@@ -3,7 +3,7 @@
 // 수정된 사항:
 // 1. 채널 이름 변경 시 "생각 중" 상태로 멈추는 문제 해결
 // 2. AFK 채널이 비어 있을 때 제대로 삭제되지 않는 문제 개선
-
+const logger = require('../utils/logger');
 const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField, ChannelType, ModalBuilder, TextInputBuilder, TextInputStyle, SlashCommandBuilder, StringSelectMenuBuilder } = require('discord.js');
 const storage = require('../storage');
 

@@ -1,5 +1,5 @@
 // ping.js - 핑 명령어 모듈
-
+const logger = require('../utils/logger');
 module.exports = {
     name: 'ping',
     description: '봇의 응답 속도를 측정합니다.',

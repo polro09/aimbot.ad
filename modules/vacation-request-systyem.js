@@ -1,5 +1,5 @@
 // modules/vacation-system.js - 휴가 신청 시스템 모듈
-
+const logger = require('../utils/logger');
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits } = require('discord.js');
 const storage = require('../storage');
 

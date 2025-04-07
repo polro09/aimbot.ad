@@ -13,6 +13,7 @@ const zlib = require('zlib');
 const util = require('util');
 const gzip = util.promisify(zlib.gzip);
 const gunzip = util.promisify(zlib.gunzip);
+const logger = require('./utils/logger');
 
 class Storage {
   constructor() {
@@ -69,7 +70,7 @@ class Storage {
   async init(logFn) {
     if (this.initialized) return true;
     try {
-      this.logFunction = logFn || console.log;
+      this.logFunction = logFn || logger.storage.bind(logger);
       await this._initDataDirectory();
       await this._setupEncryptionKey();
       this._setupStorePaths();
@@ -265,13 +266,35 @@ class Storage {
     this.log('INFO', `백업 시스템 활성화: ${backupInterval / (60 * 60 * 1000)}시간 간격`);
   }
 
-  log(type, message) {
-    if (this.logFunction) {
-      this.logFunction(type, `[Storage] ${message}`);
-    } else {
-      console.log(`[${type}] [Storage] ${message}`);
-    }
+  // log 함수 수정
+log(type, message) {
+  // 기존:
+  // if (this.logFunction) {
+  //   this.logFunction(type, `[Storage] ${message}`);
+  // } else {
+  //   console.log(`[${type}] [Storage] ${message}`);
+  // }
+  
+  // 변경:
+  switch(type) {
+      case 'ERROR':
+          logger.error(message, 'STORAGE');
+          break;
+      case 'WARN':
+          logger.warn(message, 'STORAGE');
+          break;
+      case 'INFO':
+          logger.info(message, 'STORAGE');
+          break;
+      default:
+          logger.info(message, type, 'STORAGE');
   }
+  
+  // 이전 로그 함수 호환성 유지
+  if (this.logFunction && this.logFunction !== logger.storage) {
+      this.logFunction(type, `[Storage] ${message}`);
+  }
+}
 
   /* ----------------------- 암호화/복호화 ----------------------- */
 

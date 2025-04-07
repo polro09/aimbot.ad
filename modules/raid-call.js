@@ -1,5 +1,5 @@
 // modules/raid-call.js - 파티 모집 시스템 모듈 (개선된 버전)
-
+const logger = require('../utils/logger');
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionFlagsBits, StringSelectMenuBuilder } = require('discord.js');
 const storage = require('../storage');
 

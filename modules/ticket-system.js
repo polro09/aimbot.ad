@@ -1,5 +1,5 @@
 // modules/ticket-system.js - 티켓 시스템 모듈
-
+const logger = require('../utils/logger');
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType, PermissionFlagsBits, PermissionsBitField, StringSelectMenuBuilder } = require('discord.js');
 const storage = require('../storage');
 

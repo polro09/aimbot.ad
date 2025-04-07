@@ -1,5 +1,5 @@
 // example.js - 예제 모듈
-
+const logger = require('../utils/logger');
 module.exports = {
     name: 'example',
     description: '예제 모듈입니다.',

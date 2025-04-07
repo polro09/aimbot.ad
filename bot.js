@@ -1,10 +1,11 @@
-// bot.js - 디스코드 봇 로직 (개선된 모듈 로딩 및 의존성 처리)
-
+// 상단에 로거 모듈 추가
 const { Client, GatewayIntentBits, Collection, Routes, REST } = require('discord.js');
 const fs = require('fs').promises;
 const path = require('path');
 const config = require('./config');
 const storage = require('./storage');
+// 이 부분 추가
+const logger = require('./utils/logger');
 
 // 싱글톤 패턴을 위한 인스턴스
 let instance = null;
@@ -190,29 +191,54 @@ class DiscordBot {
         }
     }
     
-    // 로그 함수
-    log(type, message) {
-        const logEntry = {
-            timestamp: new Date().toISOString(),
-            type,
-            message
-        };
-        
-        this.status.logs.unshift(logEntry); // 최신 로그를 앞에 추가
-        if (this.status.logs.length > this.maxLogs) this.status.logs.pop(); // 오래된 로그 제거
-        
-        console.log(`[${type}] ${message}`);
-        
-        // 상태 정보 업데이트
-        this._updateBotStatus();
-        
-        // 로그 이벤트 발생 (웹소켓 등에서 사용)
-        if (this.onLog) {
-            this.onLog(logEntry);
-        }
-        
-        return logEntry;
+    // 기존 this.log 함수를 logger로 교체
+// log 함수 (약 259번 줄)를 아래와 같이 수정
+log(type, message) {
+    const logEntry = {
+        timestamp: new Date().toISOString(),
+        type,
+        message
+    };
+    
+    this.status.logs.unshift(logEntry); // 최신 로그를 앞에 추가
+    if (this.status.logs.length > this.maxLogs) this.status.logs.pop(); // 오래된 로그 제거
+    
+    // 기존: console.log(`[${type}] ${message}`);
+    // 변경:
+    switch(type) {
+        case 'ERROR':
+            logger.error(message, 'BOT');
+            break;
+        case 'WARN':
+            logger.warn(message, 'BOT');
+            break;
+        case 'INFO':
+            logger.info(message, 'BOT');
+            break;
+        case 'MODULE':
+            logger.module(message);
+            break;
+        case 'COMMAND':
+            logger.command(message);
+            break;
+        default:
+            logger.info(message, type, 'BOT');
     }
+    
+    // 상태 정보 업데이트
+    this._updateBotStatus();
+    
+    // 로그 이벤트 발생 (웹소켓 등에서 사용)
+    if (this.onLog) {
+        this.onLog(logEntry);
+    }
+    
+    return logEntry;
+}
+
+// _registerEventListeners 함수 내 console.log를 logger로 대체
+// 예를 들어, 약 90번 줄의 this.log('INFO', `${this.client.user.tag} 봇이 준비되었습니다.`); 등을 수정할 필요는 없음
+// 왜냐하면 이미 수정된 log 함수가 logger를 사용하기 때문
     
     // 봇 상태 정보 업데이트 함수
     _updateBotStatus() {
