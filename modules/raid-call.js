@@ -39,9 +39,11 @@ async function loadDungeonDatabase(log) {
                 }
             }
             
-            log('INFO', `던전 데이터베이스 로드 완료: ${Array.from(dungeonDatabase.keys()).length}개 서버`);
+            // 로그 개선
+            logger.info(`던전 데이터베이스 로드 완료: ${Array.from(dungeonDatabase.keys()).length}개 서버`, null, 'RAID-CALL');
         } catch (error) {
-            log('WARN', `${DUNGEONS_STORAGE_KEY} 로드 중 오류, 초기화합니다: ${error.message}`);
+            // 로그 개선
+            logger.warn(`${DUNGEONS_STORAGE_KEY} 로드 중 오류, 초기화합니다: ${error.message}`, null, 'RAID-CALL');
             storage.setAll(DUNGEONS_STORAGE_KEY, {});
             await storage.save(DUNGEONS_STORAGE_KEY);
             dungeonDatabase = new Map();
@@ -49,11 +51,11 @@ async function loadDungeonDatabase(log) {
         
         return true;
     } catch (error) {
-        log('ERROR', `던전 데이터베이스 로드 중 오류: ${error.message}`);
+        // 로그 개선
+        logger.error(`던전 데이터베이스 로드 중 오류: ${error.message}`, null, 'RAID-CALL');
         return false;
     }
 }
-
 // 던전 데이터베이스 저장 함수
 async function saveDungeonDatabase(log) {
     try {
@@ -67,14 +69,15 @@ async function saveDungeonDatabase(log) {
         storage.setAll(DUNGEONS_STORAGE_KEY, dungeonData);
         await storage.save(DUNGEONS_STORAGE_KEY);
         
-        log('INFO', '던전 데이터베이스를 저장했습니다.');
+        // 로그 개선
+        logger.info('던전 데이터베이스를 저장했습니다.', null, 'RAID-CALL');
         return true;
     } catch (error) {
-        log('ERROR', `던전 데이터베이스 저장 중 오류: ${error.message}`);
+        // 로그 개선
+        logger.error(`던전 데이터베이스 저장 중 오류: ${error.message}`, null, 'RAID-CALL');
         return false;
     }
 }
-
 // 던전 추가 함수
 function addDungeon(guildId, dungeonInfo, log) {
     // 서버의 던전 맵 가져오기 또는 생성
@@ -94,13 +97,13 @@ function addDungeon(guildId, dungeonInfo, log) {
     // 던전 데이터베이스에 추가
     guildDungeons.set(dungeonId, dungeonInfo);
     
-    // 저장
-    saveDungeonDatabase(log);
+    // 저장 - 로거 사용하지 않고 내부 함수 사용
+    saveDungeonDatabase();
     
     return dungeonId;
 }
 
-// 던전 목록 가져오기 함수
+// 던전 목록 가져오기 함수 - 변경 없음, 이미 최적화됨
 function getDungeonList(guildId) {
     // 서버의 던전 맵 가져오기
     const guildDungeons = dungeonDatabase.get(guildId);
@@ -113,7 +116,7 @@ function getDungeonList(guildId) {
     return Array.from(guildDungeons.values());
 }
 
-// 던전 정보 가져오기 함수
+// 던전 정보 가져오기 함수 - 변경 없음, 이미 최적화됨
 function getDungeon(guildId, dungeonId) {
     // 서버의 던전 맵 가져오기
     const guildDungeons = dungeonDatabase.get(guildId);
@@ -127,7 +130,7 @@ function getDungeon(guildId, dungeonId) {
 }
 
 // 던전 삭제 함수
-function deleteDungeon(guildId, dungeonId, log) {
+function deleteDungeon(guildId, dungeonId) {
     // 서버의 던전 맵 가져오기
     const guildDungeons = dungeonDatabase.get(guildId);
     
@@ -139,15 +142,14 @@ function deleteDungeon(guildId, dungeonId, log) {
     const result = guildDungeons.delete(dungeonId);
     
     if (result) {
-        // 저장
-        saveDungeonDatabase(log);
+        // 저장 - 로거 사용하지 않고 내부 함수 사용
+        saveDungeonDatabase();
     }
     
     return result;
 }
-
 // 저장된 설정 불러오기 (기존 함수 수정)
-async function loadSettings(log) {
+async function loadSettings() {
     try {
         // CONFIG_STORAGE_KEY 로드
         try {
@@ -159,7 +161,7 @@ async function loadSettings(log) {
                 guildSettings = new Map(Object.entries(configData));
             }
         } catch (error) {
-            log('WARN', `${CONFIG_STORAGE_KEY} 설정 로드 중 오류, 초기화합니다: ${error.message}`);
+            logger.warn(`${CONFIG_STORAGE_KEY} 설정 로드 중 오류, 초기화합니다: ${error.message}`, null, 'RAID-CALL');
             storage.setAll(CONFIG_STORAGE_KEY, {});
             await storage.save(CONFIG_STORAGE_KEY);
             guildSettings = new Map();
@@ -184,24 +186,24 @@ async function loadSettings(log) {
                 }
             }
         } catch (error) {
-            log('WARN', `${RAIDS_STORAGE_KEY} 설정 로드 중 오류, 초기화합니다: ${error.message}`);
+            logger.warn(`${RAIDS_STORAGE_KEY} 설정 로드 중 오류, 초기화합니다: ${error.message}`, null, 'RAID-CALL');
             storage.setAll(RAIDS_STORAGE_KEY, {});
             await storage.save(RAIDS_STORAGE_KEY);
             activeRaidCalls = new Map();
         }
         
         // 던전 데이터베이스 로드
-        await loadDungeonDatabase(log);
+        await loadDungeonDatabase();
         
-        log('INFO', '파티 모집 시스템 설정을 로드했습니다.');
+        logger.info('파티 모집 시스템 설정을 로드했습니다.', null, 'RAID-CALL');
         return true;
     } catch (error) {
-        log('ERROR', `파티 모집 시스템 설정 로드 중 오류: ${error.message}`);
+        logger.error(`파티 모집 시스템 설정 로드 중 오류: ${error.message}`, null, 'RAID-CALL');
         return false;
     }
 }
 // 던전 추가 명령어 처리 함수
-async function handleDungeonAdd(interaction, client, log) {
+async function handleDungeonAdd(interaction, client) {
     try {
         await interaction.deferReply({ ephemeral: true });
         
@@ -248,7 +250,7 @@ async function handleDungeonAdd(interaction, client, log) {
         };
         
         // 던전 추가
-        const dungeonId = addDungeon(interaction.guild.id, dungeonInfo, log);
+        const dungeonId = addDungeon(interaction.guild.id, dungeonInfo);
         
         // 던전 미리보기 임베드 생성
         const previewEmbed = new EmbedBuilder()
@@ -282,10 +284,10 @@ async function handleDungeonAdd(interaction, client, log) {
             ephemeral: true
         });
         
-        log('INFO', `${interaction.user.tag}님이 새 던전을 등록했습니다: ${dungeonName} (ID: ${dungeonId})`);
+        logger.info(`${interaction.user.tag}님이 새 던전을 등록했습니다: ${dungeonName} (ID: ${dungeonId})`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `던전 추가 중 오류 발생: ${error.message}`);
+        logger.error(`던전 추가 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         if (interaction.deferred) {
             await interaction.editReply({ 
@@ -300,9 +302,8 @@ async function handleDungeonAdd(interaction, client, log) {
         }
     }
 }
-
 // 던전 목록 조회 명령어 처리 함수
-async function handleDungeonList(interaction, client, log) {
+async function handleDungeonList(interaction, client) {
     try {
         // 던전 목록 가져오기
         const dungeons = getDungeonList(interaction.guild.id);
@@ -348,7 +349,7 @@ async function handleDungeonList(interaction, client, log) {
         });
         
     } catch (error) {
-        log('ERROR', `던전 목록 조회 중 오류 발생: ${error.message}`);
+        logger.error(`던전 목록 조회 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         await interaction.reply({ 
             content: `❌ 던전 목록 조회 중 오류가 발생했습니다: ${error.message}`, 
@@ -356,9 +357,8 @@ async function handleDungeonList(interaction, client, log) {
         }).catch(() => {});
     }
 }
-
 // 던전 삭제 명령어 처리 함수
-async function handleDungeonDelete(interaction, client, log) {
+async function handleDungeonDelete(interaction, client) {
     try {
         // 던전 ID 가져오기
         const dungeonId = interaction.options.getString('아이디');
@@ -414,7 +414,7 @@ async function handleDungeonDelete(interaction, client, log) {
         });
         
     } catch (error) {
-        log('ERROR', `던전 삭제 중 오류 발생: ${error.message}`);
+        logger.error(`던전 삭제 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         await interaction.reply({ 
             content: `❌ 던전 삭제 중 오류가 발생했습니다: ${error.message}`, 
@@ -424,7 +424,7 @@ async function handleDungeonDelete(interaction, client, log) {
 }
 
 // 던전 삭제 확인 버튼 처리
-async function handleDungeonDeleteConfirm(interaction, dungeonId, client, log) {
+async function handleDungeonDeleteConfirm(interaction, dungeonId, client) {
     try {
         // 던전 정보 가져오기
         const dungeonInfo = getDungeon(interaction.guild.id, dungeonId);
@@ -451,7 +451,7 @@ async function handleDungeonDeleteConfirm(interaction, dungeonId, client, log) {
         }
         
         // 던전 삭제
-        const result = deleteDungeon(interaction.guild.id, dungeonId, log);
+        const result = deleteDungeon(interaction.guild.id, dungeonId);
         
         if (result) {
             await interaction.update({
@@ -461,7 +461,7 @@ async function handleDungeonDeleteConfirm(interaction, dungeonId, client, log) {
                 ephemeral: true
             });
             
-            log('INFO', `${interaction.user.tag}님이 던전을 삭제했습니다: ${dungeonInfo.name} (ID: ${dungeonId})`);
+            logger.info(`${interaction.user.tag}님이 던전을 삭제했습니다: ${dungeonInfo.name} (ID: ${dungeonId})`, null, 'RAID-CALL');
         } else {
             await interaction.update({
                 content: '❌ 던전 삭제에 실패했습니다. 다시 시도해주세요.',
@@ -472,7 +472,7 @@ async function handleDungeonDeleteConfirm(interaction, dungeonId, client, log) {
         }
         
     } catch (error) {
-        log('ERROR', `던전 삭제 확인 중 오류 발생: ${error.message}`);
+        logger.error(`던전 삭제 확인 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         await interaction.update({ 
             content: `❌ 던전 삭제 중 오류가 발생했습니다: ${error.message}`, 
@@ -482,80 +482,8 @@ async function handleDungeonDeleteConfirm(interaction, dungeonId, client, log) {
         }).catch(() => {});
     }
 }
-
-// 슬래시 커맨드 정의 - 레이드 임베드 명령어 추가
-const slashCommands = [
-    // 기존 명령어
-    new SlashCommandBuilder()
-        .setName('레이드알람채널')
-        .setDescription('파티 모집 알람을 전송할 채널을 설정합니다')
-        .addChannelOption(option =>
-            option.setName('채널')
-                .setDescription('파티 모집 알람을 전송할 채널')
-                .setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-        
-    new SlashCommandBuilder()
-        .setName('파티모집채널')
-        .setDescription('파티 모집 생성 메뉴가 있는 임베드를 설정합니다')
-        .addChannelOption(option =>
-            option.setName('채널')
-                .setDescription('파티 모집 임베드를 표시할 채널')
-                .setRequired(true))
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-    
-    // 레이드 임베드 명령어 추가
-    new SlashCommandBuilder()
-        .setName('레이드')
-        .setDescription('레이드 관련 명령어')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('임베드')
-                .setDescription('레이드 파티 모집 임베드를 생성합니다')
-                .addChannelOption(option =>
-                    option.setName('채널')
-                        .setDescription('임베드를 전송할 채널')
-                        .setRequired(true))),
-        
-    // 던전 관리 명령어
-    new SlashCommandBuilder()
-        .setName('던전')
-        .setDescription('던전 관리 명령어')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('추가')
-                .setDescription('새로운 던전/레이드를 추가합니다')
-                .addStringOption(option =>
-                    option.setName('이름')
-                        .setDescription('던전 또는 레이드 이름')
-                        .setRequired(true))
-                .addStringOption(option =>
-                    option.setName('설명')
-                        .setDescription('던전에 대한 설명')
-                        .setRequired(true))
-                .addStringOption(option =>
-                    option.setName('썸네일')
-                        .setDescription('던전 썸네일 이미지 URL (선택 사항)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('이미지')
-                        .setDescription('던전 메인 이미지 URL (선택 사항)')
-                        .setRequired(false)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('목록')
-                .setDescription('등록된 던전/레이드 목록을 확인합니다'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('삭제')
-                .setDescription('등록된 던전/레이드를 삭제합니다')
-                .addStringOption(option =>
-                    option.setName('아이디')
-                        .setDescription('삭제할 던전의 ID')
-                        .setRequired(true)))
-];
 // 파티 모집 임베드 생성 (이전 레이드콜 임베드를 대체)
-async function createPartyRecruitEmbed(interaction, client, log) {
+async function createPartyRecruitEmbed(interaction, client) {
     try {
         await interaction.deferReply({ ephemeral: true });
         
@@ -580,7 +508,7 @@ async function createPartyRecruitEmbed(interaction, client, log) {
         settings.raidCallChannel = channel.id;
         
         // 설정 저장
-        updateGuildSettings(interaction.guild.id, settings, log);
+        updateGuildSettings(interaction.guild.id, settings);
         
         // 등록된 던전 목록 가져오기
         const dungeons = getDungeonList(interaction.guild.id);
@@ -655,10 +583,10 @@ async function createPartyRecruitEmbed(interaction, client, log) {
         
         await interaction.editReply({ embeds: [successEmbed], ephemeral: true });
         
-        log('INFO', `${interaction.user.tag}가 ${interaction.guild.name} 서버의 ${channel.name} 채널에 파티 모집 임베드를 생성했습니다.`);
+        logger.info(`${interaction.user.tag}가 ${interaction.guild.name} 서버의 ${channel.name} 채널에 파티 모집 임베드를 생성했습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `파티 모집 임베드 생성 중 오류 발생: ${error.message}`);
+        logger.error(`파티 모집 임베드 생성 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         if (interaction.deferred) {
             const errorEmbed = new EmbedBuilder()
@@ -672,9 +600,8 @@ async function createPartyRecruitEmbed(interaction, client, log) {
         }
     }
 }
-
 // 레이드 임베드 생성 함수 추가
-async function createRaidEmbed(interaction, client, log) {
+async function createRaidEmbed(interaction, client) {
     try {
         const channel = interaction.options.getChannel('채널');
         
@@ -738,10 +665,10 @@ async function createRaidEmbed(interaction, client, log) {
         
         await interaction.reply({ embeds: [successEmbed], ephemeral: true });
         
-        log('INFO', `${interaction.user.tag}가 ${interaction.guild.name} 서버의 ${channel.name} 채널에 레이드 임베드를 생성했습니다.`);
+        logger.info(`${interaction.user.tag}가 ${interaction.guild.name} 서버의 ${channel.name} 채널에 레이드 임베드를 생성했습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `레이드 임베드 생성 중 오류 발생: ${error.message}`);
+        logger.error(`레이드 임베드 생성 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -753,14 +680,291 @@ async function createRaidEmbed(interaction, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
+// 모듈 초기화 함수
+async function init(client) {
+    // 스토리지 초기화 확인
+    if (!storage.initialized) {
+        await storage.init();
+    }
+    
+    // 저장된 설정 불러오기
+    await loadSettings();
+    
+    // 버튼 상호작용 처리
+    client.on('interactionCreate', async (interaction) => {
+        try {
+            // 버튼 상호작용
+            if (interaction.isButton()) {
+                const customId = interaction.customId;
+                
+                if (customId.startsWith('confirm_cancel:')) {
+                    const partyId = customId.split(':')[1];
+                    await confirmPartyCancel(interaction, partyId, client);
+                }
+                else if (customId.startsWith('cancel_cancel:')) {
+                    // 취소 취소 (돌아가기)
+                    await interaction.update({ content: '파티 취소가 취소되었습니다.', embeds: [], components: [] });
+                }
+                else if (customId.startsWith('cancel_participation:')) {
+                    // 참가 취소 처리
+                    const partyId = customId.split(':')[1];
+                    await handleCancelParticipation(interaction, partyId, client);
+                }
+                else if (customId.startsWith('confirm_delete_dungeon:')) {
+                    // 던전 삭제 확인
+                    const dungeonId = customId.split(':')[1];
+                    await handleDungeonDeleteConfirm(interaction, dungeonId, client);
+                }
+                else if (customId.startsWith('cancel_delete_dungeon:')) {
+                    // 던전 삭제 취소
+                    await interaction.update({ content: '던전 삭제가 취소되었습니다.', embeds: [], components: [] });
+                }
+            }
+            // 모달 제출 처리
+            else if (interaction.isModalSubmit()) {
+                const modalId = interaction.customId;
+                
+                if (modalId === 'party_create_custom' || modalId.startsWith('party_create_dungeon:')) {
+                    await handlePartyCreation(interaction, client);
+                }
+                else if (modalId.startsWith('edit_party_field:')) {
+                    // 파티 필드 수정 처리
+                    const [_, field, partyId] = modalId.split(':');
+                    await handlePartyFieldEdit(interaction, field, partyId, client);
+                }
+            }
+            // 선택 메뉴 처리
+            else if (interaction.isStringSelectMenu()) {
+                const customId = interaction.customId;
+                
+                if (customId === 'party_recruit_select') {
+                    await handlePartySelectMenu(interaction, client);
+                }
+                else if (customId.startsWith('party_control:')) {
+                    const selectedValue = interaction.values[0];
+                    
+                    if (selectedValue.startsWith('edit_party:')) {
+                        const partyId = selectedValue.split(':')[1];
+                        await showEditPartyMenu(interaction, partyId, client);
+                    }
+                    else if (selectedValue.startsWith('join_party:')) {
+                        const partyId = selectedValue.split(':')[1];
+                        await showClassSelectionMenu(interaction, partyId, client);
+                    }
+                    else if (selectedValue.startsWith('cancel_party:')) {
+                        const partyId = selectedValue.split(':')[1];
+                        await handlePartyCancel(interaction, partyId, client);
+                    }
+                }
+                else if (customId.startsWith('edit_field:')) {
+                    // 필드 선택 처리
+                    await handleEditFieldSelection(interaction, client);
+                }
+                else if (customId.startsWith('class_selection:')) {
+                    // 직업 선택 처리
+                    const partyId = customId.split(':')[1];
+                    const classValue = interaction.values[0];
+                    const classType = classValue.split(':')[0].replace('class_', '');
+                    
+                    // 직업 이름 매핑
+                    const classNameMap = {
+                        'elemental_knight': '엘레멘탈 나이트',
+                        'saint_bard': '세인트 바드',
+                        'alchemic_stinger': '알케믹 스팅어',
+                        'dark_mage': '다크 메이지',
+                        'sacred_guard': '세이크리드 가드',
+                        'blast_lancer': '블래스트 랜서'
+                    };
+                    
+                    await handleClassSelection(interaction, partyId, classNameMap[classType] || classType, client);
+                }
+            }
+        } catch (error) {
+            logger.error(`파티 모집 상호작용 처리 중 오류 발생: ${error.message}\n${error.stack}`, null, 'RAID-CALL');
+            
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    const errorEmbed = new EmbedBuilder()
+                        .setColor('#ED4245')
+                        .setTitle('❌ 오류 발생')
+                        .setDescription('요청을 처리하는 중 오류가 발생했습니다.')
+                        .setFooter({ text: '다시 시도해주세요.', iconURL: interaction.guild?.iconURL({ dynamic: true }) })
+                        .setTimestamp();
+                        
+                    await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+                }
+            } catch (replyError) {
+                // 응답 오류 무시
+            }
+        }
+    });
+    
+    logger.module('파티 모집 시스템 모듈이 초기화되었습니다.');
+}
+// 설정 저장하기
+async function saveSettings() {
+    try {
+        // Map을 객체로 변환
+        const configData = Object.fromEntries(guildSettings);
+        
+        // 스토리지에 저장
+        storage.setAll(CONFIG_STORAGE_KEY, configData);
+        await storage.save(CONFIG_STORAGE_KEY);
+        
+        // 활성화된 파티 모집 저장
+        const raidsData = {};
+        for (const [guildId, parties] of activeRaidCalls.entries()) {
+            raidsData[guildId] = Object.fromEntries(parties);
+        }
+        
+        storage.setAll(RAIDS_STORAGE_KEY, raidsData);
+        await storage.save(RAIDS_STORAGE_KEY);
+        
+        // 던전 데이터베이스 저장
+        await saveDungeonDatabase();
+        
+        logger.info('파티 모집 시스템 설정을 저장했습니다.', null, 'RAID-CALL');
+        return true;
+    } catch (error) {
+        logger.error(`파티 모집 시스템 설정 저장 중 오류: ${error.message}`, null, 'RAID-CALL');
+        return false;
+    }
+}
+
+// 서버 설정 업데이트
+function updateGuildSettings(guildId, settings) {
+    guildSettings.set(guildId, settings);
+    saveSettings();
+}
+
+// 활성화된 파티 모집 업데이트
+function updateRaidCall(guildId, partyId, partyData) {
+    if (!activeRaidCalls.has(guildId)) {
+        activeRaidCalls.set(guildId, new Map());
+    }
+    
+    const guildRaids = activeRaidCalls.get(guildId);
+    guildRaids.set(partyId, partyData);
+    
+    saveSettings();
+}
+
+// 파티 삭제
+function deleteRaidCall(guildId, partyId) {
+    if (!activeRaidCalls.has(guildId)) return false;
+    
+    const guildRaids = activeRaidCalls.get(guildId);
+    const result = guildRaids.delete(partyId);
+    
+    if (result) {
+        saveSettings();
+    }
+    
+    return result;
+}
+// executeSlashCommand 함수 수정
+async function executeSlashCommand(interaction, client) {
+    const { commandName, options } = interaction;
+    
+    if (commandName === '레이드알람채널') {
+        await setAlarmChannel(interaction, client);
+    }
+    else if (commandName === '파티모집채널') {
+        await createPartyRecruitEmbed(interaction, client);
+    }
+    // 레이드 임베드 명령어 처리 추가
+    else if (commandName === '레이드') {
+        const subcommand = options.getSubcommand();
+        
+        if (subcommand === '임베드') {
+            await createRaidEmbed(interaction, client);
+        }
+    }
+    // 던전 관련 명령어 처리
+    else if (commandName === '던전') {
+        const subcommand = options.getSubcommand();
+        
+        if (subcommand === '추가') {
+            await handleDungeonAdd(interaction, client);
+        }
+        else if (subcommand === '목록') {
+            await handleDungeonList(interaction, client);
+        }
+        else if (subcommand === '삭제') {
+            await handleDungeonDelete(interaction, client);
+        }
+    }
+}
+module.exports = {
+    name: 'party-recruit',
+    description: '파티 모집 시스템 모듈',
+    version: '2.0.0',
+    commands: [],
+    enabled: true,
+    init,
+    executeSlashCommand,
+    slashCommands
+};
+// 알람 채널 설정 함수
+async function setAlarmChannel(interaction, client) {
+    try {
+        const channel = interaction.options.getChannel('채널');
+        
+        // 채널 권한 확인
+        const permissions = channel.permissionsFor(interaction.guild.members.me);
+        if (!permissions || !permissions.has(PermissionFlagsBits.SendMessages)) {
+            const errorEmbed = new EmbedBuilder()
+                .setColor('#ED4245')
+                .setTitle('❌ 권한 오류')
+                .setDescription(`${channel} 채널에 메시지를 보낼 권한이 없습니다.`)
+                .addFields({ name: '해결 방법', value: '봇에게 필요한 권한을 부여해주세요.', inline: false })
+                .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+                .setTimestamp();
+                
+            return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
+        
+        // 서버 설정 가져오기 또는 생성
+        let settings = guildSettings.get(interaction.guild.id) || {};
+        settings.alarmChannel = channel.id;
+        
+        // 설정 저장
+        updateGuildSettings(interaction.guild.id, settings);
+        
+        // 성공 메시지
+        const successEmbed = new EmbedBuilder()
+            .setColor('#57F287')
+            .setTitle('✅ 파티 알람 채널 설정 완료')
+            .setDescription(`파티 알람 채널이 ${channel}(으)로 설정되었습니다.`)
+            .addFields({ name: '✨ 다음 단계', value: '이제 파티 모집이 생성될 때 이 채널에 알림이 전송됩니다.', inline: false })
+            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+        
+        await interaction.reply({ embeds: [successEmbed], ephemeral: true });
+        
+        logger.info(`${interaction.user.tag}가 ${interaction.guild.name} 서버의 파티 알람 채널을 ${channel.name}으로 설정했습니다.`, null, 'RAID-CALL');
+        
+    } catch (error) {
+        logger.error(`파티 알람 채널 설정 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
+        
+        const errorEmbed = new EmbedBuilder()
+            .setColor('#ED4245')
+            .setTitle('❌ 오류 발생')
+            .setDescription(`파티 알람 채널 설정 중 오류가 발생했습니다: ${error.message}`)
+            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
+            .setTimestamp();
+            
+        await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
+    }
+}
 // 드롭다운 메뉴 선택 처리 함수
-async function handlePartySelectMenu(interaction, client, log) {
+async function handlePartySelectMenu(interaction, client) {
     try {
         const selectedValue = interaction.values[0];
         
         if (selectedValue === 'create_custom_party') {
             // 직접 파티 모집 생성하는 경우 - 모달 표시
-            await showPartyCreateModal(interaction, null, client, log);
+            await showPartyCreateModal(interaction, null, client);
         } else if (selectedValue.startsWith('dungeon:')) {
             // 등록된 던전으로 파티 모집하는 경우
             const dungeonId = selectedValue.split(':')[1];
@@ -774,10 +978,10 @@ async function handlePartySelectMenu(interaction, client, log) {
             }
             
             // 등록된 던전 정보로 모달 표시
-            await showPartyCreateModal(interaction, dungeonInfo, client, log);
+            await showPartyCreateModal(interaction, dungeonInfo, client);
         }
     } catch (error) {
-        log('ERROR', `파티 드롭다운 선택 처리 중 오류 발생: ${error.message}`);
+        logger.error(`파티 드롭다운 선택 처리 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         await interaction.reply({ 
             content: `❌ 파티 모집 처리 중 오류가 발생했습니다: ${error.message}`, 
@@ -785,9 +989,8 @@ async function handlePartySelectMenu(interaction, client, log) {
         }).catch(() => {});
     }
 }
-
 // 파티 모집 생성 모달 표시 (던전 정보가 있으면 미리 채움)
-async function showPartyCreateModal(interaction, dungeonInfo, client, log) {
+async function showPartyCreateModal(interaction, dungeonInfo, client) {
     try {
         // 모달 생성
         const modal = new ModalBuilder()
@@ -853,14 +1056,13 @@ async function showPartyCreateModal(interaction, dungeonInfo, client, log) {
         // 모달 표시
         await interaction.showModal(modal);
         
-        log('INFO', `${interaction.user.tag}님에게 파티 모집 생성 모달을 표시했습니다.${dungeonInfo ? ` (던전: ${dungeonInfo.name})` : ''}`);
+        logger.info(`${interaction.user.tag}님에게 파티 모집 생성 모달을 표시했습니다.${dungeonInfo ? ` (던전: ${dungeonInfo.name})` : ''}`, null, 'RAID-CALL');
     } catch (error) {
-        log('ERROR', `파티 모집 모달 표시 중 오류 발생: ${error.message}`);
+        logger.error(`파티 모집 모달 표시 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
     }
 }
-
 // 파티 모집 처리 함수 (모달 제출 처리)
-async function handlePartyCreation(interaction, client, log) {
+async function handlePartyCreation(interaction, client) {
     try {
         // 서버 설정 확인
         const guildId = interaction.guild.id;
@@ -938,7 +1140,7 @@ async function handlePartyCreation(interaction, client, log) {
         };
         
         // 파티 데이터 저장
-        updateRaidCall(guildId, partyId, partyData, log);
+        updateRaidCall(guildId, partyId, partyData);
         
         // 파티 모집 임베드 생성 (등록된 던전 정보 활용)
         const partyEmbed = createPartyEmbed(partyData, interaction.user, interaction.guild, dungeonInfo);
@@ -992,7 +1194,7 @@ async function handlePartyCreation(interaction, client, log) {
         
         // 메시지 ID 저장
         partyData.messageId = message.id;
-        updateRaidCall(guildId, partyId, partyData, log);
+        updateRaidCall(guildId, partyId, partyData);
         
         // 성공 메시지
         const successEmbed = new EmbedBuilder()
@@ -1004,10 +1206,10 @@ async function handlePartyCreation(interaction, client, log) {
             
         await interaction.reply({ embeds: [successEmbed], ephemeral: true });
         
-        log('INFO', `${interaction.user.tag}님이 '${dungeonName}' 파티 모집을 생성했습니다.`);
+        logger.info(`${interaction.user.tag}님이 '${dungeonName}' 파티 모집을 생성했습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `파티 모집 생성 중 오류 발생: ${error.message}`);
+        logger.error(`파티 모집 생성 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1064,9 +1266,8 @@ function createPartyEmbed(partyData, user, guild, dungeonInfo = null) {
     
     return embed;
 }
-
 // 직업 선택 메뉴 표시 (모달 대신 스크롤 박스로 변경) - 직업명 수정
-async function showClassSelectionMenu(interaction, partyId, client, log) {
+async function showClassSelectionMenu(interaction, partyId, client) {
     try {
         const guildId = interaction.guild.id;
         
@@ -1185,9 +1386,9 @@ async function showClassSelectionMenu(interaction, partyId, client, log) {
             ephemeral: true 
         });
         
-        log('INFO', `${interaction.user.tag}님에게 직업 선택 메뉴를 표시했습니다. 파티 ID: ${partyId}`);
+        logger.info(`${interaction.user.tag}님에게 직업 선택 메뉴를 표시했습니다. 파티 ID: ${partyId}`, null, 'RAID-CALL');
     } catch (error) {
-        log('ERROR', `직업 선택 메뉴 표시 중 오류 발생: ${error.message}`);
+        logger.error(`직업 선택 메뉴 표시 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1199,9 +1400,8 @@ async function showClassSelectionMenu(interaction, partyId, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 직업 선택 처리 - 직업명 매핑 수정
-async function handleClassSelection(interaction, partyId, className, client, log) {
+async function handleClassSelection(interaction, partyId, className, client) {
     try {
         const guildId = interaction.guild.id;
         
@@ -1236,7 +1436,7 @@ async function handleClassSelection(interaction, partyId, className, client, log
         }
         
         // 데이터 업데이트
-        updateRaidCall(guildId, partyId, partyData, log);
+        updateRaidCall(guildId, partyId, partyData);
         
         try {
             // 알람 채널에서 메시지 찾기
@@ -1261,7 +1461,7 @@ async function handleClassSelection(interaction, partyId, className, client, log
                 }
             }
         } catch (err) {
-            log('ERROR', `파티 메시지 업데이트 중 오류 발생: ${err.message}`);
+            logger.error(`파티 메시지 업데이트 중 오류 발생: ${err.message}`, null, 'RAID-CALL');
         }
         
         // 성공 메시지
@@ -1274,10 +1474,10 @@ async function handleClassSelection(interaction, partyId, className, client, log
             
         await interaction.update({ embeds: [successEmbed], components: [] });
         
-        log('INFO', `${interaction.user.tag}님이 '${partyData.dungeonName}' 파티에 '${className}' 직업으로 참가했습니다.`);
+        logger.info(`${interaction.user.tag}님이 '${partyData.dungeonName}' 파티에 '${className}' 직업으로 참가했습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `파티 참가 처리 중 오류 발생: ${error.message}`);
+        logger.error(`파티 참가 처리 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1289,9 +1489,8 @@ async function handleClassSelection(interaction, partyId, className, client, log
         await interaction.update({ embeds: [errorEmbed], components: [] }).catch(() => {});
     }
 }
-
 // 참가 취소 처리 함수
-async function handleCancelParticipation(interaction, partyId, client, log) {
+async function handleCancelParticipation(interaction, partyId, client) {
     try {
         const guildId = interaction.guild.id;
         
@@ -1328,7 +1527,7 @@ async function handleCancelParticipation(interaction, partyId, client, log) {
         partyData.participants.splice(participantIndex, 1);
         
         // 데이터 업데이트
-        updateRaidCall(guildId, partyId, partyData, log);
+        updateRaidCall(guildId, partyId, partyData);
         
         try {
             // 알람 채널에서 메시지 찾기
@@ -1353,7 +1552,7 @@ async function handleCancelParticipation(interaction, partyId, client, log) {
                 }
             }
         } catch (err) {
-            log('ERROR', `파티 메시지 업데이트 중 오류 발생: ${err.message}`);
+            logger.error(`파티 메시지 업데이트 중 오류 발생: ${err.message}`, null, 'RAID-CALL');
         }
         
         // 성공 메시지
@@ -1366,10 +1565,10 @@ async function handleCancelParticipation(interaction, partyId, client, log) {
             
         await interaction.reply({ embeds: [successEmbed], ephemeral: true });
         
-        log('INFO', `${interaction.user.tag}님이 '${partyData.dungeonName}' 파티 참가를 취소했습니다.`);
+        logger.info(`${interaction.user.tag}님이 '${partyData.dungeonName}' 파티 참가를 취소했습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `파티 참가 취소 처리 중 오류 발생: ${error.message}`);
+        logger.error(`파티 참가 취소 처리 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1382,7 +1581,7 @@ async function handleCancelParticipation(interaction, partyId, client, log) {
     }
 }
 // 파티 정보 수정 메뉴 표시 함수
-async function showEditPartyMenu(interaction, partyId, client, log) {
+async function showEditPartyMenu(interaction, partyId, client) {
     try {
         const guildId = interaction.guild.id;
         
@@ -1485,10 +1684,10 @@ async function showEditPartyMenu(interaction, partyId, client, log) {
             ephemeral: true
         });
         
-        log('INFO', `${interaction.user.tag}님이 파티 ID: ${partyId} 의 정보 수정 메뉴를 열었습니다.`);
+        logger.info(`${interaction.user.tag}님이 파티 ID: ${partyId} 의 정보 수정 메뉴를 열었습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `파티 정보 수정 메뉴 표시 중 오류 발생: ${error.message}`);
+        logger.error(`파티 정보 수정 메뉴 표시 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1500,9 +1699,8 @@ async function showEditPartyMenu(interaction, partyId, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 특정 필드 수정 모달 표시
-async function showEditFieldModal(interaction, field, partyId, client, log) {
+async function showEditFieldModal(interaction, field, partyId, client) {
     try {
         const guildId = interaction.guild.id;
         
@@ -1588,9 +1786,9 @@ async function showEditFieldModal(interaction, field, partyId, client, log) {
         // 모달 표시
         await interaction.showModal(modal);
         
-        log('INFO', `${interaction.user.tag}님에게 파티 ${field} 필드 수정 모달을 표시했습니다.`);
+        logger.info(`${interaction.user.tag}님에게 파티 ${field} 필드 수정 모달을 표시했습니다.`, null, 'RAID-CALL');
     } catch (error) {
-        log('ERROR', `필드 수정 모달 표시 중 오류 발생: ${error.message}`);
+        logger.error(`필드 수정 모달 표시 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1602,18 +1800,17 @@ async function showEditFieldModal(interaction, field, partyId, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 필드 수정 선택 처리 (스크롤 박스에서 선택된 항목 처리)
-async function handleEditFieldSelection(interaction, client, log) {
+async function handleEditFieldSelection(interaction, client) {
     try {
         const selectedValue = interaction.values[0];
         const [action, field, partyId] = selectedValue.split(':');
         
         if (action === 'edit') {
-            await showEditFieldModal(interaction, field, partyId, client, log);
+            await showEditFieldModal(interaction, field, partyId, client);
         }
     } catch (error) {
-        log('ERROR', `필드 수정 선택 처리 중 오류 발생: ${error.message}`);
+        logger.error(`필드 수정 선택 처리 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1625,9 +1822,8 @@ async function handleEditFieldSelection(interaction, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 파티 정보 수정 처리
-async function handlePartyFieldEdit(interaction, field, partyId, client, log) {
+async function handlePartyFieldEdit(interaction, field, partyId, client) {
     try {
         const guildId = interaction.guild.id;
         
@@ -1709,7 +1905,7 @@ async function handlePartyFieldEdit(interaction, field, partyId, client, log) {
         }
         
         // 데이터 업데이트
-        updateRaidCall(guildId, partyId, partyData, log);
+        updateRaidCall(guildId, partyId, partyData);
         
         try {
             // 알람 채널에서 메시지 찾기
@@ -1734,7 +1930,7 @@ async function handlePartyFieldEdit(interaction, field, partyId, client, log) {
                 }
             }
         } catch (err) {
-            log('ERROR', `파티 메시지 업데이트 중 오류 발생: ${err.message}`);
+            logger.error(`파티 메시지 업데이트 중 오류 발생: ${err.message}`, null, 'RAID-CALL');
         }
         
         // 성공 메시지
@@ -1747,10 +1943,10 @@ async function handlePartyFieldEdit(interaction, field, partyId, client, log) {
             
         await interaction.reply({ embeds: [successEmbed], ephemeral: true });
         
-        log('INFO', `${interaction.user.tag}님이 '${partyData.dungeonName}' 파티의 ${field} 필드를 수정했습니다.`);
+        logger.info(`${interaction.user.tag}님이 '${partyData.dungeonName}' 파티의 ${field} 필드를 수정했습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `파티 정보 수정 중 오류 발생: ${error.message}`);
+        logger.error(`파티 정보 수정 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1763,7 +1959,7 @@ async function handlePartyFieldEdit(interaction, field, partyId, client, log) {
     }
 }
 
-// 필드 이름 표시용 함수
+// 필드 이름 표시용 함수 - 변경 없음
 function getFieldDisplayName(field) {
     switch (field) {
         case 'dungeon': return '던전/레이드 이름';
@@ -1774,9 +1970,8 @@ function getFieldDisplayName(field) {
         default: return field;
     }
 }
-
 // 파티 취소 처리
-async function handlePartyCancel(interaction, partyId, client, log) {
+async function handlePartyCancel(interaction, partyId, client) {
     try {
         const guildId = interaction.guild.id;
         
@@ -1835,10 +2030,10 @@ async function handlePartyCancel(interaction, partyId, client, log) {
             ephemeral: true
         });
         
-        log('INFO', `${interaction.user.tag}님이 파티 ID: ${partyId} 의 취소 확인 메뉴를 열었습니다.`);
+        logger.info(`${interaction.user.tag}님이 파티 ID: ${partyId} 의 취소 확인 메뉴를 열었습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `파티 취소 처리 중 오류 발생: ${error.message}`);
+        logger.error(`파티 취소 처리 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1850,9 +2045,8 @@ async function handlePartyCancel(interaction, partyId, client, log) {
         await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
     }
 }
-
 // 파티 취소 확인 처리
-async function confirmPartyCancel(interaction, partyId, client, log) {
+async function confirmPartyCancel(interaction, partyId, client) {
     try {
         const guildId = interaction.guild.id;
         
@@ -1911,11 +2105,11 @@ async function confirmPartyCancel(interaction, partyId, client, log) {
                 }
             }
         } catch (err) {
-            log('ERROR', `파티 취소 메시지 업데이트 중 오류 발생: ${err.message}`);
+            logger.error(`파티 취소 메시지 업데이트 중 오류 발생: ${err.message}`, null, 'RAID-CALL');
         }
         
         // 파티 데이터 삭제
-        deleteRaidCall(guildId, partyId, log);
+        deleteRaidCall(guildId, partyId);
         
         // 취소 완료 메시지
         const successEmbed = new EmbedBuilder()
@@ -1927,10 +2121,10 @@ async function confirmPartyCancel(interaction, partyId, client, log) {
         
         await interaction.update({ embeds: [successEmbed], components: [] });
         
-        log('INFO', `${interaction.user.tag}님이 '${partyData.dungeonName}' 파티를 취소했습니다.`);
+        logger.info(`${interaction.user.tag}님이 '${partyData.dungeonName}' 파티를 취소했습니다.`, null, 'RAID-CALL');
         
     } catch (error) {
-        log('ERROR', `파티 취소 확인 처리 중 오류 발생: ${error.message}`);
+        logger.error(`파티 취소 확인 처리 중 오류 발생: ${error.message}`, null, 'RAID-CALL');
         
         const errorEmbed = new EmbedBuilder()
             .setColor('#ED4245')
@@ -1942,288 +2136,3 @@ async function confirmPartyCancel(interaction, partyId, client, log) {
         await interaction.update({ embeds: [errorEmbed], components: [] }).catch(() => {});
     }
 }
-// 모듈 초기화 함수
-async function init(client, log) {
-    // 스토리지 초기화 확인
-    if (!storage.initialized) {
-        await storage.init(log);
-    }
-    
-    // 저장된 설정 불러오기
-    await loadSettings(log);
-    
-    // 버튼 상호작용 처리
-    client.on('interactionCreate', async (interaction) => {
-        try {
-            // 버튼 상호작용
-            if (interaction.isButton()) {
-                const customId = interaction.customId;
-                
-                if (customId.startsWith('confirm_cancel:')) {
-                    const partyId = customId.split(':')[1];
-                    await confirmPartyCancel(interaction, partyId, client, log);
-                }
-                else if (customId.startsWith('cancel_cancel:')) {
-                    // 취소 취소 (돌아가기)
-                    await interaction.update({ content: '파티 취소가 취소되었습니다.', embeds: [], components: [] });
-                }
-                else if (customId.startsWith('cancel_participation:')) {
-                    // 참가 취소 처리
-                    const partyId = customId.split(':')[1];
-                    await handleCancelParticipation(interaction, partyId, client, log);
-                }
-                else if (customId.startsWith('confirm_delete_dungeon:')) {
-                    // 던전 삭제 확인
-                    const dungeonId = customId.split(':')[1];
-                    await handleDungeonDeleteConfirm(interaction, dungeonId, client, log);
-                }
-                else if (customId.startsWith('cancel_delete_dungeon:')) {
-                    // 던전 삭제 취소
-                    await interaction.update({ content: '던전 삭제가 취소되었습니다.', embeds: [], components: [] });
-                }
-            }
-            // 모달 제출 처리
-            else if (interaction.isModalSubmit()) {
-                const modalId = interaction.customId;
-                
-                if (modalId === 'party_create_custom' || modalId.startsWith('party_create_dungeon:')) {
-                    await handlePartyCreation(interaction, client, log);
-                }
-                else if (modalId.startsWith('edit_party_field:')) {
-                    // 파티 필드 수정 처리
-                    const [_, field, partyId] = modalId.split(':');
-                    await handlePartyFieldEdit(interaction, field, partyId, client, log);
-                }
-            }
-            // 선택 메뉴 처리
-            else if (interaction.isStringSelectMenu()) {
-                const customId = interaction.customId;
-                
-                if (customId === 'party_recruit_select') {
-                    await handlePartySelectMenu(interaction, client, log);
-                }
-                else if (customId.startsWith('party_control:')) {
-                    const selectedValue = interaction.values[0];
-                    
-                    if (selectedValue.startsWith('edit_party:')) {
-                        const partyId = selectedValue.split(':')[1];
-                        await showEditPartyMenu(interaction, partyId, client, log);
-                    }
-                    else if (selectedValue.startsWith('join_party:')) {
-                        const partyId = selectedValue.split(':')[1];
-                        await showClassSelectionMenu(interaction, partyId, client, log);
-                    }
-                    else if (selectedValue.startsWith('cancel_party:')) {
-                        const partyId = selectedValue.split(':')[1];
-                        await handlePartyCancel(interaction, partyId, client, log);
-                    }
-                }
-                else if (customId.startsWith('edit_field:')) {
-                    // 필드 선택 처리
-                    await handleEditFieldSelection(interaction, client, log);
-                }
-                else if (customId.startsWith('class_selection:')) {
-                    // 직업 선택 처리
-                    const partyId = customId.split(':')[1];
-                    const classValue = interaction.values[0];
-                    const classType = classValue.split(':')[0].replace('class_', '');
-                    
-                    // 직업 이름 매핑
-                    const classNameMap = {
-                        'elemental_knight': '엘레멘탈 나이트',
-                        'saint_bard': '세인트 바드',
-                        'alchemic_stinger': '알케믹 스팅어',
-                        'dark_mage': '다크 메이지',
-                        'sacred_guard': '세이크리드 가드',
-                        'blast_lancer': '블래스트 랜서'
-                    };
-                    
-                    await handleClassSelection(interaction, partyId, classNameMap[classType] || classType, client, log);
-                }
-            }
-        } catch (error) {
-            log('ERROR', `파티 모집 상호작용 처리 중 오류 발생: ${error.message}`);
-            log('ERROR', error.stack);
-            
-            try {
-                if (!interaction.replied && !interaction.deferred) {
-                    const errorEmbed = new EmbedBuilder()
-                        .setColor('#ED4245')
-                        .setTitle('❌ 오류 발생')
-                        .setDescription('요청을 처리하는 중 오류가 발생했습니다.')
-                        .setFooter({ text: '다시 시도해주세요.', iconURL: interaction.guild?.iconURL({ dynamic: true }) })
-                        .setTimestamp();
-                        
-                    await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
-            } catch (replyError) {
-                // 응답 오류 무시
-            }
-        }
-    });
-    
-    log('MODULE', '파티 모집 시스템 모듈이 초기화되었습니다.');
-}
-
-// 슬래시 커맨드 변경: 레이드콜채널 -> 파티모집채널
-// 수정된 슬래시 커맨드 정의는 위에서 이미 완료됨
-
-// executeSlashCommand 함수 수정
-async function executeSlashCommand(interaction, client, log) {
-    const { commandName, options } = interaction;
-    
-    if (commandName === '레이드알람채널') {
-        await setAlarmChannel(interaction, client, log);
-    }
-    else if (commandName === '파티모집채널') {
-        await createPartyRecruitEmbed(interaction, client, log);
-    }
-    // 레이드 임베드 명령어 처리 추가
-    else if (commandName === '레이드') {
-        const subcommand = options.getSubcommand();
-        
-        if (subcommand === '임베드') {
-            await createRaidEmbed(interaction, client, log);
-        }
-    }
-    // 던전 관련 명령어 처리
-    else if (commandName === '던전') {
-        const subcommand = options.getSubcommand();
-        
-        if (subcommand === '추가') {
-            await handleDungeonAdd(interaction, client, log);
-        }
-        else if (subcommand === '목록') {
-            await handleDungeonList(interaction, client, log);
-        }
-        else if (subcommand === '삭제') {
-            await handleDungeonDelete(interaction, client, log);
-        }
-    }
-}
-
-// 설정 저장하기
-async function saveSettings(log) {
-    try {
-        // Map을 객체로 변환
-        const configData = Object.fromEntries(guildSettings);
-        
-        // 스토리지에 저장
-        storage.setAll(CONFIG_STORAGE_KEY, configData);
-        await storage.save(CONFIG_STORAGE_KEY);
-        
-        // 활성화된 파티 모집 저장
-        const raidsData = {};
-        for (const [guildId, parties] of activeRaidCalls.entries()) {
-            raidsData[guildId] = Object.fromEntries(parties);
-        }
-        
-        storage.setAll(RAIDS_STORAGE_KEY, raidsData);
-        await storage.save(RAIDS_STORAGE_KEY);
-        
-        // 던전 데이터베이스 저장
-        await saveDungeonDatabase(log);
-        
-        if (log) log('INFO', '파티 모집 시스템 설정을 저장했습니다.');
-        return true;
-    } catch (error) {
-        if (log) log('ERROR', `파티 모집 시스템 설정 저장 중 오류: ${error.message}`);
-        return false;
-    }
-}
-
-// 서버 설정 업데이트
-function updateGuildSettings(guildId, settings, log) {
-    guildSettings.set(guildId, settings);
-    saveSettings(log);
-}
-
-// 활성화된 파티 모집 업데이트
-function updateRaidCall(guildId, partyId, partyData, log) {
-    if (!activeRaidCalls.has(guildId)) {
-        activeRaidCalls.set(guildId, new Map());
-    }
-    
-    const guildRaids = activeRaidCalls.get(guildId);
-    guildRaids.set(partyId, partyData);
-    
-    saveSettings(log);
-}
-
-// 파티 삭제
-function deleteRaidCall(guildId, partyId, log) {
-    if (!activeRaidCalls.has(guildId)) return false;
-    
-    const guildRaids = activeRaidCalls.get(guildId);
-    const result = guildRaids.delete(partyId);
-    
-    if (result) {
-        saveSettings(log);
-    }
-    
-    return result;
-}
-
-// 알람 채널 설정 함수
-async function setAlarmChannel(interaction, client, log) {
-    try {
-        const channel = interaction.options.getChannel('채널');
-        
-        // 채널 권한 확인
-        const permissions = channel.permissionsFor(interaction.guild.members.me);
-        if (!permissions || !permissions.has(PermissionFlagsBits.SendMessages)) {
-            const errorEmbed = new EmbedBuilder()
-                .setColor('#ED4245')
-                .setTitle('❌ 권한 오류')
-                .setDescription(`${channel} 채널에 메시지를 보낼 권한이 없습니다.`)
-                .addFields({ name: '해결 방법', value: '봇에게 필요한 권한을 부여해주세요.', inline: false })
-                .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-                .setTimestamp();
-                
-            return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-        }
-        
-        // 서버 설정 가져오기 또는 생성
-        let settings = guildSettings.get(interaction.guild.id) || {};
-        settings.alarmChannel = channel.id;
-        
-        // 설정 저장
-        updateGuildSettings(interaction.guild.id, settings, log);
-        
-        // 성공 메시지
-        const successEmbed = new EmbedBuilder()
-            .setColor('#57F287')
-            .setTitle('✅ 파티 알람 채널 설정 완료')
-            .setDescription(`파티 알람 채널이 ${channel}(으)로 설정되었습니다.`)
-            .addFields({ name: '✨ 다음 단계', value: '이제 파티 모집이 생성될 때 이 채널에 알림이 전송됩니다.', inline: false })
-            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-            .setTimestamp();
-        
-        await interaction.reply({ embeds: [successEmbed], ephemeral: true });
-        
-        log('INFO', `${interaction.user.tag}가 ${interaction.guild.name} 서버의 파티 알람 채널을 ${channel.name}으로 설정했습니다.`);
-        
-    } catch (error) {
-        log('ERROR', `파티 알람 채널 설정 중 오류 발생: ${error.message}`);
-        
-        const errorEmbed = new EmbedBuilder()
-            .setColor('#ED4245')
-            .setTitle('❌ 오류 발생')
-            .setDescription(`파티 알람 채널 설정 중 오류가 발생했습니다: ${error.message}`)
-            .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-            .setTimestamp();
-            
-        await interaction.reply({ embeds: [errorEmbed], ephemeral: true }).catch(() => {});
-    }
-}
-
-module.exports = {
-    name: 'party-recruit',
-    description: '파티 모집 시스템 모듈',
-    version: '2.0.0',
-    commands: [],
-    enabled: true,
-    init,
-    executeSlashCommand,
-    slashCommands
-};
