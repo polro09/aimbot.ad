@@ -1,0 +1,716 @@
+2025-04-08 19:49:56 [INFO] [SYSTEM] Aimbot.ad 디스코드 봇 서비스를 시작합니다...
+2025-04-08 19:49:56 [INFO] [WEB] HTTP 모드로 실행 중입니다.
+2025-04-08 19:49:56 [INFO] [SYSTEM] 🤖 aimbot.ad 디스코드 봇 서비스가 시작되었습니다...
+2025-04-08 19:49:56 [INFO] [WEB] 🌐 HTTP 모드로 실행 중입니다.
+2025-04-08 19:49:56 [INFO] [WEB] 📡 웹 인터페이스 시작됨:
+2025-04-08 19:49:56 [INFO] [WEB]    🔗 로컬 접속: http://localhost:3000
+2025-04-08 19:49:56 [INFO] [WEB]    🌍 도메인 접속: http://localhost
+2025-04-08 19:49:56 [INFO] [WEB]    ⚙️ 프로토콜: HTTP
+2025-04-08 19:49:56 [INFO] [WEB]    📦 포트: 3000
+2025-04-08 19:49:56 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:49:56 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:49:56 [INFO] [SYSTEM] 봇을 자동으로 시작합니다...
+2025-04-08 19:49:56 [INFO] [STORAGE] 암호화 키를 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 암호화 키를 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:49:56 [INFO] [STORAGE] 자동 저장 활성화: 300초 간격
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 자동 저장 활성화: 300초 간격
+2025-04-08 19:49:56 [INFO] [STORAGE] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:49:56 [INFO] [STORAGE] 초기 백업을 생성합니다...
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 초기 백업을 생성합니다...
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 users 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 users 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 invite-codes 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 invite-codes 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 server-settings 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 server-settings 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 user-settings 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 user-settings 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 bot-config 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 bot-config 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 welcome-settings 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 welcome-settings 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 raid-call-config 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 raid-call-config 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 raid-calls 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 raid-calls 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 clan-applications 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 clan-applications 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 voice-channels 저장 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 voice-channels 저장 완료
+2025-04-08 19:49:56 [INFO] [STORAGE] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:49:56 [ERROR] [ERROR] [STORAGE] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:49:56 [ERROR] [ERROR] [BOT] [Storage] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:49:56 [WARN] [STORAGE] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:49:56 [WARN] [BOT] [Storage] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:49:56 [INFO] [STORAGE] 저장소 초기화 완료
+2025-04-08 19:49:56 [INFO] [BOT] [Storage] 저장소 초기화 완료
+2025-04-08 19:49:56 [INFO] [BOT] 봇을 시작합니다...
+2025-04-08 19:49:57 [INFO] [BOT] 디스코드에 로그인했습니다.
+2025-04-08 19:49:57 [INFO] [SUCCESS] 봇이 성공적으로 시작되었습니다.
+2025-04-08 19:49:57 [INFO] [SUCCESS] 초기화가 완료되었습니다. 서비스가 정상적으로 실행 중입니다.
+2025-04-08 19:49:57 [INFO] [BOT] Aimbot.ad#9242 봇이 준비되었습니다.
+2025-04-08 19:49:57 [INFO] [BOT] 예제 모듈이 초기화되었습니다.
+2025-04-08 19:49:57 [INFO] [MODULE] [모듈 example.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:49:57 [INFO] [BOT] 핑 모듈이 초기화되었습니다.
+2025-04-08 19:49:57 [INFO] [MODULE] [모듈 ping.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:49:57 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] [Storage] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] [Storage] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [VOICE] 음성 채널 자동 생성 설정을 로드했습니다.
+2025-04-08 19:49:57 [INFO] [VOICE] 비활성 사용자 감지 시스템이 설정되었습니다 (10분 간격으로 확인)
+2025-04-08 19:49:57 [INFO] [MODULE] [voice-channel-manager] 음성 채널 관리 모듈이 초기화되었습니다.
+2025-04-08 19:49:57 [INFO] [MODULE] [모듈 voice-channel-manager.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:49:57 [ERROR] [ERROR] [BOT] 모듈 raid-call.js 로드 중 오류 발생: slashCommands is not defined
+2025-04-08 19:49:57 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] clan-applications 저장소를 로드했습니다.
+2025-04-08 19:49:57 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] [Storage] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] 티켓 시스템 설정을 로드했습니다.
+2025-04-08 19:49:57 [INFO] [MODULE] [티켓 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:49:57 [INFO] [MODULE] [모듈 ticket-system.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:49:57 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] [Storage] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] 휴가 시스템 설정을 로드했습니다.
+2025-04-08 19:49:57 [INFO] [MODULE] [휴가 신청 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:49:57 [INFO] [MODULE] [모듈 vacation-request-systyem.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:49:57 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] [Storage] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:49:57 [INFO] [WELCOME] 입장/퇴장 알림 설정을 로드했습니다.
+2025-04-08 19:49:57 [INFO] [MODULE] [welcome] 입장/퇴장 알림 모듈이 초기화되었습니다.
+2025-04-08 19:49:57 [INFO] [MODULE] [모듈 welcome.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:49:57 [INFO] [BOT] 총 6개의 모듈이 로드되었습니다. 실패한 모듈: 1개
+2025-04-08 19:49:57 [WARN] [BOT] 로드에 실패한 모듈: raid-call.js
+2025-04-08 19:49:57 [INFO] [BOT] 모듈 voice-channel-manager.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] 모듈 ticket-system.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] 모듈 vacation-request-systyem.js에서 3개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] 모듈 welcome.js에서 2개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:49:57 [INFO] [BOT] 7개의 슬래시 커맨드를 등록하는 중...
+2025-04-08 19:49:57 [INFO] [BOT] 슬래시 커맨드가 성공적으로 등록되었습니다.
+2025-04-08 19:51:13 [INFO] [WEB] 웹 대시보드 연결됨 (총 연결: 1)
+2025-04-08 19:51:13 [INFO] [WEB] 클라이언트로부터 받은 웹소켓 명령: getOnlineAdmins
+2025-04-08 19:51:14 [INFO] [WEB] 클라이언트로부터 받은 웹소켓 명령: getBotStatus
+2025-04-08 19:54:25 [INFO] [SYSTEM] Aimbot.ad 디스코드 봇 서비스를 시작합니다...
+2025-04-08 19:54:25 [INFO] [WEB] HTTP 모드로 실행 중입니다.
+2025-04-08 19:54:25 [INFO] [SYSTEM] 🤖 aimbot.ad 디스코드 봇 서비스가 시작되었습니다...
+2025-04-08 19:54:25 [INFO] [WEB] 🌐 HTTP 모드로 실행 중입니다.
+2025-04-08 19:54:25 [INFO] [WEB] 📡 웹 인터페이스 시작됨:
+2025-04-08 19:54:25 [INFO] [WEB]    🔗 로컬 접속: http://localhost:3000
+2025-04-08 19:54:25 [INFO] [WEB]    🌍 도메인 접속: http://localhost
+2025-04-08 19:54:25 [INFO] [WEB]    ⚙️ 프로토콜: HTTP
+2025-04-08 19:54:25 [INFO] [WEB]    📦 포트: 3000
+2025-04-08 19:54:25 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:54:25 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:54:25 [INFO] [SYSTEM] 봇을 자동으로 시작합니다...
+2025-04-08 19:54:25 [INFO] [STORAGE] 암호화 키를 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 암호화 키를 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:54:25 [INFO] [STORAGE] 자동 저장 활성화: 300초 간격
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 자동 저장 활성화: 300초 간격
+2025-04-08 19:54:25 [INFO] [STORAGE] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:54:25 [INFO] [STORAGE] 초기 백업을 생성합니다...
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 초기 백업을 생성합니다...
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 server-settings 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 server-settings 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 user-settings 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 user-settings 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 bot-config 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 bot-config 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 invite-codes 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 invite-codes 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 users 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 users 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 welcome-settings 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 welcome-settings 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 raid-call-config 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 raid-call-config 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 raid-calls 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 raid-calls 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 clan-applications 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 clan-applications 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 voice-channels 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 voice-channels 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:54:25 [INFO] [STORAGE] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:54:25 [ERROR] [ERROR] [STORAGE] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:54:25 [ERROR] [ERROR] [BOT] [Storage] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:54:25 [WARN] [STORAGE] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:54:25 [WARN] [BOT] [Storage] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:54:25 [INFO] [STORAGE] 저장소 초기화 완료
+2025-04-08 19:54:25 [INFO] [BOT] [Storage] 저장소 초기화 완료
+2025-04-08 19:54:25 [INFO] [BOT] 봇을 시작합니다...
+2025-04-08 19:54:26 [INFO] [BOT] 디스코드에 로그인했습니다.
+2025-04-08 19:54:26 [INFO] [SUCCESS] 봇이 성공적으로 시작되었습니다.
+2025-04-08 19:54:26 [INFO] [SUCCESS] 초기화가 완료되었습니다. 서비스가 정상적으로 실행 중입니다.
+2025-04-08 19:54:27 [INFO] [BOT] Aimbot.ad#9242 봇이 준비되었습니다.
+2025-04-08 19:54:27 [INFO] [BOT] 예제 모듈이 초기화되었습니다.
+2025-04-08 19:54:27 [INFO] [MODULE] [모듈 example.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:54:27 [INFO] [BOT] 핑 모듈이 초기화되었습니다.
+2025-04-08 19:54:27 [INFO] [MODULE] [모듈 ping.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:54:27 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] [Storage] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] [Storage] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [VOICE] 음성 채널 자동 생성 설정을 로드했습니다.
+2025-04-08 19:54:27 [INFO] [VOICE] 비활성 사용자 감지 시스템이 설정되었습니다 (10분 간격으로 확인)
+2025-04-08 19:54:27 [INFO] [MODULE] [voice-channel-manager] 음성 채널 관리 모듈이 초기화되었습니다.
+2025-04-08 19:54:27 [INFO] [MODULE] [모듈 voice-channel-manager.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:54:27 [ERROR] [ERROR] [BOT] 모듈 raid-call.js 로드 중 오류 발생: slashCommands is not defined
+2025-04-08 19:54:27 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] clan-applications 저장소를 로드했습니다.
+2025-04-08 19:54:27 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] [Storage] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] 티켓 시스템 설정을 로드했습니다.
+2025-04-08 19:54:27 [INFO] [MODULE] [티켓 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:54:27 [INFO] [MODULE] [모듈 ticket-system.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:54:27 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] [Storage] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] 휴가 시스템 설정을 로드했습니다.
+2025-04-08 19:54:27 [INFO] [MODULE] [휴가 신청 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:54:27 [INFO] [MODULE] [모듈 vacation-request-systyem.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:54:27 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] [Storage] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:54:27 [INFO] [WELCOME] 입장/퇴장 알림 설정을 로드했습니다.
+2025-04-08 19:54:27 [INFO] [MODULE] [welcome] 입장/퇴장 알림 모듈이 초기화되었습니다.
+2025-04-08 19:54:27 [INFO] [MODULE] [모듈 welcome.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:54:27 [INFO] [BOT] 총 6개의 모듈이 로드되었습니다. 실패한 모듈: 1개
+2025-04-08 19:54:27 [WARN] [BOT] 로드에 실패한 모듈: raid-call.js
+2025-04-08 19:54:27 [INFO] [BOT] 모듈 voice-channel-manager.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] 모듈 ticket-system.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] 모듈 vacation-request-systyem.js에서 3개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] 모듈 welcome.js에서 2개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:54:27 [INFO] [BOT] 7개의 슬래시 커맨드를 등록하는 중...
+2025-04-08 19:54:27 [INFO] [BOT] 슬래시 커맨드가 성공적으로 등록되었습니다.
+2025-04-08 19:55:06 [INFO] [SYSTEM] Aimbot.ad 디스코드 봇 서비스를 시작합니다...
+2025-04-08 19:55:06 [INFO] [WEB] HTTP 모드로 실행 중입니다.
+2025-04-08 19:55:06 [INFO] [SYSTEM] 🤖 aimbot.ad 디스코드 봇 서비스가 시작되었습니다...
+2025-04-08 19:55:06 [INFO] [WEB] 🌐 HTTP 모드로 실행 중입니다.
+2025-04-08 19:55:06 [INFO] [WEB] 📡 웹 인터페이스 시작됨:
+2025-04-08 19:55:06 [INFO] [WEB]    🔗 로컬 접속: http://localhost:3000
+2025-04-08 19:55:06 [INFO] [WEB]    🌍 도메인 접속: http://localhost
+2025-04-08 19:55:06 [INFO] [WEB]    ⚙️ 프로토콜: HTTP
+2025-04-08 19:55:06 [INFO] [WEB]    📦 포트: 3000
+2025-04-08 19:55:06 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:55:06 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:55:06 [INFO] [SYSTEM] 봇을 자동으로 시작합니다...
+2025-04-08 19:55:06 [INFO] [STORAGE] 암호화 키를 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 암호화 키를 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:55:06 [INFO] [STORAGE] 자동 저장 활성화: 300초 간격
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 자동 저장 활성화: 300초 간격
+2025-04-08 19:55:06 [INFO] [STORAGE] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:55:06 [INFO] [STORAGE] 초기 백업을 생성합니다...
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 초기 백업을 생성합니다...
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 invite-codes 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 invite-codes 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 user-settings 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 user-settings 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 bot-config 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 bot-config 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 users 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 users 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 server-settings 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 server-settings 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 welcome-settings 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 welcome-settings 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 raid-call-config 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 raid-call-config 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 raid-calls 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 raid-calls 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 clan-applications 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 clan-applications 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 voice-channels 저장 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 voice-channels 저장 완료
+2025-04-08 19:55:06 [INFO] [STORAGE] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:55:06 [ERROR] [ERROR] [STORAGE] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:55:06 [ERROR] [ERROR] [BOT] [Storage] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:55:06 [WARN] [STORAGE] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:55:06 [WARN] [BOT] [Storage] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:55:06 [INFO] [STORAGE] 저장소 초기화 완료
+2025-04-08 19:55:06 [INFO] [BOT] [Storage] 저장소 초기화 완료
+2025-04-08 19:55:06 [INFO] [BOT] 봇을 시작합니다...
+2025-04-08 19:55:07 [INFO] [BOT] 디스코드에 로그인했습니다.
+2025-04-08 19:55:07 [INFO] [SUCCESS] 봇이 성공적으로 시작되었습니다.
+2025-04-08 19:55:07 [INFO] [SUCCESS] 초기화가 완료되었습니다. 서비스가 정상적으로 실행 중입니다.
+2025-04-08 19:55:08 [INFO] [BOT] Aimbot.ad#9242 봇이 준비되었습니다.
+2025-04-08 19:55:08 [INFO] [BOT] 예제 모듈이 초기화되었습니다.
+2025-04-08 19:55:08 [INFO] [MODULE] [모듈 example.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [BOT] 핑 모듈이 초기화되었습니다.
+2025-04-08 19:55:08 [INFO] [MODULE] [모듈 ping.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [VOICE] 음성 채널 자동 생성 설정을 로드했습니다.
+2025-04-08 19:55:08 [INFO] [VOICE] 비활성 사용자 감지 시스템이 설정되었습니다 (10분 간격으로 확인)
+2025-04-08 19:55:08 [INFO] [MODULE] [voice-channel-manager] 음성 채널 관리 모듈이 초기화되었습니다.
+2025-04-08 19:55:08 [INFO] [MODULE] [모듈 voice-channel-manager.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [RAID-CALL] 던전 데이터베이스 로드 완료: 0개 서버
+2025-04-08 19:55:08 [INFO] [RAID-CALL] 파티 모집 시스템 설정을 로드했습니다.
+2025-04-08 19:55:08 [INFO] [MODULE] [파티 모집 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [MODULE] [모듈 raid-call.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] clan-applications 저장소를 로드했습니다.
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] 티켓 시스템 설정을 로드했습니다.
+2025-04-08 19:55:08 [INFO] [MODULE] [티켓 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [MODULE] [모듈 ticket-system.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] 휴가 시스템 설정을 로드했습니다.
+2025-04-08 19:55:08 [INFO] [MODULE] [휴가 신청 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [MODULE] [모듈 vacation-request-systyem.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] [Storage] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:55:08 [INFO] [WELCOME] 입장/퇴장 알림 설정을 로드했습니다.
+2025-04-08 19:55:08 [INFO] [MODULE] [welcome] 입장/퇴장 알림 모듈이 초기화되었습니다.
+2025-04-08 19:55:08 [INFO] [MODULE] [모듈 welcome.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:08 [INFO] [BOT] 총 7개의 모듈이 로드되었습니다. 실패한 모듈: 0개
+2025-04-08 19:55:08 [INFO] [BOT] 모듈 voice-channel-manager.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] 모듈 raid-call.js에서 4개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] 모듈 ticket-system.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] 모듈 vacation-request-systyem.js에서 3개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] 모듈 welcome.js에서 2개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:08 [INFO] [BOT] 11개의 슬래시 커맨드를 등록하는 중...
+2025-04-08 19:55:08 [INFO] [BOT] 슬래시 커맨드가 성공적으로 등록되었습니다.
+2025-04-08 19:55:26 [INFO] [SYSTEM] Aimbot.ad 디스코드 봇 서비스를 시작합니다...
+2025-04-08 19:55:26 [INFO] [WEB] HTTP 모드로 실행 중입니다.
+2025-04-08 19:55:26 [INFO] [SYSTEM] 🤖 aimbot.ad 디스코드 봇 서비스가 시작되었습니다...
+2025-04-08 19:55:26 [INFO] [WEB] 🌐 HTTP 모드로 실행 중입니다.
+2025-04-08 19:55:26 [INFO] [WEB] 📡 웹 인터페이스 시작됨:
+2025-04-08 19:55:26 [INFO] [WEB]    🔗 로컬 접속: http://localhost:3000
+2025-04-08 19:55:26 [INFO] [WEB]    🌍 도메인 접속: http://localhost
+2025-04-08 19:55:26 [INFO] [WEB]    ⚙️ 프로토콜: HTTP
+2025-04-08 19:55:26 [INFO] [WEB]    📦 포트: 3000
+2025-04-08 19:55:26 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:55:26 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:55:26 [INFO] [SYSTEM] 봇을 자동으로 시작합니다...
+2025-04-08 19:55:26 [INFO] [STORAGE] 암호화 키를 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 암호화 키를 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:55:26 [INFO] [STORAGE] 자동 저장 활성화: 300초 간격
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 자동 저장 활성화: 300초 간격
+2025-04-08 19:55:26 [INFO] [STORAGE] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:55:26 [INFO] [STORAGE] 초기 백업을 생성합니다...
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 초기 백업을 생성합니다...
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 users 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 users 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 server-settings 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 server-settings 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 invite-codes 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 invite-codes 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 user-settings 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 user-settings 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 bot-config 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 bot-config 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 welcome-settings 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 welcome-settings 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 raid-call-config 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 raid-call-config 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 raid-calls 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 raid-calls 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 voice-channels 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 voice-channels 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 clan-applications 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 clan-applications 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:55:26 [INFO] [STORAGE] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:55:26 [ERROR] [ERROR] [STORAGE] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:55:26 [ERROR] [ERROR] [BOT] [Storage] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:55:26 [WARN] [STORAGE] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:55:26 [WARN] [BOT] [Storage] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:55:26 [INFO] [STORAGE] 저장소 초기화 완료
+2025-04-08 19:55:26 [INFO] [BOT] [Storage] 저장소 초기화 완료
+2025-04-08 19:55:26 [INFO] [BOT] 봇을 시작합니다...
+2025-04-08 19:55:27 [INFO] [BOT] 디스코드에 로그인했습니다.
+2025-04-08 19:55:27 [INFO] [SUCCESS] 봇이 성공적으로 시작되었습니다.
+2025-04-08 19:55:27 [INFO] [SUCCESS] 초기화가 완료되었습니다. 서비스가 정상적으로 실행 중입니다.
+2025-04-08 19:55:27 [INFO] [BOT] Aimbot.ad#9242 봇이 준비되었습니다.
+2025-04-08 19:55:27 [INFO] [BOT] 예제 모듈이 초기화되었습니다.
+2025-04-08 19:55:27 [INFO] [MODULE] [모듈 example.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [BOT] 핑 모듈이 초기화되었습니다.
+2025-04-08 19:55:27 [INFO] [MODULE] [모듈 ping.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [VOICE] 음성 채널 자동 생성 설정을 로드했습니다.
+2025-04-08 19:55:27 [INFO] [VOICE] 비활성 사용자 감지 시스템이 설정되었습니다 (10분 간격으로 확인)
+2025-04-08 19:55:27 [INFO] [MODULE] [voice-channel-manager] 음성 채널 관리 모듈이 초기화되었습니다.
+2025-04-08 19:55:27 [INFO] [MODULE] [모듈 voice-channel-manager.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [RAID-CALL] 던전 데이터베이스 로드 완료: 0개 서버
+2025-04-08 19:55:27 [INFO] [RAID-CALL] 파티 모집 시스템 설정을 로드했습니다.
+2025-04-08 19:55:27 [INFO] [MODULE] [파티 모집 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [MODULE] [모듈 raid-call.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] clan-applications 저장소를 로드했습니다.
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] 티켓 시스템 설정을 로드했습니다.
+2025-04-08 19:55:27 [INFO] [MODULE] [티켓 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [MODULE] [모듈 ticket-system.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] 휴가 시스템 설정을 로드했습니다.
+2025-04-08 19:55:27 [INFO] [MODULE] [휴가 신청 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [MODULE] [모듈 vacation-request-systyem.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] [Storage] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:55:27 [INFO] [WELCOME] 입장/퇴장 알림 설정을 로드했습니다.
+2025-04-08 19:55:27 [INFO] [MODULE] [welcome] 입장/퇴장 알림 모듈이 초기화되었습니다.
+2025-04-08 19:55:27 [INFO] [MODULE] [모듈 welcome.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:55:27 [INFO] [BOT] 총 7개의 모듈이 로드되었습니다. 실패한 모듈: 0개
+2025-04-08 19:55:27 [INFO] [BOT] 모듈 voice-channel-manager.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] 모듈 raid-call.js에서 4개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] 모듈 ticket-system.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] 모듈 vacation-request-systyem.js에서 3개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] 모듈 welcome.js에서 2개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:55:27 [INFO] [BOT] 11개의 슬래시 커맨드를 등록하는 중...
+2025-04-08 19:55:27 [INFO] [BOT] 슬래시 커맨드가 성공적으로 등록되었습니다.
+2025-04-08 19:58:25 [INFO] [SYSTEM] Aimbot.ad 디스코드 봇 서비스를 시작합니다...
+2025-04-08 19:58:25 [INFO] [WEB] HTTP 모드로 실행 중입니다.
+2025-04-08 19:58:25 [INFO] [SYSTEM] 🤖 aimbot.ad 디스코드 봇 서비스가 시작되었습니다...
+2025-04-08 19:58:25 [INFO] [WEB] 🌐 HTTP 모드로 실행 중입니다.
+2025-04-08 19:58:25 [INFO] [WEB] 📡 웹 인터페이스 시작됨:
+2025-04-08 19:58:25 [INFO] [WEB]    🔗 로컬 접속: http://localhost:3000
+2025-04-08 19:58:25 [INFO] [WEB]    🌍 도메인 접속: http://localhost
+2025-04-08 19:58:25 [INFO] [WEB]    ⚙️ 프로토콜: HTTP
+2025-04-08 19:58:25 [INFO] [WEB]    📦 포트: 3000
+2025-04-08 19:58:25 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:58:25 [INFO] [SUCCESS] 웹 서버가 성공적으로 시작되었습니다.
+2025-04-08 19:58:25 [INFO] [SYSTEM] 봇을 자동으로 시작합니다...
+2025-04-08 19:58:25 [INFO] [STORAGE] 암호화 키를 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 users을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 invite-codes을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 user-settings을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 bot-config을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 server-settings을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 로드 완료: 14개 성공, 0개 실패
+2025-04-08 19:58:25 [INFO] [STORAGE] 자동 저장 활성화: 300초 간격
+2025-04-08 19:58:25 [INFO] [STORAGE] 백업 시스템 활성화: 24시간 간격
+2025-04-08 19:58:25 [INFO] [STORAGE] 초기 백업을 생성합니다...
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 invite-codes 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 users 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 bot-config 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 server-settings 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 user-settings 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 welcome-settings 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 voice-channels-config 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 ticket-system-config 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 vacation-system-config 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 raid-call-config 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 clan-applications 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 raid-calls 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 raid-dungeons 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 voice-channels 저장 완료
+2025-04-08 19:58:25 [INFO] [STORAGE] 모든 저장소 저장 완료: 14개 성공, 0개 실패
+2025-04-08 19:58:25 [ERROR] [ERROR] [STORAGE] 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:58:25 [WARN] [STORAGE] 초기 백업 생성 중 오류: ZIP 파일 생성 실패: Cannot find module 'adm-zip'
+Require stack:
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\storage.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\bot.js
+- C:\Users\polro\Desktop\develop.bot\Aimbot_Full_Integrated.part01\main.js
+2025-04-08 19:58:25 [INFO] [STORAGE] 저장소 초기화 완료
+2025-04-08 19:58:25 [INFO] [BOT] 봇을 시작합니다...
+2025-04-08 19:58:26 [INFO] [BOT] 디스코드에 로그인했습니다.
+2025-04-08 19:58:26 [INFO] [SUCCESS] 봇이 성공적으로 시작되었습니다.
+2025-04-08 19:58:26 [INFO] [SUCCESS] 초기화가 완료되었습니다. 서비스가 정상적으로 실행 중입니다.
+2025-04-08 19:58:26 [INFO] [BOT] Aimbot.ad#9242 봇이 준비되었습니다.
+2025-04-08 19:58:26 [INFO] [BOT] 예제 모듈이 초기화되었습니다.
+2025-04-08 19:58:26 [INFO] [MODULE] [모듈 example.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [BOT] 핑 모듈이 초기화되었습니다.
+2025-04-08 19:58:26 [INFO] [MODULE] [모듈 ping.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 voice-channels-config을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 voice-channels을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [VOICE] 음성 채널 자동 생성 설정을 로드했습니다.
+2025-04-08 19:58:26 [INFO] [VOICE] 비활성 사용자 감지 시스템이 설정되었습니다 (10분 간격으로 확인)
+2025-04-08 19:58:26 [INFO] [MODULE] [voice-channel-manager] 음성 채널 관리 모듈이 초기화되었습니다.
+2025-04-08 19:58:26 [INFO] [MODULE] [모듈 voice-channel-manager.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 raid-call-config을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 raid-calls을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 raid-dungeons을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [RAID-CALL] 던전 데이터베이스 로드 완료: 0개 서버
+2025-04-08 19:58:26 [INFO] [RAID-CALL] 파티 모집 시스템 설정을 로드했습니다.
+2025-04-08 19:58:26 [INFO] [MODULE] [파티 모집 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [MODULE] [모듈 raid-call.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [BOT] clan-applications 저장소를 로드했습니다.
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 ticket-system-config을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 clan-applications을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [BOT] 티켓 시스템 설정을 로드했습니다.
+2025-04-08 19:58:26 [INFO] [MODULE] [티켓 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [MODULE] [모듈 ticket-system.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 vacation-system-config을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [BOT] 휴가 시스템 설정을 로드했습니다.
+2025-04-08 19:58:26 [INFO] [MODULE] [휴가 신청 시스템 모듈이 초기화되었습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [MODULE] [모듈 vacation-request-systyem.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [STORAGE] 저장소 welcome-settings을(를) 로드했습니다.
+2025-04-08 19:58:26 [INFO] [WELCOME] 입장/퇴장 알림 설정을 로드했습니다.
+2025-04-08 19:58:26 [INFO] [MODULE] [welcome] 입장/퇴장 알림 모듈이 초기화되었습니다.
+2025-04-08 19:58:26 [INFO] [MODULE] [모듈 welcome.js을(를) 성공적으로 로드했습니다.] 모듈 초기화 완료
+2025-04-08 19:58:26 [INFO] [BOT] 총 7개의 모듈이 로드되었습니다. 실패한 모듈: 0개
+2025-04-08 19:58:26 [INFO] [BOT] 모듈 voice-channel-manager.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:58:26 [INFO] [BOT] 모듈 raid-call.js에서 4개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:58:26 [INFO] [BOT] 모듈 ticket-system.js에서 1개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:58:26 [INFO] [BOT] 모듈 vacation-request-systyem.js에서 3개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:58:26 [INFO] [BOT] 모듈 welcome.js에서 2개의 슬래시 커맨드를 로드했습니다.
+2025-04-08 19:58:26 [INFO] [BOT] 11개의 슬래시 커맨드를 등록하는 중...
+2025-04-08 19:58:27 [INFO] [BOT] 슬래시 커맨드가 성공적으로 등록되었습니다.
+2025-04-08 19:59:09 [INFO] [BOT] ad_origina1님이 티켓을 생성했습니다. 채널: 티켓-ad_origina1

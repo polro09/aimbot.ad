@@ -17,6 +17,73 @@ let activeRaidCalls = new Map();
 // 던전 정보 저장
 let dungeonDatabase = new Map();
 
+// 슬래시 명령어 정의
+const slashCommands = [
+    new SlashCommandBuilder()
+        .setName('레이드알람채널')
+        .setDescription('레이드 알람 채널을 설정합니다')
+        .addChannelOption(option => 
+            option.setName('채널')
+                .setDescription('알람을 보낼 채널')
+                .setRequired(true)),
+                
+    new SlashCommandBuilder()
+        .setName('파티모집채널')
+        .setDescription('파티 모집 채널을 설정합니다')
+        .addChannelOption(option => 
+            option.setName('채널')
+                .setDescription('파티 모집 임베드를 생성할 채널')
+                .setRequired(true)),
+                
+    new SlashCommandBuilder()
+        .setName('레이드')
+        .setDescription('레이드 관련 명령어')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('임베드')
+                .setDescription('레이드 모집 임베드를 생성합니다')
+                .addChannelOption(option => 
+                    option.setName('채널')
+                        .setDescription('임베드를 생성할 채널')
+                        .setRequired(true))),
+                        
+    new SlashCommandBuilder()
+        .setName('던전')
+        .setDescription('던전 관리 명령어')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('추가')
+                .setDescription('새 던전을 추가합니다')
+                .addStringOption(option => 
+                    option.setName('이름')
+                        .setDescription('던전 이름')
+                        .setRequired(true))
+                .addStringOption(option => 
+                    option.setName('설명')
+                        .setDescription('던전 설명')
+                        .setRequired(false))
+                .addStringOption(option => 
+                    option.setName('썸네일')
+                        .setDescription('던전 썸네일 URL')
+                        .setRequired(false))
+                .addStringOption(option => 
+                    option.setName('이미지')
+                        .setDescription('던전 이미지 URL')
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('목록')
+                .setDescription('등록된 던전 목록을 확인합니다'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('삭제')
+                .setDescription('등록된 던전을 삭제합니다')
+                .addStringOption(option => 
+                    option.setName('아이디')
+                        .setDescription('삭제할 던전 ID')
+                        .setRequired(true)))
+];
+
 // 스토리지에서 던전 정보 로드하는 함수
 async function loadDungeonDatabase(log) {
     try {
@@ -903,7 +970,7 @@ module.exports = {
     enabled: true,
     init,
     executeSlashCommand,
-    slashCommands
+    slashCommands  // 이제 위에서 정의된 변수를 참조
 };
 // 알람 채널 설정 함수
 async function setAlarmChannel(interaction, client) {
