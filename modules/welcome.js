@@ -1,260 +1,402 @@
-// welcome.js - 입장/퇴장 알림 모듈 (슬래시 커맨드 버전)
-const logger = require('../utils/logger');
-const { EmbedBuilder, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const storage = require('../storage');
+// modules/welcome.js - 개선된 웰컴 모듈
+const { 
+  SlashCommandBuilder, 
+  PermissionFlagsBits,
+  EmbedBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ChannelType,
+  Events
+} = require('discord.js');
+const logger = require('../logger');
+const config = require('../config/bot-config');
+const commandManager = require('../commands');
 
-// 스토리지 키
-const STORAGE_KEY = 'welcome-settings';
+/**
+ * 웰컴 모듈 클래스 - 기능 개선
+ */
+class WelcomeModule {
+  constructor(client) {
+    this.client = client;
+    this.name = 'welcome';
+    this.description = '서버 입장/퇴장 알림 모듈';
+    this.enabled = config.get('modules.welcome.enabled', true);
+    this.configurable = true;
+    
+    // 명령어 등록
+    this.registerCommands();
+    
+    logger.module(this.name, '웰컴 모듈이 초기화되었습니다.');
+  }
 
-// 모듈 설정 관리 (서버별 설정 저장)
-let guildSettings = new Map();
+  /**
+   * 모듈 활성화 여부 설정
+   * @param {boolean} enabled 활성화 여부
+   */
+  setEnabled(enabled) {
+    this.enabled = enabled;
+    logger.module(this.name, `모듈이 ${enabled ? '활성화' : '비활성화'}되었습니다.`);
+  }
 
-// 저장된 설정 불러오기
-async function loadSettings() {
+  /**
+   * 모듈 이벤트 리스너 등록
+   */
+  registerEvents() {
+    if (!this.enabled) {
+      logger.warn(this.name, '모듈이 비활성화되어 있어 이벤트를 등록하지 않습니다.');
+      return;
+    }
+
+    // 길드 멤버 입장 이벤트
+    this.client.on(Events.GuildMemberAdd, async (member) => {
+      await this.handleMemberJoin(member);
+    });
+
+    // 길드 멤버 퇴장 이벤트
+    this.client.on(Events.GuildMemberRemove, async (member) => {
+      await this.handleMemberLeave(member);
+    });
+
+    logger.success(this.name, '이벤트 리스너가 등록되었습니다.');
+  }
+
+  /**
+   * 슬래시 커맨드 등록
+   */
+  registerCommands() {
+    const welcomeSetCommand = new SlashCommandBuilder()
+      .setName('환영채널설정')
+      .setDescription('입장/퇴장 메시지를 보낼 채널을 설정합니다.')
+      .addChannelOption(option => 
+        option.setName('채널')
+          .setDescription('알림을 보낼 채널을 선택하세요.')
+          .setRequired(true))
+      .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+      .toJSON();
+
+    const welcomeMessageCommand = new SlashCommandBuilder()
+      .setName('환영메시지설정')
+      .setDescription('환영 메시지를 설정합니다.')
+      .addSubcommand(subcommand => 
+        subcommand
+          .setName('입장')
+          .setDescription('입장 메시지를 설정합니다.')
+          .addStringOption(option => 
+            option.setName('메시지')
+              .setDescription('입장 메시지 (변수: {username}, {server}, {count})')
+              .setRequired(true)))
+      .addSubcommand(subcommand => 
+        subcommand
+          .setName('퇴장')
+          .setDescription('퇴장 메시지를 설정합니다.')
+          .addStringOption(option => 
+            option.setName('메시지')
+              .setDescription('퇴장 메시지 (변수: {username}, {server}, {count})')
+              .setRequired(true)))
+      .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+      .toJSON();
+
+    const toggleWelcomeCommand = new SlashCommandBuilder()
+      .setName('환영메시지')
+      .setDescription('입장/퇴장 메시지를 활성화하거나 비활성화합니다.')
+      .addBooleanOption(option => 
+        option.setName('활성화')
+          .setDescription('활성화 여부 (true: 활성화, false: 비활성화)')
+          .setRequired(true))
+      .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+      .toJSON();
+
+    // 커맨드 매니저에 명령어 등록
+    commandManager.registerModuleCommands(this.name, [
+      welcomeSetCommand,
+      welcomeMessageCommand,
+      toggleWelcomeCommand
+    ]);
+  }
+
+  /**
+   * 명령어 실행 처리
+   * @param {Interaction} interaction 상호작용 객체
+   * @returns {boolean} 처리 여부
+   */
+  async handleCommands(interaction) {
+    if (!interaction.isCommand()) return false;
+
+    const { commandName } = interaction;
+
+    if (commandName === '환영채널설정') {
+      await this.handleSetWelcomeChannel(interaction);
+      return true;
+    } else if (commandName === '환영메시지설정') {
+      await this.handleSetWelcomeMessage(interaction);
+      return true;
+    } else if (commandName === '환영메시지') {
+      await this.handleToggleWelcome(interaction);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * 환영 채널 설정 명령어 처리
+   * @param {Interaction} interaction 상호작용 객체
+   */
+  async handleSetWelcomeChannel(interaction) {
     try {
-        await storage.load(STORAGE_KEY);
-        const data = storage.getAll(STORAGE_KEY);
-        
-        if (data) {
-            // Map으로 변환
-            guildSettings = new Map(Object.entries(data));
-            logger.info('입장/퇴장 알림 설정을 로드했습니다.', null, 'WELCOME');
-        }
-        
-        return true;
+      const channel = interaction.options.getChannel('채널');
+      
+      // 채널 권한 확인
+      if (!channel.viewable || !channel.permissionsFor(interaction.guild.members.me).has('SendMessages')) {
+        return interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor('#F04747')
+              .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+              .setTitle('❌ 권한 부족')
+              .setDescription('선택한 채널에 메시지를 보낼 권한이 없습니다!')
+              .setTimestamp()
+              .setFooter({ text: '🎷Blues', iconURL: interaction.guild.iconURL() })
+          ],
+          ephemeral: true
+        });
+      }
+      
+      // 설정 업데이트
+      config.set('welcomeChannelId', channel.id);
+      config.saveConfig();
+      
+      const embed = new EmbedBuilder()
+        .setColor('#43B581')
+        .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+        .setTitle('✅ 환영 채널 설정 완료')
+        .setDescription(`입장/퇴장 메시지가 <#${channel.id}> 채널로 전송됩니다.`)
+        .setTimestamp()
+        .setFooter({ text: '🎷Blues', iconURL: interaction.guild.iconURL() });
+      
+      await interaction.reply({ embeds: [embed] });
+      logger.success(this.name, `환영 채널이 #${channel.name} (${channel.id})로 설정되었습니다.`);
     } catch (error) {
-        logger.error(`입장/퇴장 알림 설정 로드 중 오류: ${error.message}`, null, 'WELCOME', error);
-        return false;
+      logger.error(this.name, `환영 채널 설정 오류: ${error.message}`);
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#F04747')
+            .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+            .setTitle('❌ 설정 오류')
+            .setDescription('채널 설정 중 오류가 발생했습니다.')
+            .setTimestamp()
+            .setFooter({ text: '🎷Blues', iconURL: interaction.guild.iconURL() })
+        ],
+        ephemeral: true
+      });
     }
-}
+  }
 
-// 설정 저장하기
-async function saveSettings() {
+  /**
+   * 환영 메시지 설정 명령어 처리
+   * @param {Interaction} interaction 상호작용 객체
+   */
+  async handleSetWelcomeMessage(interaction) {
     try {
-        // Map을 객체로 변환
-        const data = Object.fromEntries(guildSettings);
-        
-        // 스토리지에 저장
-        storage.setAll(STORAGE_KEY, data);
-        await storage.save(STORAGE_KEY);
-        
-        logger.info('입장/퇴장 알림 설정을 저장했습니다.', null, 'WELCOME');
-        return true;
+      const subcommand = interaction.options.getSubcommand();
+      const message = interaction.options.getString('메시지');
+      
+      if (subcommand === '입장') {
+        config.updateModuleConfig('welcome', { joinMessage: message });
+      } else if (subcommand === '퇴장') {
+        config.updateModuleConfig('welcome', { leaveMessage: message });
+      }
+      
+      config.saveConfig();
+      
+      // 미리보기 메시지 생성
+      const previewMessage = message
+        .replace('{username}', interaction.user.username)
+        .replace('{server}', interaction.guild.name)
+        .replace('{count}', interaction.guild.memberCount);
+      
+      const embed = new EmbedBuilder()
+        .setColor('#43B581')
+        .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+        .setTitle(`✅ ${subcommand === '입장' ? '입장' : '퇴장'} 메시지 설정 완료`)
+        .setDescription(`${subcommand === '입장' ? '입장' : '퇴장'} 메시지가 설정되었습니다.`)
+        .addFields(
+          { name: '설정된 메시지', value: message, inline: false },
+          { name: '미리보기', value: previewMessage, inline: false }
+        )
+        .setTimestamp()
+        .setFooter({ text: '🎷Blues', iconURL: interaction.guild.iconURL() });
+      
+      await interaction.reply({ embeds: [embed] });
+      logger.success(this.name, `${subcommand === '입장' ? '입장' : '퇴장'} 메시지가 설정되었습니다: ${message}`);
     } catch (error) {
-        logger.error(`입장/퇴장 알림 설정 저장 중 오류: ${error.message}`, null, 'WELCOME', error);
-        return false;
+      logger.error(this.name, `환영 메시지 설정 오류: ${error.message}`);
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#F04747')
+            .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+            .setTitle('❌ 설정 오류')
+            .setDescription('메시지 설정 중 오류가 발생했습니다.')
+            .setTimestamp()
+            .setFooter({ text: '🎷Blues', iconURL: interaction.guild.iconURL() })
+        ],
+        ephemeral: true
+      });
     }
+  }
+
+  /**
+   * 환영 메시지 토글 명령어 처리
+   * @param {Interaction} interaction 상호작용 객체
+   */
+  async handleToggleWelcome(interaction) {
+    try {
+      const enabled = interaction.options.getBoolean('활성화');
+      
+      // 설정 업데이트
+      config.updateModuleConfig(this.name, { enabled });
+      this.enabled = enabled;
+      config.saveConfig();
+      
+      // 활성화 상태에 따라 이벤트 등록/해제
+      if (enabled) {
+        this.registerEvents();
+      }
+      
+      const embed = new EmbedBuilder()
+        .setColor(enabled ? '#43B581' : '#F04747')
+        .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+        .setTitle(`${enabled ? '✅ 환영 메시지 활성화' : '⛔ 환영 메시지 비활성화'}`)
+        .setDescription(`입장/퇴장 메시지가 ${enabled ? '활성화' : '비활성화'}되었습니다.`)
+        .setTimestamp()
+        .setFooter({ text: '🎷Blues', iconURL: interaction.guild.iconURL() });
+      
+      await interaction.reply({ embeds: [embed] });
+      logger.success(this.name, `환영 메시지가 ${enabled ? '활성화' : '비활성화'}되었습니다.`);
+    } catch (error) {
+      logger.error(this.name, `환영 메시지 토글 오류: ${error.message}`);
+      await interaction.reply({
+        embeds: [
+          new EmbedBuilder()
+            .setColor('#F04747')
+            .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+            .setTitle('❌ 설정 오류')
+            .setDescription('설정 변경 중 오류가 발생했습니다.')
+            .setTimestamp()
+            .setFooter({ text: '🎷Blues', iconURL: interaction.guild.iconURL() })
+        ],
+        ephemeral: true
+      });
+    }
+  }
+
+  /**
+   * 멤버 입장 처리
+   * @param {GuildMember} member 길드 멤버
+   */
+  async handleMemberJoin(member) {
+    if (!this.enabled) return;
+    
+    try {
+      const welcomeChannelId = config.get('welcomeChannelId');
+      if (!welcomeChannelId) {
+        return logger.warn(this.name, '환영 채널이 설정되지 않았습니다.');
+      }
+      
+      const channel = member.guild.channels.cache.get(welcomeChannelId);
+      if (!channel) {
+        return logger.warn(this.name, '설정된 환영 채널을 찾을 수 없습니다.');
+      }
+      
+      // 메시지 포맷팅
+      const messageText = config.get('modules.welcome.joinMessage', '{username}님이 서버에 입장했습니다!')
+        .replace('{username}', member.user.username)
+        .replace('{server}', member.guild.name)
+        .replace('{count}', member.guild.memberCount);
+      
+      // 임베드 메시지 생성
+      const embed = new EmbedBuilder()
+        .setColor('#43B581')
+        .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+        .setTitle('👋 환영합니다!')
+        .setDescription(messageText)
+        .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+        .addFields(
+          { name: '👤 유저 정보', value: `\`\`\`유저 ID: ${member.id}\n계정 생성일: ${member.user.createdAt.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })} (${Math.floor((Date.now() - member.user.createdAt) / (1000 * 60 * 60 * 24))}일)\n서버 참가일: ${member.joinedAt.toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })} (0일)\`\`\``, inline: false },
+        )
+        .setImage(member.guild.bannerURL({ format: 'png', size: 1024 }) || null)
+        .setTimestamp()
+        .setFooter({ text: '🎷Blues', iconURL: member.guild.iconURL() });
+      
+      await channel.send({ embeds: [embed] });
+      logger.success(this.name, `${member.user.tag}님의 입장 메시지를 전송했습니다.`);
+    } catch (error) {
+      logger.error(this.name, `멤버 입장 처리 오류: ${error.message}`);
+    }
+  }
+
+  /**
+   * 멤버 퇴장 처리
+   * @param {GuildMember} member 길드 멤버
+   */
+  async handleMemberLeave(member) {
+    if (!this.enabled) return;
+    
+    try {
+      const welcomeChannelId = config.get('welcomeChannelId');
+      if (!welcomeChannelId) {
+        return logger.warn(this.name, '환영 채널이 설정되지 않았습니다.');
+      }
+      
+      const channel = member.guild.channels.cache.get(welcomeChannelId);
+      if (!channel) {
+        return logger.warn(this.name, '설정된 환영 채널을 찾을 수 없습니다.');
+      }
+      
+      // 메시지 포맷팅
+      const messageText = config.get('modules.welcome.leaveMessage', '{username}님이 서버에서 퇴장했습니다!')
+        .replace('{username}', member.user.username)
+        .replace('{server}', member.guild.name)
+        .replace('{count}', member.guild.memberCount);
+      
+      // 임베드 메시지 생성
+      const embed = new EmbedBuilder()
+        .setColor('#F04747')
+        .setAuthor({ name: 'aimbot.ad', iconURL: 'https://imgur.com/Sd8qK9c.gif' })
+        .setTitle('👋 안녕히 가세요!')
+        .setDescription(messageText)
+        .setThumbnail(member.user.displayAvatarURL({ dynamic: true, size: 256 }))
+        .addFields(
+          { name: '👤 유저 정보', value: `\`\`\`유저 ID: ${member.id}\n서버 탈퇴일: ${new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })} (0일)\`\`\``, inline: false },
+        )
+        .setImage(member.guild.bannerURL({ format: 'png', size: 1024 }) || null)
+        .setTimestamp()
+        .setFooter({ text: '🎷Blues', iconURL: member.guild.iconURL() });
+      
+      await channel.send({ embeds: [embed] });
+      logger.success(this.name, `${member.user.tag}님의 퇴장 메시지를 전송했습니다.`);
+    } catch (error) {
+      logger.error(this.name, `멤버 퇴장 처리 오류: ${error.message}`);
+    }
+  }
+
+  /**
+   * 모듈을 초기화하고 시작합니다.
+   */
+  async start() {
+    if (this.enabled) {
+      this.registerEvents();
+      logger.success(this.name, '웰컴 모듈이 활성화되었습니다.');
+    } else {
+      logger.warn(this.name, '웰컴 모듈이 비활성화되어 있습니다.');
+    }
+    return this;
+  }
 }
 
-// 서버 설정 저장
-function updateGuildSettings(guildId, settings) {
-    guildSettings.set(guildId, settings);
-    saveSettings();
-}
-
-module.exports = {
-    name: 'welcome',
-    description: '서버 입장/퇴장 알림 모듈',
-    version: '1.1.0',
-    enabled: true,
-    
-    // 슬래시 커맨드 정의
-    slashCommands: [
-        new SlashCommandBuilder()
-            .setName('웰컴채널지정')
-            .setDescription('입장과 퇴장 알림을 설정합니다')
-            .addChannelOption(option => 
-                option.setName('채널')
-                    .setDescription('알림을 보낼 채널')
-                    .setRequired(true))
-            .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-            
-        new SlashCommandBuilder()
-            .setName('웰컴채널확인')
-            .setDescription('현재 입장/퇴장 알림 설정을 확인합니다')
-    ],
-    
-    // 슬래시 커맨드 실행 함수
-    executeSlashCommand: async (interaction, client) => {
-        const { commandName } = interaction;
-        
-        if (commandName === '웰컴채널지정') {
-            const channel = interaction.options.getChannel('채널');
-            
-            // 서버 설정 업데이트 (입장과 퇴장 모두 같은 채널로 설정)
-            const settings = {
-                welcomeChannel: channel.id,
-                leaveChannel: channel.id
-            };
-            
-            updateGuildSettings(interaction.guild.id, settings);
-            
-            // 설정 완료 임베드 생성
-            const successEmbed = new EmbedBuilder()
-                .setColor('#57F287') // 녹색
-                .setTitle('✅ 알림 채널 설정 완료')
-                .setDescription(`입장 및 퇴장 알림이 <#${channel.id}> 채널로 설정되었습니다.`)
-                .addFields(
-                    { name: '📝 설정 정보', value: `채널: <#${channel.id}>\n유형: 입장 및 퇴장 알림` }
-                )
-                .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-                .setTimestamp();
-            
-            // 설정 완료 메시지
-            await interaction.reply({ embeds: [successEmbed], ephemeral: true });
-            logger.command(`${interaction.user.tag}가 ${interaction.guild.name} 서버의 입장/퇴장 알림 채널을 설정했습니다.`);
-        }
-        else if (commandName === '웰컴채널확인') {
-            const settings = guildSettings.get(interaction.guild.id);
-            
-            if (!settings || (!settings.welcomeChannel && !settings.leaveChannel)) {
-                // 설정이 없는 경우 임베드
-                const noSettingsEmbed = new EmbedBuilder()
-                    .setColor('#ED4245') // 빨간색
-                    .setTitle('⚠️ 설정 없음')
-                    .setDescription('아직 입장/퇴장 알림 채널이 설정되지 않았습니다.')
-                    .addFields(
-                        { name: '💡 도움말', value: '`/웰컴채널지정` 명령어를 사용하여 알림 채널을 설정해주세요.' }
-                    )
-                    .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-                    .setTimestamp();
-                
-                return interaction.reply({ embeds: [noSettingsEmbed], ephemeral: true });
-            }
-            
-            // 현재 설정 임베드 생성
-            const settingsEmbed = new EmbedBuilder()
-                .setColor('#5865F2') // 디스코드 블루
-                .setTitle('🔔 현재 알림 설정')
-                .setDescription('입장/퇴장 알림 설정 정보입니다.')
-                .setFooter({ text: interaction.guild.name, iconURL: interaction.guild.iconURL({ dynamic: true }) })
-                .setTimestamp();
-            
-            // 설정에 따라 필드 추가
-            if (settings.welcomeChannel === settings.leaveChannel) {
-                settingsEmbed.addFields(
-                    { name: '📣 입장 및 퇴장 알림', value: `채널: <#${settings.welcomeChannel}>` }
-                );
-            } else {
-                if (settings.welcomeChannel) {
-                    settingsEmbed.addFields(
-                        { name: '🎉 입장 알림', value: `채널: <#${settings.welcomeChannel}>` }
-                    );
-                }
-                
-                if (settings.leaveChannel) {
-                    settingsEmbed.addFields(
-                        { name: '👋 퇴장 알림', value: `채널: <#${settings.leaveChannel}>` }
-                    );
-                }
-            }
-            
-            await interaction.reply({ embeds: [settingsEmbed], ephemeral: true });
-            logger.command(`${interaction.user.tag}가 ${interaction.guild.name} 서버의 입장/퇴장 설정을 확인했습니다.`);
-        }
-    },
-    
-    // 모듈 초기화 함수
-    init: async (client) => {
-        // 스토리지 초기화 확인
-        if (!storage.initialized) {
-            await storage.init();
-        }
-        
-        // 저장된 설정 불러오기
-        await loadSettings();
-        
-        logger.module('welcome', '입장/퇴장 알림 모듈이 초기화되었습니다.');
-        
-        // 입장 이벤트
-        client.on('guildMemberAdd', async (member) => {
-            try {
-                const settings = guildSettings.get(member.guild.id);
-                if (!settings || !settings.welcomeChannel) return;
-                
-                const welcomeChannel = member.guild.channels.cache.get(settings.welcomeChannel);
-                if (!welcomeChannel) return;
-                
-                // 계정 생성 일자
-                const createdAt = member.user.createdAt;
-                
-                // 계정 생성일로부터 지난 일수 계산
-                const createdDaysAgo = Math.floor((Date.now() - createdAt) / (1000 * 60 * 60 * 24));
-                
-                // 입장 임베드 생성
-                const welcomeEmbed = new EmbedBuilder()
-                    .setColor('#57F287') // 녹색
-                    .setTitle(`${member.guild.name}에 오신 것을 환영합니다!`)
-                    .setDescription(`<@${member.id}>님이 서버에 참가했습니다. 🎉`)
-                    .setThumbnail('https://cdn3.emoji.gg/emojis/2594-switch-enabled.png')
-                    .setImage('https://imgur.com/PKwWSvx.png') // 환영 이미지 추가
-                    .addFields(
-                        { name: '👤 유저 정보', value: '```\n' +
-                            `유저 ID: ${member.id}\n` +
-                            `계정 생성일: ${createdAt.toISOString().split('T')[0].replace(/-/g, '-')} (${createdDaysAgo}일)\n` +
-                            `서버 참가일: ${new Date().toISOString().split('T')[0].replace(/-/g, '-')} (0일)\n` +
-                            '```', inline: false },
-                        { name: '📊 서버 통계', value: '```\n' +
-                            `전체 멤버: ${member.guild.memberCount}명\n` +
-                            '```', inline: false }
-                    )
-                    .setFooter({ text: `${member.guild.name}`, iconURL: member.guild.iconURL({ dynamic: true }) })
-                    .setTimestamp()
-                    .setAuthor({ name: `${member.user.tag}`, iconURL: member.user.displayAvatarURL({ dynamic: true }) });
-                
-                await welcomeChannel.send({ embeds: [welcomeEmbed] });
-                logger.info(`${member.user.tag}님이 ${member.guild.name} 서버에 입장했습니다.`, null, 'WELCOME');
-            } catch (error) {
-                logger.error(`입장 알림 전송 중 오류 발생: ${error.message}`, null, 'WELCOME', error);
-            }
-        });
-        
-        // 퇴장 이벤트
-        client.on('guildMemberRemove', async (member) => {
-            try {
-                const settings = guildSettings.get(member.guild.id);
-                if (!settings || !settings.leaveChannel) return;
-                
-                const leaveChannel = member.guild.channels.cache.get(settings.leaveChannel);
-                if (!leaveChannel) return;
-                
-                // 서버 참가일
-                const joinedAt = member.joinedAt;
-                
-                // 계정 생성일로부터 지난 일수 계산
-                const createdDaysAgo = Math.floor((Date.now() - member.user.createdAt) / (1000 * 60 * 60 * 24));
-                
-                // 서버 참가일로부터 지난 일수 계산 (체류 기간)
-                const joinedDaysAgo = joinedAt ? Math.floor((Date.now() - joinedAt) / (1000 * 60 * 60 * 24)) : '알 수 없음';
-                
-                // 퇴장 임베드 생성
-                const leaveEmbed = new EmbedBuilder()
-                    .setColor('#ED4245') // 빨간색
-                    .setTitle(`${member.guild.name}에서 퇴장했습니다`)
-                    .setDescription(`<@${member.id}>님이 서버에서 나갔습니다. 👋`)
-                    .setThumbnail('https://cdn3.emoji.gg/emojis/72295-switch-disabled.png')
-                    .setImage('https://imgur.com/PKwWSvx.png') // 퇴장 이미지 추가
-                    .addFields(
-                        { name: '👤 유저 정보', value: '```\n' +
-                            `유저 ID: ${member.id}\n` +
-                            `서버 참가일: ${joinedAt ? joinedAt.toISOString().split('T')[0].replace(/-/g, '-') : '알 수 없음'} ${joinedAt ? `(${joinedDaysAgo}일)` : ''}\n` +
-                            `서버 체류기간: ${new Date().toISOString().split('T')[0].replace(/-/g, '-')} (${typeof joinedDaysAgo === 'number' ? joinedDaysAgo : 0}일)\n` +
-                            '```', inline: false },
-                        { name: '📊 서버 통계', value: '```\n' +
-                            `전체 멤버: ${member.guild.memberCount}명\n` +
-                            '```', inline: false }
-                    )
-                    .setFooter({ text: `${member.guild.name}`, iconURL: member.guild.iconURL({ dynamic: true }) })
-                    .setTimestamp()
-                    .setAuthor({ name: `${member.user.tag}`, iconURL: member.user.displayAvatarURL({ dynamic: true }) });
-                
-                await leaveChannel.send({ embeds: [leaveEmbed] });
-                logger.info(`${member.user.tag}님이 ${member.guild.name} 서버에서 퇴장했습니다.`, null, 'WELCOME');
-            } catch (error) {
-                logger.error(`퇴장 알림 전송 중 오류 발생: ${error.message}`, null, 'WELCOME', error);
-            }
-        });
-
-        return true;
-    }
-};
+module.exports = (client) => new WelcomeModule(client);

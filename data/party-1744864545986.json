@@ -1,0 +1,29 @@
+{
+  "id": "1744864545986",
+  "name": "크롬30 구슬떼기 5릴",
+  "description": "크롬30 구슬떼기 5릴 가실분~",
+  "dateTime": "2025-04-17  오후 2시",
+  "date": "2025-04-17",
+  "period": "",
+  "time": "오후 2시",
+  "dungeon": "크롬바스",
+  "requirement": "선행퀘 깨신분 누구나",
+  "leader": {
+    "id": "939494962251305010",
+    "tag": "nm_5054",
+    "displayName": "김나면"
+  },
+  "participants": [],
+  "createdAt": "2025-04-17T04:35:45.986Z",
+  "thumbnail": null,
+  "image": null,
+  "messageId": "1362285428623016138",
+  "channelId": "1021875585661816872",
+  "canceled": true,
+  "canceledAt": "2025-04-17T04:36:06.667Z",
+  "canceledBy": {
+    "id": "939494962251305010",
+    "tag": "nm_5054",
+    "displayName": "김나면"
+  }
+}

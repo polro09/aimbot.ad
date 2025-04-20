@@ -1,0 +1,39 @@
+{
+  "id": "1744692055989",
+  "name": "1",
+  "description": "1",
+  "dateTime": "1",
+  "date": "1",
+  "period": "",
+  "time": "",
+  "dungeon": "1",
+  "requirement": "1",
+  "leader": {
+    "id": "257097077782216704",
+    "tag": "ad_origina1",
+    "displayName": "사체"
+  },
+  "participants": [
+    {
+      "id": "257097077782216704",
+      "tag": "ad_origina1",
+      "displayName": "사체",
+      "class": "ElementalKnight",
+      "className": "엘레멘탈 나이트",
+      "classEmoji": "⚔️",
+      "joinedAt": "2025-04-15T04:41:29.117Z"
+    }
+  ],
+  "createdAt": "2025-04-15T04:40:55.989Z",
+  "thumbnail": null,
+  "image": null,
+  "messageId": "1361561918283976704",
+  "channelId": "1021875585661816872",
+  "canceled": true,
+  "canceledAt": "2025-04-15T04:41:45.362Z",
+  "canceledBy": {
+    "id": "257097077782216704",
+    "tag": "ad_origina1",
+    "displayName": "사체"
+  }
+}

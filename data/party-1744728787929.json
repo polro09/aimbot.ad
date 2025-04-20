@@ -1,0 +1,40 @@
+{
+  "id": "1744728787929",
+  "name": "테스트",
+  "description": "글렌 어렴 트라이팟",
+  "dateTime": "2025-04-15 오후 8시",
+  "date": "2025-04-15",
+  "period": "오후",
+  "time": "8시",
+  "dungeon": "글렌 베르나 어려움",
+  "requirement": "선행퀘 완, S50",
+  "leader": {
+    "id": "939494962251305010",
+    "tag": "nm_5054",
+    "displayName": "김나면"
+  },
+  "participants": [
+    {
+      "id": "939494962251305010",
+      "tag": "nm_5054",
+      "displayName": "김나면",
+      "class": "ElementalKnight",
+      "className": "엘레멘탈 나이트",
+      "classEmoji": "⚔️",
+      "joinedAt": "2025-04-15T14:53:27.123Z"
+    }
+  ],
+  "createdAt": "2025-04-15T14:53:07.929Z",
+  "thumbnail": null,
+  "image": null,
+  "messageId": "1361715990831956289",
+  "channelId": "1021875585661816872",
+  "updatedAt": "2025-04-15T14:54:00.906Z",
+  "canceled": true,
+  "canceledAt": "2025-04-15T14:54:19.172Z",
+  "canceledBy": {
+    "id": "939494962251305010",
+    "tag": "nm_5054",
+    "displayName": "김나면"
+  }
+}

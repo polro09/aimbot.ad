@@ -1,0 +1,39 @@
+{
+  "prefix": "!",
+  "welcomeChannelId": "740129267400310884",
+  "modules": {
+    "welcome": {
+      "enabled": true,
+      "joinMessage": "{username}님이 서버에 입장했습니다!",
+      "leaveMessage": "{username}님이 서버에서 퇴장했습니다!"
+    },
+    "registration": {
+      "enabled": true,
+      "channelId": "1355573972997111939",
+      "ticketCategoryId": null,
+      "approvalRoleId": null,
+      "form1Fields": [
+        "닉네임",
+        "나이",
+        "성별",
+        "게임 경력"
+      ],
+      "form2Fields": [
+        "지원 동기",
+        "플레이 가능 시간",
+        "소속 길드",
+        "기타 사항"
+      ]
+    },
+    "ticket": {
+      "enabled": true,
+      "ticketCategoryId": "1361188750880936006",
+      "adminRoleId": "1355441111803367504",
+      "applicationChannelId": null
+    }
+  },
+  "web": {
+    "port": "3000",
+    "host": "localhost"
+  }
+}

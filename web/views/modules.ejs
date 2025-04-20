@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= botName %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-dark text-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/"><%= botName %></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="/">홈</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="/modules">모듈 관리</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-8 offset-md-2">
+        <div class="card bg-dark border-warning">
+          <div class="card-header bg-warning text-dark">
+            <h2 class="mb-0"><i class="fas fa-puzzle-piece me-2"></i>모듈 관리</h2>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i> 
+              모듈을 클릭하여 설정을 변경하거나 활성화/비활성화할 수 있습니다.
+            </div>
+            
+            <div class="list-group">
+              <% modules.forEach(module => { %>
+                <div class="list-group-item bg-dark text-light border-secondary">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h5><%= module.name %></h5>
+                      <p class="mb-0"><%= module.description %></p>
+                    </div>
+                    <div>
+                      <span class="badge <%= module.enabled ? 'bg-success' : 'bg-danger' %>">
+                        <%= module.enabled ? '활성화' : '비활성화' %>
+                      </span>
+                      <% if (module.configurable) { %>
+                        <a href="<%= module.configUrl %>" class="btn btn-sm btn-primary ms-2">
+                          <i class="fas fa-cog"></i> 설정
+                        </a>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+            
+            <div class="mt-4">
+              <div class="alert alert-warning">
+                <i class="fas fa-plus-circle me-2"></i> 
+                새 모듈을 추가하려면 modules 디렉토리에 모듈 파일을 추가하고 봇을 재시작하세요.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-5 py-3 bg-dark text-center text-muted">
+    <div class="container">
+      <p>© 2025 aimbot.ad - 모듈형 디스코드 봇</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

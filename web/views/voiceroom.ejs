@@ -1,0 +1,309 @@
+// web/views/voiceroom.ejs
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= botName %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-dark text-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/"><%= botName %></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'home' ? 'active' : '' %>" href="/">홈</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'modules' ? 'active' : '' %>" href="/modules">모듈 관리</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'logs' ? 'active' : '' %>" href="/logs">로그</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-8 offset-md-2">
+        <% if (new URLSearchParams(new URL(`http://localhost${req.url}`).search).get('success') === 'true') { %>
+          <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i> 설정이 성공적으로 저장되었습니다!
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        <% } %>
+        
+        <% if (new URLSearchParams(new URL(`http://localhost${req.url}`).search).get('error') === 'true') { %>
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i> 
+            <%= new URLSearchParams(new URL(`http://localhost${req.url}`).search).get('message') || '오류가 발생했습니다!' %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        <% } %>
+        
+        <div class="card bg-dark border-primary">
+          <div class="card-header bg-primary text-white">
+            <h2 class="mb-0"><i class="fas fa-microphone-alt me-2"></i>보이스룸 모듈 설정</h2>
+          </div>
+          <div class="card-body">
+            <form action="/modules/voiceroom/save" method="POST">
+              <div class="form-check form-switch mb-4">
+                <input class="form-check-input" type="checkbox" id="enabled" name="enabled" <%= config.enabled ? 'checked' : '' %>>
+                <label class="form-check-label" for="enabled">모듈 활성화</label>
+              </div>
+              
+              <div class="mb-3">
+                <label for="guildSelect" class="form-label">서버 선택</label>
+                <select class="form-select bg-dark text-light" id="guildSelect">
+                  <option value="">서버를 선택하세요</option>
+                  <% guilds.forEach(guild => { %>
+                    <option value="<%= guild.id %>"><%= guild.name %></option>
+                  <% }); %>
+                </select>
+                <div class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> 보이스룸을 설정할 서버를 선택하세요.
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="categoryId" class="form-label">보이스룸 카테고리</label>
+                <select class="form-select bg-dark text-light" id="categoryId" name="categoryId">
+                  <option value="">카테고리를 선택하세요</option>
+                </select>
+                <div class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> 보이스룸이 생성될 카테고리를 선택하세요.
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="lobbyId" class="form-label">통화방 채널</label>
+                <select class="form-select bg-dark text-light" id="lobbyId" name="lobbyId">
+                  <option value="">채널을 선택하세요</option>
+                </select>
+                <div class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> 보이스룸 생성을 위한 통화방 채널을 선택하세요.
+                </div>
+              </div>
+              
+              <div class="card bg-dark border-secondary mb-4">
+                <div class="card-header bg-secondary text-white">
+                  <h5 class="mb-0"><i class="fas fa-cog me-2"></i>추가 설정</h5>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="maxRoomsPerUser" class="form-label">사용자당 최대 보이스룸 수</label>
+                    <input type="number" class="form-control bg-dark text-light" id="maxRoomsPerUser" name="maxRoomsPerUser"
+                           value="<%= config.maxRoomsPerUser || 1 %>" min="1" max="5">
+                    <div class="form-text text-info">
+                      <i class="fas fa-info-circle"></i> 한 사용자가 최대로 생성할 수 있는 보이스룸 수를 설정합니다.
+                    </div>
+                  </div>
+                  
+                  <div class="mb-3">
+                    <label for="autoDeleteMinutes" class="form-label">자동 삭제 시간 (분)</label>
+                    <input type="number" class="form-control bg-dark text-light" id="autoDeleteMinutes" name="autoDeleteMinutes"
+                           value="<%= config.autoDeleteMinutes || 5 %>" min="1" max="60">
+                    <div class="form-text text-info">
+                      <i class="fas fa-info-circle"></i> 빈 보이스룸이 몇 분 후에 자동으로 삭제될지 설정합니다.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <h5>미리보기</h5>
+                <div class="card bg-dark border-secondary mb-3">
+                  <div class="card-header bg-info text-white">
+                    <i class="fas fa-microphone-alt me-2"></i>보이스룸 예시
+                  </div>
+                  <div class="card-body">
+                    <p><strong>카테고리:</strong> <span id="previewCategory">선택된 카테고리</span></p>
+                    <p><strong>통화방:</strong> <span id="previewLobby">선택된 통화방</span></p>
+                    <div class="alert alert-secondary">
+                      <i class="fas fa-info-circle me-2"></i>
+                      사용자가 통화방에 입장하면 카테고리 아래에 자동으로 개인 보이스룸이 생성됩니다.<br>
+                      생성된 보이스룸의 소유자는 채널 관리, 멤버 음소거, 연결 해제 등의 권한을 갖습니다.
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="/modules" class="btn btn-secondary me-md-2">
+                  <i class="fas fa-arrow-left me-1"></i>돌아가기
+                </a>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save me-1"></i>설정 저장
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-5 py-3 bg-dark text-center text-muted">
+    <div class="container">
+      <p>© 2025 aimbot.ad - 모듈형 디스코드 봇</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 필요한 DOM 요소 가져오기
+      var guildSelect = document.getElementById('guildSelect');
+      var categoryIdSelect = document.getElementById('categoryId');
+      var lobbyIdSelect = document.getElementById('lobbyId');
+      var previewCategory = document.getElementById('previewCategory');
+      var previewLobby = document.getElementById('previewLobby');
+      
+      // 서버 데이터
+      var guildsData = JSON.parse('<%- JSON.stringify(guilds) %>');
+      
+      // 현재 설정된 값
+      var currentCategoryId = '<%= config.categoryId || "" %>';
+      var currentLobbyId = '<%= config.lobbyId || "" %>';
+
+      // 서버 선택 시 카테고리, 채널 목록 업데이트
+      if (guildSelect) {
+        guildSelect.addEventListener('change', function() {
+          updateOptions();
+          updatePreview();
+        });
+      }
+      
+      // 카테고리/채널 선택 시 미리보기 업데이트
+      if (categoryIdSelect) {
+        categoryIdSelect.addEventListener('change', updatePreview);
+      }
+      
+      if (lobbyIdSelect) {
+        lobbyIdSelect.addEventListener('change', updatePreview);
+      }
+      
+      // 초기 서버 선택
+      if (guildSelect && (currentCategoryId || currentLobbyId)) {
+        for (var i = 0; i < guildsData.length; i++) {
+          var guild = guildsData[i];
+          var hasChannel = false;
+          
+          if (currentCategoryId && guild.categories) {
+            for (var j = 0; j < guild.categories.length; j++) {
+              if (guild.categories[j].id === currentCategoryId) {
+                hasChannel = true;
+                break;
+              }
+            }
+          }
+          
+          if (!hasChannel && currentLobbyId && guild.channels) {
+            for (var j = 0; j < guild.channels.length; j++) {
+              if (guild.channels[j].id === currentLobbyId) {
+                hasChannel = true;
+                break;
+              }
+            }
+          }
+          
+          if (hasChannel) {
+            guildSelect.value = guild.id;
+            break;
+          }
+        }
+      }
+      
+      // 초기 옵션 업데이트
+      if (guildSelect && guildSelect.value) {
+        updateOptions();
+        updatePreview();
+      }
+      
+      // 옵션 업데이트 함수
+      function updateOptions() {
+        if (!guildSelect || !categoryIdSelect || !lobbyIdSelect) {
+          return;
+        }
+        
+        var selectedGuildId = guildSelect.value;
+        if (!selectedGuildId) {
+          return;
+        }
+        
+        var selectedGuild = null;
+        for (var i = 0; i < guildsData.length; i++) {
+          if (guildsData[i].id === selectedGuildId) {
+            selectedGuild = guildsData[i];
+            break;
+          }
+        }
+        
+        if (!selectedGuild) {
+          return;
+        }
+        
+        // 카테고리 목록 업데이트
+        categoryIdSelect.innerHTML = '<option value="">카테고리를 선택하세요</option>';
+        if (selectedGuild.categories) {
+          for (var i = 0; i < selectedGuild.categories.length; i++) {
+            var category = selectedGuild.categories[i];
+            var option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            if (category.id === currentCategoryId) {
+              option.selected = true;
+            }
+            categoryIdSelect.appendChild(option);
+          }
+        }
+        
+        // 채널 목록 업데이트 (음성 채널만)
+        lobbyIdSelect.innerHTML = '<option value="">채널을 선택하세요</option>';
+        if (selectedGuild.channels) {
+          for (var i = 0; i < selectedGuild.channels.length; i++) {
+            var channel = selectedGuild.channels[i];
+            // 음성 채널만 필터링 (type 2 = 음성 채널)
+            if (channel.type === 2) {
+              var option = document.createElement('option');
+              option.value = channel.id;
+              option.textContent = channel.name;
+              if (channel.id === currentLobbyId) {
+                option.selected = true;
+              }
+              lobbyIdSelect.appendChild(option);
+            }
+          }
+        }
+      }
+      
+      // 미리보기 업데이트 함수
+      function updatePreview() {
+        if (!categoryIdSelect || !lobbyIdSelect) {
+          return;
+        }
+        
+        var selectedCategory = categoryIdSelect.options[categoryIdSelect.selectedIndex];
+        var selectedLobby = lobbyIdSelect.options[lobbyIdSelect.selectedIndex];
+        
+        previewCategory.textContent = selectedCategory && selectedCategory.value 
+          ? selectedCategory.text 
+          : '선택된 카테고리';
+          
+        previewLobby.textContent = selectedLobby && selectedLobby.value
+          ? selectedLobby.text
+          : '선택된 통화방';
+      }
+    });
+  </script>
+</body>
+</html>

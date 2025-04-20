@@ -1,39 +1,31 @@
 {
-    "name": "sea-dogs-tavern-bot",
-    "version": "1.1.0",
-    "description": "모듈형 디스코드 봇",
-    "main": "main.js",
+    "name": "aimbot.ad",
+    "version": "1.0.0",
+    "description": "모듈형 디스코드 봇 및 웹 인터페이스",
+    "main": "index.js",
     "scripts": {
-        "start": "node main.js",
-        "dev": "nodemon main.js",
-        "setup": "npm install && node -e \"require('fs').existsSync('.env') || require('fs').copyFileSync('.env.example', '.env')\"",
-        "lint": "eslint ."
+        "start": "node index.js",
+        "dev": "nodemon index.js"
     },
-    "author": "Sea Dogs Tavern",
-    "license": "MIT",
     "dependencies": {
-        "bcrypt": "^5.1.1",
-        "discord.js": "^14.18.0",
-        "dotenv": "^16.4.7",
-        "express": "^4.21.2",
-        "winston": "^3.17.0",
-        "winston-daily-rotate-file": "^5.0.0",
-        "ws": "^8.18.1"
+        "chalk": "^4.1.2",
+        "discord.js": "^14.14.1",
+        "dotenv": "^16.3.1",
+        "ejs": "^3.1.9",
+        "express": "^4.18.2",
+        "express-rate-limit": "^7.5.0",
+        "express-session": "^1.18.1",
+        "helmet": "^8.1.0",
+        "moment": "^2.29.4",
+        "moment-timezone": "^0.5.43",
+        "node-emoji": "^2.1.0"
     },
     "devDependencies": {
-        "eslint": "^8.56.0",
-        "nodemon": "^3.1.9"
+        "nodemon": "^3.0.1"
     },
-    "nodemonConfig": {
-        "watch": [
-            "*.js",
-            "modules/",
-            "web/"
-        ],
-        "ignore": [
-            "node_modules/",
-            "data/"
-        ],
-        "ext": "js,json,html,css"
-    }
+    "engines": {
+        "node": ">=16.9.0"
+    },
+    "author": "",
+    "license": "MIT"
 }

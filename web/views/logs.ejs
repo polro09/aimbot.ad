@@ -1,0 +1,272 @@
+<!-- web/views/logs.ejs -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= botName %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .log-container {
+      height: 600px;
+      overflow-y: auto;
+      background-color: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 5px;
+      padding: 10px;
+    }
+    .log-entry {
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-bottom: 4px;
+      padding: 4px;
+      border-bottom: 1px solid #333;
+    }
+    .log-info { color: #5caed6; }
+    .log-success { color: #4caf50; }
+    .log-warning { color: #ff9800; }
+    .log-error { color: #f44336; }
+    .log-system { color: #9c27b0; }
+    .log-module { color: #2196f3; }
+    .log-web { color: #ff7f50; }
+    .log-discord { color: #7289DA; }
+    .log-command { color: #ffa500; }
+    .log-database { color: #ff4500; }
+    .log-timestamp { color: #888; }
+    .log-tag { font-weight: bold; }
+    .log-module-name { color: #03a9f4; }
+    .log-message { color: #e0e0e0; }
+    .filter-controls { margin-bottom: 15px; }
+  </style>
+</head>
+<body class="bg-dark text-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/"><%= botName %></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'home' ? 'active' : '' %>" href="/">홈</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'modules' ? 'active' : '' %>" href="/modules">모듈 관리</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'logs' ? 'active' : '' %>" href="/logs">로그</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="card bg-dark border-info">
+      <div class="card-header bg-info text-dark">
+        <h2 class="mb-0"><i class="fas fa-list-alt me-2"></i>시스템 로그</h2>
+      </div>
+      <div class="card-body">
+        <div class="filter-controls d-flex flex-wrap gap-2">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showInfo" checked>
+            <label class="form-check-label log-info" for="showInfo">INFO</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showSuccess" checked>
+            <label class="form-check-label log-success" for="showSuccess">SUCCESS</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showWarning" checked>
+            <label class="form-check-label log-warning" for="showWarning">WARNING</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showError" checked>
+            <label class="form-check-label log-error" for="showError">ERROR</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showSystem" checked>
+            <label class="form-check-label log-system" for="showSystem">SYSTEM</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showModule" checked>
+            <label class="form-check-label log-module" for="showModule">MODULE</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showWeb" checked>
+            <label class="form-check-label log-web" for="showWeb">WEB</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showDiscord" checked>
+            <label class="form-check-label log-discord" for="showDiscord">DISCORD</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showCommand" checked>
+            <label class="form-check-label log-command" for="showCommand">COMMAND</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="checkbox" id="showDatabase" checked>
+            <label class="form-check-label log-database" for="showDatabase">DATABASE</label>
+          </div>
+          
+          <div class="ms-auto">
+            <input type="text" class="form-control bg-dark text-light" id="searchFilter" placeholder="검색...">
+          </div>
+          <div>
+            <button type="button" class="btn btn-primary" id="refreshButton">
+              <i class="fas fa-sync-alt"></i> 새로고침
+            </button>
+          </div>
+        </div>
+        
+        <div class="log-container" id="logContainer">
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">로딩 중...</span>
+            </div>
+            <p class="mt-2">로그를 불러오는 중...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-5 py-3 bg-dark text-center text-muted">
+    <div class="container">
+      <p>© 2025 aimbot.ad - 모듈형 디스코드 봇</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // 로그 컨테이너 및 필터 요소
+    const logContainer = document.getElementById('logContainer');
+    const searchFilter = document.getElementById('searchFilter');
+    const refreshButton = document.getElementById('refreshButton');
+    
+    // 필터 체크박스
+    const showInfo = document.getElementById('showInfo');
+    const showSuccess = document.getElementById('showSuccess');
+    const showWarning = document.getElementById('showWarning');
+    const showError = document.getElementById('showError');
+    const showSystem = document.getElementById('showSystem');
+    const showModule = document.getElementById('showModule');
+    const showWeb = document.getElementById('showWeb');
+    const showDiscord = document.getElementById('showDiscord');
+    const showCommand = document.getElementById('showCommand');
+    const showDatabase = document.getElementById('showDatabase');
+    
+    // 로그 데이터
+    let logs = [];
+    
+    // 로그 불러오기
+    async function fetchLogs() {
+      try {
+        const response = await fetch('/api/logs');
+        const data = await response.json();
+        
+        if (data.success) {
+          logs = data.logs;
+          renderLogs();
+        } else {
+          logContainer.innerHTML = `<div class="alert alert-danger">${data.message || '로그를 불러오지 못했습니다.'}</div>`;
+        }
+      } catch (error) {
+        logContainer.innerHTML = `<div class="alert alert-danger">로그를 불러오는 중 오류가 발생했습니다: ${error.message}</div>`;
+      }
+    }
+    
+    // 로그 렌더링
+    function renderLogs() {
+      // 필터링
+      const searchText = searchFilter.value.toLowerCase();
+      const filteredLogs = logs.filter(log => {
+        // 검색어 필터링
+        if (searchText && !log.toLowerCase().includes(searchText)) {
+          return false;
+        }
+        
+        // 로그 레벨 필터링
+        if (log.includes('[INFO]') && !showInfo.checked) return false;
+        if (log.includes('[SUCCESS]') && !showSuccess.checked) return false;
+        if (log.includes('[WARNING]') && !showWarning.checked) return false;
+        if (log.includes('[ERROR]') && !showError.checked) return false;
+        if (log.includes('[SYSTEM]') && !showSystem.checked) return false;
+        if (log.includes('[MODULE]') && !showModule.checked) return false;
+        if (log.includes('[WEB]') && !showWeb.checked) return false;
+        if (log.includes('[DISCORD]') && !showDiscord.checked) return false;
+        if (log.includes('[COMMAND]') && !showCommand.checked) return false;
+        if (log.includes('[DATABASE]') && !showDatabase.checked) return false;
+        
+        return true;
+      });
+      
+      // 로그 HTML 생성
+      if (filteredLogs.length === 0) {
+        logContainer.innerHTML = '<div class="alert alert-info">표시할 로그가 없습니다.</div>';
+        return;
+      }
+      
+      let logHtml = '';
+      
+      filteredLogs.forEach(log => {
+        let logClass = 'log-info';
+        
+        if (log.includes('[SUCCESS]')) logClass = 'log-success';
+        if (log.includes('[WARNING]')) logClass = 'log-warning';
+        if (log.includes('[ERROR]')) logClass = 'log-error';
+        if (log.includes('[SYSTEM]')) logClass = 'log-system';
+        if (log.includes('[MODULE]')) logClass = 'log-module';
+        if (log.includes('[WEB]')) logClass = 'log-web';
+        if (log.includes('[DISCORD]')) logClass = 'log-discord';
+        if (log.includes('[COMMAND]')) logClass = 'log-command';
+        if (log.includes('[DATABASE]')) logClass = 'log-database';
+        
+        // 정규식으로 각 부분 추출
+        const timestampMatch = log.match(/\[(.*?)\]/);
+        const levelMatch = log.match(/\[(INFO|SUCCESS|WARNING|ERROR|SYSTEM|MODULE|WEB|DISCORD|COMMAND|DATABASE)\]/);
+        const moduleMatch = log.match(/\[(.*?)\](?!.*\[(INFO|SUCCESS|WARNING|ERROR|SYSTEM|MODULE|WEB|DISCORD|COMMAND|DATABASE)\])/);
+        
+        const timestamp = timestampMatch ? timestampMatch[1] : '';
+        const level = levelMatch ? levelMatch[1] : '';
+        const moduleName = moduleMatch ? moduleMatch[1] : '';
+        
+        // 메시지 부분 추출
+        const parts = log.split(moduleName && moduleName.length > 0 ? `[${moduleName}]` : '');
+        const message = parts.length > 1 ? parts[1].trim() : log;
+        
+        logHtml += `
+          <div class="log-entry ${logClass}">
+            <span class="log-timestamp">[${timestamp}]</span>
+            <span class="log-tag">[${level}]</span>
+            <span class="log-module-name">[${moduleName}]</span>
+            <span class="log-message">${message}</span>
+          </div>
+        `;
+      });
+      
+      logContainer.innerHTML = logHtml;
+    }
+    
+    // 이벤트 리스너
+    searchFilter.addEventListener('input', renderLogs);
+    refreshButton.addEventListener('click', fetchLogs);
+    
+    // 필터 체크박스 이벤트
+    document.querySelectorAll('.form-check-input').forEach(checkbox => {
+      checkbox.addEventListener('change', renderLogs);
+    });
+    
+    // 초기 로드
+    fetchLogs();
+    
+    // 30초마다 자동 새로고침
+    setInterval(fetchLogs, 30000);
+  </script>
+</body>
+</html>

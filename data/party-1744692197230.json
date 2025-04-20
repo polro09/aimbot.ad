@@ -1,0 +1,39 @@
+{
+  "id": "1744692197230",
+  "name": "1",
+  "description": "1",
+  "dateTime": "1",
+  "date": "1",
+  "period": "",
+  "time": "",
+  "dungeon": "제바흐",
+  "requirement": "1",
+  "leader": {
+    "id": "257097077782216704",
+    "tag": "ad_origina1",
+    "displayName": "사체"
+  },
+  "participants": [
+    {
+      "id": "257097077782216704",
+      "tag": "ad_origina1",
+      "displayName": "사체",
+      "class": "ElementalKnight",
+      "className": "엘레멘탈 나이트",
+      "classEmoji": "⚔️",
+      "joinedAt": "2025-04-15T04:43:37.229Z"
+    }
+  ],
+  "createdAt": "2025-04-15T04:43:17.230Z",
+  "thumbnail": "https://i.imgur.com/FmCcyau.png",
+  "image": "https://i.imgur.com/IJCnhYB.png",
+  "messageId": "1361562510649462995",
+  "channelId": "1021875585661816872",
+  "canceled": true,
+  "canceledAt": "2025-04-15T04:43:59.764Z",
+  "canceledBy": {
+    "id": "257097077782216704",
+    "tag": "ad_origina1",
+    "displayName": "사체"
+  }
+}

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= botName %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-dark text-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/"><%= botName %></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'home' ? 'active' : '' %>" href="/">홈</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'modules' ? 'active' : '' %>" href="/modules">모듈 관리</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link <%= currentPage === 'logs' ? 'active' : '' %>" href="/logs">로그</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-8 offset-md-2">
+        <% if (new URLSearchParams(new URL(`http://localhost${req.url}`).search).get('success') === 'true') { %>
+          <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i> 설정이 성공적으로 저장되었습니다!
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        <% } %>
+        
+        <% if (new URLSearchParams(new URL(`http://localhost${req.url}`).search).get('error') === 'true') { %>
+          <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i> 
+            <%= new URLSearchParams(new URL(`http://localhost${req.url}`).search).get('message') || '오류가 발생했습니다!' %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        <% } %>
+        
+        <div class="card bg-dark border-primary">
+          <div class="card-header bg-primary text-white">
+            <h2 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>가입 신청서 모듈 설정</h2>
+          </div>
+          <div class="card-body">
+            <form action="/modules/registration/save" method="POST">
+              <div class="form-check form-switch mb-4">
+                <input class="form-check-input" type="checkbox" id="enabled" name="enabled" <%= config.enabled ? 'checked' : '' %>>
+                <label class="form-check-label" for="enabled">모듈 활성화</label>
+              </div>
+              
+              <div class="mb-3">
+                <label for="guildSelect" class="form-label">서버 선택</label>
+                <select class="form-select bg-dark text-light" id="guildSelect">
+                  <option value="">서버를 선택하세요</option>
+                  <% guilds.forEach(guild => { %>
+                    <option value="<%= guild.id %>"><%= guild.name %></option>
+                  <% }); %>
+                </select>
+                <div class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> 가입 신청서를 사용할 서버를 선택하세요.
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="channelId" class="form-label">가입 신청서 채널 ID</label>
+                <select class="form-select bg-dark text-light" id="channelId" name="channelId">
+                  <option value="">채널을 선택하세요</option>
+                </select>
+                <div class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> 가입 신청서 결과가 전송될 채널을 선택하세요.
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="ticketCategoryId" class="form-label">티켓 카테고리 ID</label>
+                <select class="form-select bg-dark text-light" id="ticketCategoryId" name="ticketCategoryId">
+                  <option value="">카테고리를 선택하세요</option>
+                </select>
+                <div class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> 가입 신청서 티켓이 생성될 카테고리를 선택하세요.
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <label for="approvalRoleId" class="form-label">승인 권한 역할 ID</label>
+                <select class="form-select bg-dark text-light" id="approvalRoleId" name="approvalRoleId">
+                  <option value="">역할을 선택하세요</option>
+                </select>
+                <div class="form-text text-info">
+                  <i class="fas fa-info-circle"></i> 가입 신청서를 승인/거부할 수 있는 역할을 선택하세요.
+                </div>
+              </div>
+              
+              <div class="card bg-dark border-secondary mb-4">
+                <div class="card-header bg-secondary text-white">
+                  <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>가입 신청서 1 (기본 정보)</h5>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="form1Field1" class="form-label">필드 1</label>
+                    <input type="text" class="form-control bg-dark text-light" id="form1Field1" name="form1Field1"
+                           value="<%= config.form1Fields && config.form1Fields[0] ? config.form1Fields[0] : '닉네임' %>"
+                           placeholder="필드 이름 (예: 닉네임)">
+                  </div>
+                  <div class="mb-3">
+                    <label for="form1Field2" class="form-label">필드 2</label>
+                    <input type="text" class="form-control bg-dark text-light" id="form1Field2" name="form1Field2"
+                           value="<%= config.form1Fields && config.form1Fields[1] ? config.form1Fields[1] : '나이' %>"
+                           placeholder="필드 이름 (예: 나이)">
+                  </div>
+                  <div class="mb-3">
+                    <label for="form1Field3" class="form-label">필드 3</label>
+                    <input type="text" class="form-control bg-dark text-light" id="form1Field3" name="form1Field3"
+                           value="<%= config.form1Fields && config.form1Fields[2] ? config.form1Fields[2] : '성별' %>"
+                           placeholder="필드 이름 (예: 성별)">
+                  </div>
+                  <div class="mb-3">
+                    <label for="form1Field4" class="form-label">필드 4</label>
+                    <input type="text" class="form-control bg-dark text-light" id="form1Field4" name="form1Field4"
+                           value="<%= config.form1Fields && config.form1Fields[3] ? config.form1Fields[3] : '게임 경력' %>"
+                           placeholder="필드 이름 (예: 게임 경력)">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="card bg-dark border-secondary mb-4">
+                <div class="card-header bg-secondary text-white">
+                  <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>가입 신청서 2 (상세 정보)</h5>
+                </div>
+                <div class="card-body">
+                  <div class="mb-3">
+                    <label for="form2Field1" class="form-label">필드 1</label>
+                    <input type="text" class="form-control bg-dark text-light" id="form2Field1" name="form2Field1"
+                           value="<%= config.form2Fields && config.form2Fields[0] ? config.form2Fields[0] : '지원 동기' %>"
+                           placeholder="필드 이름 (예: 지원 동기)">
+                  </div>
+                  <div class="mb-3">
+                    <label for="form2Field2" class="form-label">필드 2</label>
+                    <input type="text" class="form-control bg-dark text-light" id="form2Field2" name="form2Field2"
+                           value="<%= config.form2Fields && config.form2Fields[1] ? config.form2Fields[1] : '플레이 가능 시간' %>"
+                           placeholder="필드 이름 (예: 플레이 가능 시간)">
+                  </div>
+                  <div class="mb-3">
+                    <label for="form2Field3" class="form-label">필드 3</label>
+                    <input type="text" class="form-control bg-dark text-light" id="form2Field3" name="form2Field3"
+                           value="<%= config.form2Fields && config.form2Fields[2] ? config.form2Fields[2] : '소속 길드' %>"
+                           placeholder="필드 이름 (예: 소속 길드)">
+                  </div>
+                  <div class="mb-3">
+                    <label for="form2Field4" class="form-label">필드 4</label>
+                    <input type="text" class="form-control bg-dark text-light" id="form2Field4" name="form2Field4"
+                           value="<%= config.form2Fields && config.form2Fields[3] ? config.form2Fields[3] : '기타 사항' %>"
+                           placeholder="필드 이름 (예: 기타 사항)">
+                  </div>
+                </div>
+              </div>
+              
+              <div class="mb-3">
+                <h5>미리보기</h5>
+                <div class="card bg-dark border-secondary mb-3">
+                  <div class="card-header bg-info text-white">
+                    <i class="fas fa-clipboard-check me-2"></i>가입 신청서 미리보기
+                  </div>
+                  <div class="card-body">
+                    <p class="text-center">다음 버튼 중 하나를 선택하여 가입 신청서를 작성해주세요.</p>
+                    <div class="d-flex justify-content-center gap-2">
+                      <button type="button" class="btn btn-primary" disabled>
+                        <i class="fas fa-file-alt me-2"></i>가입 신청서 1 (기본 정보)
+                      </button>
+                      <button type="button" class="btn btn-success" disabled>
+                        <i class="fas fa-file-alt me-2"></i>가입 신청서 2 (상세 정보)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="/modules" class="btn btn-secondary me-md-2">
+                  <i class="fas fa-arrow-left me-1"></i>돌아가기
+                </a>
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save me-1"></i>설정 저장
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-5 py-3 bg-dark text-center text-muted">
+    <div class="container">
+      <p>© 2025 aimbot.ad - 모듈형 디스코드 봇</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 필요한 DOM 요소 가져오기
+      var guildSelect = document.getElementById('guildSelect');
+      var channelIdSelect = document.getElementById('channelId');
+      var ticketCategoryIdSelect = document.getElementById('ticketCategoryId');
+      var approvalRoleIdSelect = document.getElementById('approvalRoleId');
+      
+      // 서버 데이터
+      var guildsData = JSON.parse('<%- JSON.stringify(guilds) %>');
+      
+      // 현재 설정된 값
+      var currentChannelId = '<%= config.channelId || "" %>';
+      var currentTicketCategoryId = '<%= config.ticketCategoryId || "" %>';
+      var currentApprovalRoleId = '<%= config.approvalRoleId || "" %>';
+
+      // 서버 선택 시 채널, 카테고리, 역할 목록 업데이트
+      if (guildSelect) {
+        guildSelect.addEventListener('change', function() {
+          updateOptions();
+        });
+      }
+      
+      // 초기 서버 선택
+      if (guildSelect && currentChannelId) {
+        for (var i = 0; i < guildsData.length; i++) {
+          var guild = guildsData[i];
+          var hasChannel = false;
+          
+          if (guild.channels) {
+            for (var j = 0; j < guild.channels.length; j++) {
+              if (guild.channels[j].id === currentChannelId) {
+                hasChannel = true;
+                break;
+              }
+            }
+          }
+          
+          if (hasChannel) {
+            guildSelect.value = guild.id;
+            break;
+          }
+        }
+      }
+      
+      // 초기 옵션 업데이트
+      if (guildSelect && guildSelect.value) {
+        updateOptions();
+      }
+      
+      // 옵션 업데이트 함수
+      function updateOptions() {
+        if (!guildSelect || !channelIdSelect || !ticketCategoryIdSelect || !approvalRoleIdSelect) {
+          return;
+        }
+        
+        var selectedGuildId = guildSelect.value;
+        if (!selectedGuildId) {
+          return;
+        }
+        
+        var selectedGuild = null;
+        for (var i = 0; i < guildsData.length; i++) {
+          if (guildsData[i].id === selectedGuildId) {
+            selectedGuild = guildsData[i];
+            break;
+          }
+        }
+        
+        if (!selectedGuild) {
+          return;
+        }
+        
+        // 채널 목록 업데이트
+        channelIdSelect.innerHTML = '<option value="">채널을 선택하세요</option>';
+        if (selectedGuild.channels) {
+          for (var i = 0; i < selectedGuild.channels.length; i++) {
+            var channel = selectedGuild.channels[i];
+            var option = document.createElement('option');
+            option.value = channel.id;
+            option.textContent = '#' + channel.name;
+            if (channel.id === currentChannelId) {
+              option.selected = true;
+            }
+            channelIdSelect.appendChild(option);
+          }
+        }
+        
+        // 카테고리 목록 업데이트
+        ticketCategoryIdSelect.innerHTML = '<option value="">카테고리를 선택하세요</option>';
+        if (selectedGuild.categories) {
+          for (var i = 0; i < selectedGuild.categories.length; i++) {
+            var category = selectedGuild.categories[i];
+            var option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            if (category.id === currentTicketCategoryId) {
+              option.selected = true;
+            }
+            ticketCategoryIdSelect.appendChild(option);
+          }
+        }
+        
+        // 역할 목록 업데이트
+        approvalRoleIdSelect.innerHTML = '<option value="">역할을 선택하세요</option>';
+        if (selectedGuild.roles) {
+          for (var i = 0; i < selectedGuild.roles.length; i++) {
+            var role = selectedGuild.roles[i];
+            var option = document.createElement('option');
+            option.value = role.id;
+            option.textContent = role.name;
+            if (role.id === currentApprovalRoleId) {
+              option.selected = true;
+            }
+            approvalRoleIdSelect.appendChild(option);
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

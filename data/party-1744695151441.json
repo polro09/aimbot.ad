@@ -1,0 +1,40 @@
+{
+  "id": "1744695151441",
+  "name": "2",
+  "description": "3",
+  "dateTime": "4",
+  "date": "4",
+  "period": "",
+  "time": "",
+  "dungeon": "1",
+  "requirement": "5",
+  "leader": {
+    "id": "257097077782216704",
+    "tag": "ad_origina1",
+    "displayName": "사체"
+  },
+  "participants": [
+    {
+      "id": "257097077782216704",
+      "tag": "ad_origina1",
+      "displayName": "사체",
+      "class": "SaintBard",
+      "className": "세인트 바드",
+      "classEmoji": "🎵",
+      "joinedAt": "2025-04-15T05:32:54.788Z"
+    }
+  ],
+  "createdAt": "2025-04-15T05:32:31.441Z",
+  "thumbnail": null,
+  "image": null,
+  "messageId": "1361574902213120102",
+  "channelId": "1021875585661816872",
+  "updatedAt": "2025-04-15T05:32:40.865Z",
+  "canceled": true,
+  "canceledAt": "2025-04-15T05:33:05.447Z",
+  "canceledBy": {
+    "id": "257097077782216704",
+    "tag": "ad_origina1",
+    "displayName": "사체"
+  }
+}

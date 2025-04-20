@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - <%= botName %></title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-dark text-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+      <a class="navbar-brand" href="/"><%= botName %></a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link active" href="/">홈</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/modules">모듈 관리</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-8 offset-md-2">
+        <div class="card bg-dark border-info">
+          <div class="card-header bg-info text-dark">
+            <h2 class="mb-0"><i class="fas fa-robot me-2"></i>aimbot.ad 대시보드</h2>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <h4><i class="fas fa-info-circle me-2"></i>봇 상태</h4>
+              <p>
+                <strong>상태:</strong> 온라인<br>
+                <strong>서버 수:</strong> <%= client.guilds.cache.size %><br>
+                <strong>모듈 수:</strong> <%= modules.length %><br>
+                <strong>업타임:</strong> <span id="uptime">계산 중...</span>
+              </p>
+            </div>
+            
+            <h4 class="mt-4"><i class="fas fa-puzzle-piece me-2"></i>설치된 모듈</h4>
+            <div class="list-group">
+              <% modules.forEach(module => { %>
+                <div class="list-group-item bg-dark text-light border-secondary">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h5><%= module.name %></h5>
+                      <p class="mb-0"><%= module.description %></p>
+                    </div>
+                    <div>
+                      <span class="badge <%= module.enabled ? 'bg-success' : 'bg-danger' %>">
+                        <%= module.enabled ? '활성화' : '비활성화' %>
+                      </span>
+                      <% if (module.configurable) { %>
+                        <a href="<%= module.configUrl %>" class="btn btn-sm btn-primary ms-2">
+                          <i class="fas fa-cog"></i> 설정
+                        </a>
+                      <% } %>
+                    </div>
+                  </div>
+                </div>
+              <% }); %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="mt-5 py-3 bg-dark text-center text-muted">
+    <div class="container">
+      <p>© 2025 aimbot.ad - 모듈형 디스코드 봇</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // 업타임 계산
+    function updateUptime() {
+      fetch('/api/status')
+        .then(response => response.json())
+        .then(data => {
+          const uptime = data.uptime;
+          const days = Math.floor(uptime / 86400000);
+          const hours = Math.floor((uptime % 86400000) / 3600000);
+          const minutes = Math.floor((uptime % 3600000) / 60000);
+          const seconds = Math.floor((uptime % 60000) / 1000);
+          
+          document.getElementById('uptime').textContent = 
+            `${days}일 ${hours}시간 ${minutes}분 ${seconds}초`;
+        })
+        .catch(error => {
+          console.error('API 오류:', error);
+          document.getElementById('uptime').textContent = '정보를 불러올 수 없음';
+        });
+    }
+    
+    // 페이지 로드 시 및 10초마다 업데이트
+    updateUptime();
+    setInterval(updateUptime, 10000);
+  </script>
+</body>
+</html>
